@@ -37,7 +37,7 @@ class data_linking:
 
         nameList = ["personid", "subtype", "name"]
         nameList2 = ["personid", "birthday", "subtype", "code", "name"]
-        print("unique number of businessID's in corporate data :",self.df_corporate_details.unique().shape)
+        print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape)
         utils.numberOfNaN(self.df_corporate_details, nameList2)
         utils.mostCommonDict(self.df_corporate_details, nameList, 10)
 
@@ -841,15 +841,15 @@ class data_linking:
         gc.collect()
         print(pa1820.shape, " are the dimensions of pa 18-20")
 
-        tempList = ["portfolio_activity_transactions_business_2018.csv",
-                    "portfolio_activity_transactions_business_2019.csv",
-                    "portfolio_activity_transactions_business_2020.csv"]
+        tempList = [f"{self.indir}/portfolio_activity_transactions_business_2018.csv",
+                    f"{self.indir}/portfolio_activity_transactions_business_2019.csv",
+                    f"{self.indir}/portfolio_activity_transactions_business_2020.csv"]
         patb1820 = utils.importAndConcat(tempList, **readArgs)
         print(patb1820.shape, " are the dimensions of patb 18-20")
 
-        tempList = ["portfolio_activity_transactions_retail_2018.csv",
-                    "portfolio_activity_transactions_retail_2019.csv",
-                    "portfolio_activity_transactions_retail_2020.csv"]
+        tempList = [f"{self.indir}/portfolio_activity_transactions_retail_2018.csv",
+                    f"{self.indir}/portfolio_activity_transactions_retail_2019.csv",
+                    f"{self.indir}/portfolio_activity_transactions_retail_2020.csv"]
         patr1820 = utils.importAndConcat(tempList, **readArgs)
         print(patr1820.shape, " are the dimensions of patr 18-20")
 
@@ -869,11 +869,12 @@ class data_linking:
 
         pa1820 = pat1820.astype(datatypeConvertAll)
 
-        tempList = ["portfolio_activity_business.csv", "portfolio_activity_retail.csv", ]
+        # Todo verander of dee naam van deze bestanden of de naam van de andere bestanden
+        tempList = [f"{self.indir}/portfolio_activity_business.csv", f"{self.indir}/portfolio_activity_retail.csv", ]
         pa1420 = utils.importAndConcat(tempList,chunkSize = 250000, **readArgs)
         print(pa1420.shape, " are the dimensions of pa before merge 14-20")
 
-        tempList = ["portfolio_activity_transaction_business.csv", "portfolio_activity_transaction_retail.csv"]
+        tempList = [f"{self.indir}/portfolio_activity_transaction_business.csv", f"{self.indir}/portfolio_activity_transaction_retail.csv"]
         pat1420 = utils.importAndConcat(tempList, chunkSize = 250000,**readArgs)
         print(pat1420.shape, " are the dimensions of pa before merge 14-20")
         patotal1420 = pd.merge(pa1420,
@@ -881,7 +882,7 @@ class data_linking:
                                on=["dateeow", "yearweek", "portfolioid", "pakketcategorie"])
         del pa1420, pat1420
         gc.collect()
-        print(pat1420.shape, " are the dimensions of pat 14-20")
+        print(patotal1420.shape, " are the dimensions of pat 14-20")
 
         patotal1420 = patotal1420.astype(datatypeConvertAll)
 
