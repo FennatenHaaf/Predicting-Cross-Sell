@@ -4,3 +4,4 @@ output/
 __pycache__/
 otherStuff.py
 *.zip
+.idea/
