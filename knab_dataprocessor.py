@@ -102,6 +102,7 @@ class data_linking:
         
         print("-------------------------------------")
         
+        
 
         
     def create_base_cross_section(self,
@@ -302,7 +303,7 @@ class data_linking:
                                              "valid_from_dateeow","valid_to_dateeow"],
                                             1,inplace=True)
         
-        # Pak het aantal unieke overlay ids per combinatie van persoon en portfolio
+        # Pak het aantal unieke overlay ids per combinaie van persoon en portfolio
         df_portfolio_boekhoudkoppeling.drop_duplicates(inplace=True)
         df_portfolio_boekhoudkoppeling = df_portfolio_boekhoudkoppeling.groupby(["personid","portfolioid"]).size().reset_index(name="accountoverlays")
         # utils.save_df_to_csv(df_portfolio_boekhoudkoppeling, self.outdir, 
@@ -392,9 +393,9 @@ class data_linking:
         #----------- Merge remaining things --------
         # merge frequencies of all portfolios (including ones without any info)
         # which we made earlier
-        df_cross= df_cross.merge(frequencies, 
+        df_cross= df_cross.merge(frequencies,
                                   how="left", left_on=["personid"],
-                                  right_on=["personid"],) 
+                                  right_on=["personid"],)
         
         characteristics = df_cross_link.loc[:,["personid", "birthyear",
                                          "geslacht"]].drop_duplicates(inplace=False)
@@ -658,6 +659,7 @@ class data_linking:
         dataset = dataset.rename(columns={"dateeow": "lasttransaceow",})
         
         return dataset
+
 
 
 
