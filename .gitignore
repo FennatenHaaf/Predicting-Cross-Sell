@@ -5,3 +5,4 @@ __pycache__/
 otherStuff.py
 *.zip
 .idea/
+localMain.py
