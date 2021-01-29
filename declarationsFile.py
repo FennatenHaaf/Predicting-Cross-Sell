@@ -45,12 +45,11 @@ def getPatColToParseCross(subset="total"):
         'saldolangetermijnsparen',
         'aantaltegenrekeningenlaatsteq'
     ]
-
     if subset == "total":
         return (columnsToParse1 + columnsToParse2 + columnsToParse3)
     elif subset == "activity":
         return (columnsToParse1 + columnsToParse2)
-    elif subset == "transaction":
+    elif subset == "transactions":
         return (columnsToParse1 + columnsToParse3)
     elif subset == "all":
         return (columnsToParse1 + columnsToParse2 + columnsToParse3), (columnsToParse1 + columnsToParse2), \

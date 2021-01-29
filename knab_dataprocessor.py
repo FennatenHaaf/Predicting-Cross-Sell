@@ -656,31 +656,31 @@ class data_linking:
 
         if date.year >2019:
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail_add.csv", **readArgs),
+            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2020.csv", **readArgs),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business_add.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2020.csv", **readArgs)]
             , ignore_index= True)
 
         elif date.year == 2019:     
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail_add.csv", **readArgs),
+            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2019.csv", **readArgs),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business_add.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2019.csv", **readArgs)]
             , ignore_index= True)
         elif date.year == 2018:
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail_add.csv", **readArgs),
+            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2018.csv", **readArgs),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business_add.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2018.csv", **readArgs)]
             , ignore_index= True
             )
         else: #  year < 2018
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail_add.csv", **readArgs),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business_add.csv", **readArgs)]
+            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business.csv", **readArgs)]
             , ignore_index= True
             )
             
@@ -703,32 +703,32 @@ class data_linking:
         
         if date.year >2019:
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_retail_add.csv", **readArgs),
+            [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_retail_2020.csv", **readArgs),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_add.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_business_2020.csv", **readArgs)]
             , ignore_index=True
             )
         elif date.year == 2019:     
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_retail_add.csv", **readArgs),
+            [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_retail_2019.csv", **readArgs),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_add.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_business_2019.csv", **readArgs)]
                 , ignore_index=True
             )
         elif date.year == 2018:
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_retail_add.csv", **readArgs),
+            [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_retail_2018.csv", **readArgs),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_add.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business.csv", **readArgs),
             pd.read_csv(f"{self.indir}/portfolio_activity_business_2018.csv", **readArgs)]
             , ignore_index= True
             )
         else: #  year < 2018
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_retail_add.csv", **readArgs),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_add.csv", **readArgs)]
+            [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business.csv", **readArgs)]
             , ignore_index = True
             )
             
