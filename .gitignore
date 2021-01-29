@@ -1,5 +1,6 @@
 data/
 largeData/
+output/
 __pycache__/
 otherStuff.py
 *.zip
