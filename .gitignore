@@ -6,3 +6,4 @@ otherStuff.py
 *.zip
 .idea/
 localMain.py
+interdata/
