@@ -158,17 +158,17 @@ def getPatConvert(subset = "total"):
         'saldolangetermijnsparen': "uint32",
         'aantaltegenrekeningenlaatsteq': "uint16"}
 
-    datatypeConvertAll = {**datatypeConvertP2, **datatypeConvertP3}
+    datatypeConvertAll = {**datatypeConvertP1, **datatypeConvertP2, **datatypeConvertP3}
 
     if subset == "total":
-        return (datatypeConvertP1  + datatypeConvertP2 + datatypeConvertP3)
+        return {**datatypeConvertP1, **datatypeConvertP2, **datatypeConvertP3}
     elif subset == "activity":
-        return (datatypeConvertP1 + datatypeConvertP2)
+        return datatypeConvertP2
     elif subset == "transaction":
-        return (datatypeConvertP1 + datatypeConvertP3)
+        return datatypeConvertP3
     elif subset == "all":
-        return (datatypeConvertP1  + datatypeConvertP2 + datatypeConvertP3),(datatypeConvertP1 + datatypeConvertP2),\
-               (datatypeConvertP1 + datatypeConvertP3)
+        return {**datatypeConvertP1, **datatypeConvertP2, **datatypeConvertP3},datatypeConvertP2,\
+               datatypeConvertP3
     else:
         print("error getting dictionary")
 

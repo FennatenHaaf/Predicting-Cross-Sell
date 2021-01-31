@@ -18,7 +18,7 @@ import gc
 class data_linking:
 
     # ToDo Randomize seed. Interdir toegevoegd om snel csv te importeren ipv hele set te runnen
-    def __init__(self,indir,outdir,interdir, seed = 1234):
+    def __init__(self,indir,interdir,outdir, seed = 1234):
         """This method processes data provided by Knab"""
         
         #-------------------------INITIALISATION-----------------------
@@ -29,8 +29,8 @@ class data_linking:
         self.seed = seed
 
         #Declare data variables to check if data has been printed
-        self.df_corporate_details = None
-        self.df_pat = None
+        self.df_corporate_details = pd.DataFrame()
+        self.df_pat = pd.DataFrame()
         #---------------------READING AND MERGING RAW DATA---------------------
     def processCorporateData(self):
         self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
@@ -180,7 +180,7 @@ class data_linking:
     
 
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")                     
-        if self.df_corporate_details == None:
+        if self.df_corporate_details.empty:
             self.processCorporateData()
 
         # print(f'unique ids in linkpersionportfolio')
@@ -779,7 +779,6 @@ class data_linking:
         return dataset
 
 
-
     def summarize_transactions(self, dataset, date, quarterly_period):
         """We summarize the transactions per period, taking for logins the sum of
         all values in that quarter and for the remaining variables we take 
@@ -819,20 +818,24 @@ class data_linking:
             datatypeConvertAll = {}
 
         if selectColumns:
-            readArgs = {**readArgs,
-                        "usecols": declarationsFile.getPatColToParseTS()}
+            readArgsAct = {**readArgs,
+                        "usecols": declarationsFile.getPatColToParseTS("activity")}
+            readArgsTrans = {**readArgs,
+                        "usecols": declarationsFile.getPatColToParseTS("transaction")}
+
         else:
-            pass
+            readArgsAct = {**readArgs}
+            readArgsTrans = {**readArgs}
 
         tempList = [f"{self.indir}/portfolio_activity_business_2018.csv", f"{self.indir}/portfolio_activity_business_2019.csv",
                     f"{self.indir}/portfolio_activity_business_2020.csv"]
-        pab1820 = utils.importAndConcat(tempList, **readArgs)
+        pab1820 = utils.importAndConcat(tempList, **readArgsAct)
 
         print(pab1820.shape, " are the dimensions of pab18-20")
 
         tempList = [f"{self.indir}/portfolio_activity_retail_2018.csv", f"{self.indir}/portfolio_activity_retail_2019.csv",
                     f"{self.indir}/portfolio_activity_retail_2020.csv"]
-        par1820 = utils.importAndConcat(tempList, **readArgs)
+        par1820 = utils.importAndConcat(tempList, **readArgsAct)
         print(par1820.shape, " are the dimensions of par18-20")
 
         pa1820 = pd.concat(
@@ -844,13 +847,13 @@ class data_linking:
         tempList = [f"{self.indir}/portfolio_activity_transactions_business_2018.csv",
                     f"{self.indir}/portfolio_activity_transactions_business_2019.csv",
                     f"{self.indir}/portfolio_activity_transactions_business_2020.csv"]
-        patb1820 = utils.importAndConcat(tempList, **readArgs)
+        patb1820 = utils.importAndConcat(tempList, **readArgsTrans)
         print(patb1820.shape, " are the dimensions of patb 18-20")
 
         tempList = [f"{self.indir}/portfolio_activity_transactions_retail_2018.csv",
                     f"{self.indir}/portfolio_activity_transactions_retail_2019.csv",
                     f"{self.indir}/portfolio_activity_transactions_retail_2020.csv"]
-        patr1820 = utils.importAndConcat(tempList, **readArgs)
+        patr1820 = utils.importAndConcat(tempList, **readArgsTrans)
         print(patr1820.shape, " are the dimensions of patr 18-20")
 
         pat1820 = pd.concat(
@@ -871,11 +874,11 @@ class data_linking:
 
         # Todo verander of dee naam van deze bestanden of de naam van de andere bestanden
         tempList = [f"{self.indir}/portfolio_activity_business.csv", f"{self.indir}/portfolio_activity_retail.csv", ]
-        pa1420 = utils.importAndConcat(tempList,chunkSize = 250000, **readArgs)
+        pa1420 = utils.importAndConcat(tempList,chunkSize = 250000, **readArgsAct)
         print(pa1420.shape, " are the dimensions of pa before merge 14-20")
 
         tempList = [f"{self.indir}/portfolio_activity_transaction_business.csv", f"{self.indir}/portfolio_activity_transaction_retail.csv"]
-        pat1420 = utils.importAndConcat(tempList, chunkSize = 250000,**readArgs)
+        pat1420 = utils.importAndConcat(tempList, chunkSize = 250000,**readArgsTrans)
         print(pat1420.shape, " are the dimensions of pa before merge 14-20")
         patotal1420 = pd.merge(pa1420,
                                pat1420, how="inner",
@@ -893,11 +896,14 @@ class data_linking:
         else:
             self.df_pat = pat
 
-    def transformPA(self, period = "Q"):
-        if self.df_pat == None:
-            self.importPortfolioActivity(convertData= True, selecTcolumns= True)
 
-        self.df_pat["yearQuarter"] = self.df_pat["dateeow"].dt.to_period(period)
+
+    def transformPA(self, period = "Q"):
+        if self.df_pat.empty:
+            self.importPortfolioActivity(convertData= True, selectColumns= True)
+
+        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
+        self.df_pat["yearPeriod"] = self.df_pat["dateeow"].dt.to_period(period)
 
         ##Convert to pivot
         patcolumns = ['dateeow', 'saldobetalen',
@@ -909,14 +915,40 @@ class data_linking:
             'aantalloginsweb': sum,
             "betalenyn": max}
 
-        indexColumns = ["portfolioid", "yearMonth"]
+        indexColumns = ["portfolioid", "yearPeriod"]
 
         patpivot = pd.pivot_table(self.df_pat, values=patcolumns, index=indexColumns, aggfunc=pataggfunc)
         patpivot.dropna(inplace=True)
 
-        self.timeSeries = patpivot
+        self.time_pat = patpivot
 
-    def explorePA(self,data):
+    def importPATsample(self):
+        self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
+
+    def linkTimeSets(self):
+        # ToDo corrigeer voor al geimporteerde of bewerkte data
+        self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")
+        self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+        self.df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        self.portfolio_info = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        self.portfolio_status = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+
+    ### DATA EXPLORATION METHODS
+    def exploreSets(self):
+        self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")
+        self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+        self.df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        self.portfolio_info = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        self.portfolio_status = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+        self.df_bhk.groupby("personid")["portfolioid"].count()
+
+        #person id's per protfolio and vice versa
+        nOfPIDperPort = self.df_linkpersonportfolio.groupby("portfolioid")["personid"].count().sort_values(ascending = False)
+        nOfPortPerPID = self.df_linkpersonportfolio.groupby("personid")["portfolioid"].count().sort_values(
+            ascending=False)
+
+
+    def explorePA(self):
         pat = self.importPortfolioActivity(discardPat = True)
 
         patSubID = ["dateeow", "yearweek", "portfolioid"]
