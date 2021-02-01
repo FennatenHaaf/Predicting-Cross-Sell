@@ -255,6 +255,7 @@ class data_linking:
         
         print("-------------------------------------")
         
+        
 
         
     def create_base_cross_section(self,
@@ -499,6 +500,8 @@ class data_linking:
         # For activity information, we will take the average activity PER portfolio type
         for name, df in df_cross_link_dict.items():
             
+            
+            #---------- variables for portfolio types ------------
             # create a column of ones and the person id for each portfolio type
             indicator = df.loc[:,["personid"]]
             indicator[name] = 1 # make all of the value one and give it the name
@@ -507,7 +510,7 @@ class data_linking:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
             
-            # Now do some things for the activity variables
+            #---------- Incoporate the activity variables ------------
             indicator = df.loc[:,["personid"]]
             indicator[f"aantaltegenrekeningenlaatsteq_{name}"] = df.loc[:,"aantaltegenrekeningenlaatsteq"]
             indicator[f"aantalloginsapp_{name}"] = df.loc[:,"aantalloginsapp"]
@@ -515,10 +518,56 @@ class data_linking:
             indicator[f"activitystatus_{name}"] = df.loc[:,"activitystatus"]
             
             # We pakken het MAXIMUM om de meest actieve rekening weer te geven
-            # Of wellicht zouden we het gemiddelde moeten pakken?
-            # gemiddelde werkt mogelijk minder?
+            # alternatief: gemiddelde pakken?
             indicator = indicator.groupby("personid").max()
             df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
+            
+            #---------- Incoporate the transaction variables ------------
+           
+            indicator = df.loc[:,["personid"]]
+            # Take the variables for number of transactions
+            indicator[f"aantalbetaaltransacties_{name}"] = df.loc[:,"aantalbetaaltransacties"]
+            indicator[f"aantalatmtransacties_{name}"] = df.loc[:,"aantalatmtransacties"]
+            indicator[f"aantalpostransacties_{name}"] = df.loc[:,"aantalpostransacties"]
+            indicator[f"aantalfueltransacties_{name}"] = df.loc[:,"aantalfueltransacties"]
+            
+            # Take the variables indicating account ownership
+            # We pakken voor deze binaire variabelen (depositoyn,etc) ook de 
+            # MAXIMUM (dus dan is het 1 als 1 van de rekeningen het heeft)
+            indicator[f"betalenyn_{name}"] = df.loc[:,"betalenyn"]
+            indicator[f"depositoyn_{name}"] = df.loc[:,"depositoyn"]
+            indicator[f"flexibelsparenyn_{name}"] = df.loc[:,"flexibelsparenyn"]
+            indicator[f"kwartaalsparenyn_{name}"] = df.loc[:,"saldokwartaalsparen"]
+            indicator[f"aantalfueltransacties_{name}"] = df.loc[:,"aantalfueltransacties"]
+            
+            # We pakken het MAXIMUM om de meest actieve rekening weer te geven
+            indicator = indicator.groupby("personid").max()
+            df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
+            
+            
+            # Maar voor de saldos pakken we de SOM over alles 
+            indicator = df.loc[:,["personid"]]
+            indicator[f"saldototaal_{name}"] = df.loc[:,"saldototaal"]
+            
+            indicator = indicator.groupby("personid").sum()
+            df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
+            
+            
+            #------ Variables that are specific to portfoliotype -------
+            if name == 'joint': 
+                # Add gender for the joint portfolio?
+                # Possibly do other things for the joint porfolio data to
+                # take into account that people are more active?
+                indicator = df.loc[:,["personid"]]
+                indicator[f"geslacht_{name}"] = df.loc[:,"geslacht"]
+                indicator = indicator.drop_duplicates(subset=["personid"])
+                df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
             
@@ -534,27 +583,50 @@ class data_linking:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
                 
-                # make some kind of summary for the business details
+                # TODO make some kind of summary for the business details
                 # -> voor bedrijf types pakken we de type OF we pakken ''meerdere''
-        
+                indicator = df.loc[:,["personid", "birthday", "subtype", "code", "name"]]
+                
+                # doe een merge van de indicator met df_cross[name] oftewel 
+                # df_cross['business'] wat aangeeft of er meerdere 
+                # bedrijfsportfolios zijn voor die persoon?
+                
+                
+                # We laten duplicates alvast vallen
+                indicator = indicator.drop_duplicates()
+                
+                
                 
                 # TODO: fill in the blank spaces who are missing with 0??
                 # Need to differentiate between missing data and data that is
                 # not there?
             
         #----------- Merge remaining things --------
+        
         # merge frequencies of all portfolios (including ones without any info)
         # which we made earlier
-        df_cross= df_cross.merge(frequencies, 
+        df_cross= df_cross.merge(frequencies,
                                   how="left", left_on=["personid"],
-                                  right_on=["personid"],) 
+                                  right_on=["personid"],)
         
-        characteristics = df_cross_link.loc[:,["personid", "birthyear",
-                                         "geslacht"]].drop_duplicates(inplace=False)
         
+        # Get the personid and birthyear which were stored in crosslink 
+        # - first drop the duplicates
+        characteristics = df_cross_link.loc[:,["personid","birthyear","geslacht",
+                "enofyn"]]
+        # Sort the characteristics by enofyn, so that the joint portfolios appear later.
+        # then drop duplicates and keep the first entries that appear.
+        characteristics = characteristics.sort_values("enofyn")
+        characteristics = characteristics.drop_duplicates(subset=["personid"],
+                          keep='first', inplace=False)                               
         df_cross= df_cross.merge(characteristics, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],) 
+        
+        
+        #TODO: zorg dat de pakketcategorie en een paar 'algemene' variabelen
+        # er nog in komen??
+        
         
         #----------- Save the final product --------
         
@@ -1020,6 +1092,7 @@ class data_linking:
 #     cross_sec = datatest.create_base_cross_section(date_string="2020-12",
 #                                                    subsample=True,
 #                                                    quarterly=True)
+
     
     #TODO We may want to do something with customer churn?
     # and make 'not a customer' a state that they can be in?       
