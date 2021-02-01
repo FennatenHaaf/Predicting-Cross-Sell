@@ -8,7 +8,9 @@ if __name__ == "__main__":
     outdirec = "./output"
     interdir = "./interdata"
     save_intermediate_results = False
-    
+    print_information = False
+    #TODO maak ook een variabele get_insight of verbose oid
+    # en verwerk dat in de dataprocessor om dingen wel of niet te printen 
     
     start = utils.get_time()
     
@@ -16,7 +18,8 @@ if __name__ == "__main__":
     
     #initialise dataprocessor
     test = KD.dataProcessor(indirec,interdir,outdirec,
-                            save_intermediate_results)
+                            save_intermediate_results,
+                            print_information)
     # initialise the base linked data and the base Experian data which are
     # used to create the datasets
     test.link_data() 
@@ -30,7 +33,6 @@ if __name__ == "__main__":
     
     df_cross, cross_date, df_next, next_date = test.create_base_cross_section(
         date_string="2020-12", subsample=True, sample_size = 1000, quarterly= quarters)
-    
     
     
     end = utils.get_time()

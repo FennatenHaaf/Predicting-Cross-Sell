@@ -22,6 +22,7 @@ class dataProcessor:
     # ToDo Randomize seed. Interdir toegevoegd om snel csv te importeren ipv hele set te runnen
     def __init__(self,indir,interdir,outdir, 
                  save_intermediate=False,
+                 print_info=False,
                  seed = 1234):
         """This method processes data provided by Knab"""
         
@@ -30,6 +31,7 @@ class dataProcessor:
         self.interdir = interdir #location of intermediate files
         self.outdir = outdir # location of linked output files
         self.save_intermediate = save_intermediate # location of linked output files
+        self.print_info = print_info #Determines how verbose it is
         self.seed = seed
 
         #Declare data variables to check if data has been printed
@@ -46,8 +48,10 @@ class dataProcessor:
         nameList = ["personid", "subtype", "name"]
         nameList2 = ["personid", "birthday", "subtype", "code", "name"]
         print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape)
-        dataInsight.numberOfNaN(self.df_corporate_details, nameList2)
-        dataInsight.mostCommonDict(self.df_corporate_details, nameList, 10)
+        
+        if self.print_info:
+            dataInsight.numberOfNaN(self.df_corporate_details, nameList2)
+            dataInsight.mostCommonDict(self.df_corporate_details, nameList, 10)
 
         # Copy DataFrame for editing and drop code column and rows with NaN value
         self.df_corporate_details = self.df_corporate_details.copy()
@@ -59,9 +63,10 @@ class dataProcessor:
             "name": "businessSector"}
         self.df_corporate_details.rename(columns=tempDict, inplace=True)
 
-        # show dimensions
-        print("shape of current data",self.df_corporate_details)
-        self.df_corporate_details.sample()
+        if self.print_info:
+            # show dimensions
+            print("shape of current data",self.df_corporate_details)
+            self.df_corporate_details.sample()
 
         """### Converting Birthday to foundingDate and creating  companyAgeInDays and foundingYear"""
 
@@ -88,12 +93,13 @@ class dataProcessor:
         print(self.df_corporate_details["birthday"].describe())
 
         # drop columns and
-        dataInsight.mostCommon(self.df_corporate_details, aid, 10)
-        print(self.df_corporate_details[aid].describe())
-        self.df_corporate_details.sample(5)
-
-        dataInsight.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
-        self.df_corporate_details[aid].describe()
+        if self.print_info:
+            dataInsight.mostCommon(self.df_corporate_details, aid, 10)
+            print(self.df_corporate_details[aid].describe())
+            self.df_corporate_details.sample(5)
+    
+            dataInsight.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
+            self.df_corporate_details[aid].describe()
 
         a = self.df_corporate_details.index[:10].to_list()
         a.append(220682)
@@ -171,13 +177,13 @@ class dataProcessor:
             SBI_2019DataEdited.loc[tempIndex, "SBIsector"] = values[0]
 
         SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="inner", on="SBIsector")
-        SBI_2019DataEdited.sample(3)
+        #SBI_2019DataEdited.sample(3)
 
         tempString = "SBIcode"
         self.df_corporate_details[tempString] = self.df_corporate_details["businessSector"].str[:2]
         self.df_corporate_details[tempString] = pd.to_numeric(self.df_corporate_details[tempString],
                                                                 downcast="unsigned")
-        self.df_corporate_details.sample(3)
+        #self.df_corporate_details.sample(3)
 
         self.df_corporate_details = pd.merge(self.df_corporate_details, SBI_2019DataEdited, how="inner",
                                                on="SBIcode")
@@ -248,6 +254,7 @@ class dataProcessor:
         # those ids for which AT LEAST SOME of the portfolio information is
         # present, so dateinstroomweek should NOT be blank
         # TODO: add loc thingo?
+        # valid_ids = self.df_link.loc[:,["personid"]][~(self.df_link["dateinstroomweek"].isnull())]
         valid_ids = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
         self.base_df = self.df_experian.loc[self.df_experian["personid"].isin(valid_ids)] 
 
