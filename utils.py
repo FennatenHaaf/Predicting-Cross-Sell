@@ -3,8 +3,7 @@
 This file contains extra functions for saving files, etc. 
 that could be necessary in other classes
 
-@author: Fenna ten Haaf
-Written for the Econometrics & Operations Research Bachelor Thesis
+Written for the Quantitative Marketing & Business Analytics seminar
 Erasmus School of Economics
 """
 
@@ -119,10 +118,11 @@ def importAndConcat(listOfDataLocations, chunkSize=0, **readArgs):
             imported = pd.read_csv(dataLocation, **readArgs)
         importList.append(imported)
     return pd.concat(importList, ignore_index=True)
+
+
 """
 Large Data Methods
 """
-
 def selectChunk(data, numberOfChunks=4):
     totalRows = data.shape[0]
     chunkSize = totalRows // numberOfChunks
