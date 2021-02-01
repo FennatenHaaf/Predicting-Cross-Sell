@@ -365,8 +365,7 @@ class data_linking:
             indicator[f"activitystatus_{name}"] = df.loc[:,"activitystatus"]
             
             # We pakken het MAXIMUM om de meest actieve rekening weer te geven
-            # Of wellicht zouden we het gemiddelde moeten pakken?
-            # gemiddelde werkt mogelijk minder?
+            # alternatief: gemiddelde pakken?
             indicator = indicator.groupby("personid").max()
             df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
@@ -380,6 +379,16 @@ class data_linking:
             indicator[f"aantalatmtransacties_{name}"] = df.loc[:,"aantalatmtransacties"]
             indicator[f"aantalpostransacties_{name}"] = df.loc[:,"aantalpostransacties"]
             indicator[f"aantalfueltransacties_{name}"] = df.loc[:,"aantalfueltransacties"]
+            
+            # Take the variables indicating account ownership
+            # We pakken voor deze binaire variabelen (depositoyn,etc) ook de 
+            # MAXIMUM (dus dan is het 1 als 1 van de rekeningen het heeft)
+            indicator[f"betalenyn_{name}"] = df.loc[:,"betalenyn"]
+            indicator[f"depositoyn_{name}"] = df.loc[:,"depositoyn"]
+            indicator[f"flexibelsparenyn_{name}"] = df.loc[:,"flexibelsparenyn"]
+            indicator[f"kwartaalsparenyn_{name}"] = df.loc[:,"saldokwartaalsparen"]
+            indicator[f"aantalfueltransacties_{name}"] = df.loc[:,"aantalfueltransacties"]
+            
             # We pakken het MAXIMUM om de meest actieve rekening weer te geven
             indicator = indicator.groupby("personid").max()
             df_cross= df_cross.merge(indicator, 
@@ -387,10 +396,14 @@ class data_linking:
                                   right_on=["personid"],)
             
             
-            # We pakken voor de binaire variabelen (depositoyn,etc) ook de 
-            # MAXIMUM (dus dan is het 1 als 1 van de rekeningen het heeft)
-            
             # Maar voor de saldos pakken we de SOM over alles 
+            indicator = df.loc[:,["personid"]]
+            indicator[f"saldototaal_{name}"] = df.loc[:,"saldototaal"]
+            
+            indicator = indicator.groupby("personid").sum()
+            df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
             
             
             #------ Variables that are specific to portfoliotype -------
@@ -417,10 +430,17 @@ class data_linking:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
                 
-                # make some kind of summary for the business details
+                # TODO make some kind of summary for the business details
                 # -> voor bedrijf types pakken we de type OF we pakken ''meerdere''
                 indicator = df.loc[:,["personid", "birthday", "subtype", "code", "name"]]
                 
+                # doe een merge van de indicator met df_cross[name] oftewel 
+                # df_cross['business'] wat aangeeft of er meerdere 
+                # bedrijfsportfolios zijn voor die persoon?
+                
+                
+                # We laten duplicates alvast vallen
+                indicator = indicator.drop_duplicates()
                 
                 
                 
