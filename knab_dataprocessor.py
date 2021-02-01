@@ -31,8 +31,12 @@ class data_linking:
         #Declare data variables to check if data has been printed
         self.df_corporate_details = pd.DataFrame()
         self.df_pat = pd.DataFrame()
-        #---------------------READING AND MERGING RAW DATA---------------------
+        
+        
+
+    #TODO: add comments to describe what this is doing        
     def processCorporateData(self):
+        
         self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
 
         nameList = ["personid", "subtype", "name"]
@@ -175,18 +179,23 @@ class data_linking:
                                                on="SBIcode")
         self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
 
+
+
+
+
     def linkData(self):
+        """This function creates a base dataset containing person IDs linked
+        to their portfolio ids and the corresponding portfolio information.
+        It also links the person IDs to business IDs and corresponding 
+        business information based on the corporate portfolio IDs"""
+        
         print(f"****Processing data, at {utils.get_time()}****")
     
-
+        #---------------------READING AND MERGING RAW DATA---------------------
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")                     
         if self.df_corporate_details.empty:
             self.processCorporateData()
 
-        # print(f'unique ids in linkpersionportfolio')
-        # print(len(pd.DataFrame(self.df_linkpersonportfolio["personid"].unique())))
-        # print(f'unique ids in experian')
-        # print(len(pd.DataFrame(self.df_experian["personid"].unique())))
         
         # Do a left join to add portfolio information  
         self.df_link = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv").merge(
@@ -206,7 +215,6 @@ class data_linking:
         # TODO check if human person ids could be getting linked to multiple
         # corporate ids?
         self.df_corporate_details = self.df_corporate_details.rename(columns={"personid": "corporateid"})
-
 
         # Merge this with business information
         self.df_link = self.df_link.merge(self.df_corporate_details, 
@@ -249,9 +257,6 @@ class data_linking:
         time_string = self.first_date.strftime("%Y-%m-%d")
         print(f"Oldest data in Experian is from {time_string}")
         
-        # Add a column to make dates quarterly
-        # self.final_df.loc[:,'valid_to_dateeow_q'] = pd.PeriodIndex(self.final_df['valid_to_dateeow'], freq='Q')
-        # self.final_df.loc[:,'valid_from_dateeow_q'] = pd.PeriodIndex(self.final_df['valid_from_dateeow'], freq='Q')
         
         print("-------------------------------------")
         
@@ -1083,17 +1088,16 @@ class data_linking:
         businessAndRetailList = pats1Multi[res1].index.to_list()
         businessAndRetailObservations = pat[pat["portfolioid"].isin(businessAndRetailList)].copy()
         businessAndRetailObservations.sort_values(["portfolioid", "dateeow"], inplace=True)
-# if __name__ == "__main__":
-#
-#     indirec = "./data"
-#     outdirec = "./output"
-#     datatest = data_linking(indirec,outdirec)
-#
-#     cross_sec = datatest.create_base_cross_section(date_string="2020-12",
-#                                                    subsample=True,
-#                                                    quarterly=True)
 
+
+
+if __name__ == "__main__":
     
+    indirec = "./data"
+    outdirec = "./output"
+    interdir = "./interdata"
+    datatest = data_linking(indirec,interdir,outdirec)
+
     #TODO We may want to do something with customer churn?
     # and make 'not a customer' a state that they can be in?       
     
