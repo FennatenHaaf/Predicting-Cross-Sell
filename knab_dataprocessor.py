@@ -925,13 +925,29 @@ class data_linking:
     def importPATsample(self):
         self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
 
-    def linkTimeSets(self):
+    def linkTimeSets(self, period = "Q"):
         # ToDo corrigeer voor al geimporteerde of bewerkte data
+        # Todo zorg er voor dat valid to date wordt gepakt
+        # If valid_to < period in Time Series
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")
         self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
         self.df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
         self.portfolio_info = pd.read_csv(f"{self.indir}/portfolio_info.csv")
         self.portfolio_status = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+
+        self.df_experian.dropna(how = "all", inplace = True)
+        self.df_experian["valid_to_dateeow"] = pd.to_datetime(self.df_experian["valid_to_dateeow"])
+        currentTime = datetime(2021,1,1)
+        self.df_experian["valid_to_dateeow"].fillna(currentTime, inplace=True)
+        self.df_experian["valid_from_dateeow"] = pd.to_datetime(self.df_experian["valid_from_dateeow"])
+        self.df_experian["yearPeriodTo"] = self.df_experian["valid_to_dateeow"].dt.to_period(period)
+        self.df_experian["yearPeriodFrom"] = self.df_experian["valid_from_dateeow"].dt.to_period(period)
+        self.df_experian.drop(["valid_from_dateeow", "valid_to_dateeow"], axis=1, inplace=True)
+
+        repeatList = self.df_experian.groupby("personid")["yearPeriodFrom"].count()
+        repeatList = repeatList[repeatList > 1]
+        repeatList = repeatList.index.to_list()
+        pass
 
     ### DATA EXPLORATION METHODS
     def exploreSets(self):
