@@ -250,18 +250,17 @@ class dataProcessor:
         # We take all columns from experian data as a base, but we only want
         # those ids for which AT LEAST SOME of the portfolio information is
         # present, so dateinstroomweek should NOT be blank
-        # TODO: add loc thingo?
-        # valid_ids = self.df_link.loc[:,["personid"]][~(self.df_link["dateinstroomweek"].isnull())]
         valid_ids = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
-        self.base_df = self.df_experian.loc[self.df_experian["personid"].isin(valid_ids)] 
+        self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy() 
 
         # Print number of unique IDs
         dataInsight.unique_IDs(self.base_df,"base Experian dataset")       
 
         #------------------------ GET DATES INSIGHT -------------------------
         
-        self.base_df.loc[:,['valid_to_dateeow']] = pd.to_datetime(self.base_df['valid_to_dateeow'])
-        self.base_df.loc[:,['valid_from_dateeow']] = pd.to_datetime(self.base_df['valid_from_dateeow'])     
+        # pd.to_datetime does not work on a DF, only a series or list, so we use .astype()
+        self.base_df.loc[:,['valid_to_dateeow']] = self.base_df.loc[:,['valid_to_dateeow']].astype('datetime64[ns]')
+        self.base_df.loc[:,['valid_from_dateeow']] = self.base_df.loc[:,['valid_from_dateeow']].astype('datetime64[ns]')
 
         # See what the most recent date is in the data 
         # Find the latest and oldest dates where a customer was changed or added 
