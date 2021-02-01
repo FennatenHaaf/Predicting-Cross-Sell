@@ -4,6 +4,7 @@ output/
 __pycache__/
 otherStuff.py
 *.zip
-interdata/
-localMain.py
 .idea/
+localMain.py
+interdata/
+

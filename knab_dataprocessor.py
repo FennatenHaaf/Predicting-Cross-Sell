@@ -10,27 +10,179 @@ import numpy as np
 # import seaborn as sns
 # import matplotlib.pyplot as plt
 from datetime import datetime
-from datetime import timedelta 
+from datetime import timedelta
 import utils
+import declarationsFile
+import gc
 
 class data_linking:
 
-    def __init__(self,indir,outdir, seed = 1234): 
+    # ToDo Randomize seed. Interdir toegevoegd om snel csv te importeren ipv hele set te runnen
+    def __init__(self,indir,interdir,outdir, seed = 1234):
         """This method processes data provided by Knab"""
         
         #-------------------------INITIALISATION-----------------------
         
         self.indir= indir # location of input files
+        self.interdir = interdir #location of intermediate files
         self.outdir = outdir # location of linked output files
         self.seed = seed
 
+        #Declare data variables to check if data has been printed
+        self.df_corporate_details = pd.DataFrame()
+        self.df_pat = pd.DataFrame()
         #---------------------READING AND MERGING RAW DATA---------------------
-        
+    def processCorporateData(self):
+        self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
+
+        nameList = ["personid", "subtype", "name"]
+        nameList2 = ["personid", "birthday", "subtype", "code", "name"]
+        print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape)
+        utils.numberOfNaN(self.df_corporate_details, nameList2)
+        utils.mostCommonDict(self.df_corporate_details, nameList, 10)
+
+        # Copy DataFrame for editing and drop code column and rows with NaN value
+        self.df_corporate_details = self.df_corporate_details.copy()
+        self.df_corporate_details.dropna(inplace=True)
+
+        # rename column personid to companyID,name to companySector and 
+        tempDict = {
+            "subtype": "businessType",
+            "name": "businessSector"}
+        self.df_corporate_details.rename(columns=tempDict, inplace=True)
+
+        # show dimensions
+        print("shape of current data",self.df_corporate_details)
+        self.df_corporate_details.sample()
+
+        """### Converting Birthday to foundingDate and creating  companyAgeInDays and foundingYear"""
+
+        # use shorter var to refer to new columns
+        aid = "businessAgeInDays"
+        aim = "businessAgeInMonths"
+        aiy = "businessAgeInYears"
+        foundingDateString = "foundingDate"
+
+        # convert to datetime and to age in days of company
+        self.df_corporate_details[foundingDateString] = pd.to_datetime(self.df_corporate_details["birthday"])
+        currentTime = datetime(2021, 1, 1)
+        self.df_corporate_details["timeDelta"] = (currentTime - self.df_corporate_details[foundingDateString])
+        self.df_corporate_details[aid] = self.df_corporate_details["timeDelta"].dt.days
+        self.df_corporate_details[aim] = self.df_corporate_details["timeDelta"] / np.timedelta64(1, "M")
+        self.df_corporate_details[aiy] = self.df_corporate_details["timeDelta"] / np.timedelta64(1, "Y")
+        self.df_corporate_details.drop("timeDelta", inplace=True, axis=1)
+
+        # note founding year of company
+        self.df_corporate_details["foundingYear"] = self.df_corporate_details[foundingDateString].dt.year
+
+        # assumption that a company date beyond the end of 2020 is faulty
+        self.df_corporate_details = self.df_corporate_details[self.df_corporate_details[aid] > 0].copy()
+        print(self.df_corporate_details["birthday"].describe())
+
+        # drop columns and
+        utils.mostCommon(self.df_corporate_details, aid, 10)
+        print(self.df_corporate_details[aid].describe())
+        self.df_corporate_details.sample(5)
+
+        utils.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
+        self.df_corporate_details[aid].describe()
+
+        a = self.df_corporate_details.index[:10].to_list()
+        a.append(220682)
+        self.df_corporate_details[self.df_corporate_details.index.isin(a)]
+
+        """## Convert code to SBI name
+
+        ### Create list of SBI codes
+        """
+
+        SBI_2019Data = pd.read_excel("SBI_2019.xlsx")
+        print(SBI_2019Data.head())
+
+        tempString = "SBIcode"
+        tempString2 = "SBIname"
+
+        SBI_2019DataEdited = SBI_2019Data.copy()
+        SBI_2019DataEdited.rename(columns={
+            "Unnamed: 0": tempString,
+            "Standaard Bedrijfsindeling 2008 - update 2019 ":
+                tempString2}, inplace=True)
+        codesList = SBI_2019DataEdited[tempString].unique().tolist()
+
+        sectorList = []
+        tempList = ["A", 0, 0]
+        tempList2 = ["A"]
+        for value in codesList[1:]:
+            try:
+                tempList[2] = int(value)
+            except:
+                pass
+            try:
+                text = str(value)
+                text = text.replace("\xa0", "")
+                text = text.replace(" ", "")
+                val = ord(text)
+                if 64 < val < 123:
+                    sectorList.append(tempList.copy())
+                    tempList2.append(text)
+                    tempList[0] = text
+                    tempList[1] = tempList[2]
+                else:
+                    pass
+            except:
+                pass
+        sectorList.append(tempList.copy())
+        sectorData = pd.DataFrame(tempList2)
+        sectorData.rename({
+                              0: tempString}, axis=1, inplace=True)
+        sectorData = pd.merge(SBI_2019DataEdited[[tempString, tempString2]], sectorData, how="inner", on=tempString)
+        sectorData.loc[13, [tempString, tempString2]] = "U", "Extraterritoriale organisaties en lichamen"
+        sectorData.rename({
+                              tempString: "SBIsector",
+                              tempString2: "SBIsectorName"}, axis=1, inplace=True)
+
+        SBI_2019DataEdited = SBI_2019DataEdited.loc[:, [tempString, tempString2]]
+        SBI_2019DataEdited.dropna(inplace=True)
+        SBI_2019DataEdited.reset_index(drop=True, inplace=True)
+        SBI_2019DataEdited.sample(5)
+
+        def cleanSBI(x):
+            try:
+                return int(x)
+            except:
+                return np.nan
+
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].apply(lambda x: cleanSBI(x))
+        SBI_2019DataEdited.dropna(inplace=True)
+        SBI_2019DataEdited[tempString2] = SBI_2019DataEdited[tempString2].astype("str")
+
+        SBI_2019DataEdited["SBIsector"] = np.nan
+        # chr, ord, < <=
+        for values in sectorList:
+            tempIndex = (values[1] < SBI_2019DataEdited[tempString]) & (SBI_2019DataEdited[tempString] <= values[2])
+            SBI_2019DataEdited.loc[tempIndex, "SBIsector"] = values[0]
+
+        SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="inner", on="SBIsector")
+        SBI_2019DataEdited.sample(3)
+
+        tempString = "SBIcode"
+        self.df_corporate_details[tempString] = self.df_corporate_details["businessSector"].str[:2]
+        self.df_corporate_details[tempString] = pd.to_numeric(self.df_corporate_details[tempString],
+                                                                downcast="unsigned")
+        self.df_corporate_details.sample(3)
+
+        self.df_corporate_details = pd.merge(self.df_corporate_details, SBI_2019DataEdited, how="inner",
+                                               on="SBIcode")
+        self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
+
+    def linkData(self):
         print(f"****Processing data, at {utils.get_time()}****")
     
-        self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
+
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")                     
-        
+        if self.df_corporate_details.empty:
+            self.processCorporateData()
+
         # print(f'unique ids in linkpersionportfolio')
         # print(len(pd.DataFrame(self.df_linkpersonportfolio["personid"].unique())))
         # print(f'unique ids in experian')
@@ -41,7 +193,7 @@ class data_linking:
             pd.read_csv(f"{self.indir}/portfolio_info.csv"), 
                                   how="left", left_on=["portfolioid"],
                                   right_on=["portfolioid"],) 
-    
+
         #Split the corporate persons off and rename
         self.df_corporatelink = self.df_link[self.df_link["iscorporatepersonyn"]==1]
         self.df_corporatelink = self.df_corporatelink.loc[:,["personid","portfolioid"]]
@@ -54,7 +206,8 @@ class data_linking:
         # TODO check if human person ids could be getting linked to multiple
         # corporate ids?
         self.df_corporate_details = self.df_corporate_details.rename(columns={"personid": "corporateid"})
-        
+
+
         # Merge this with business information
         self.df_link = self.df_link.merge(self.df_corporate_details, 
                                   how="left", left_on=["corporateid"],
@@ -119,10 +272,14 @@ class data_linking:
         Result: two datasets, one that the model is made on and then the next
         quarter or month which can be used to test predictions"""
 
+        #ToDo wellicht ook intermediate bestand of apart het eerste deel doen en daarna deze
+        #create Data to create cross sections of
+        self.linkData()
+
         print(f"****Creating cross-sectional data, at {utils.get_time()}****")
         
         #-------------Check that date is entered correctly--------------
-                
+
         # First validate that the entered date is in the correct format
         time_check = "%Y-%m"
        
@@ -209,11 +366,7 @@ class data_linking:
         # TODO Vervolgens willen we dit ook voor next doen als er een datum
         # is gespecifceerd !!! Dus, pas aan het begin aan zodat als de datum
         # kleiner is dan het laatste kwartaal er een variabele op true staat
-    
-    
-    
-    
-    
+
     def create_cross_section_perportfolio(self, df_cross, cross_date, 
                              quarterly): 
         """Creates a dataset of information for a set of people at a 
@@ -562,43 +715,46 @@ class data_linking:
     
     
     
-    def create_transaction_data_crosssection(self, date):
+    def create_transaction_data_crosssection(self, date = None):
         """creates transaction data based on the cross-section for a specific date"""
-        
+
+        # Todo waren deze variabelen altijd 0? ik zag ze namelijk wel een waarde hebben. Verder een dictionaire
+        #  toegevoegd die aangeeft wat we parsen. Dan hoeven we het ook niet in te lezen en kunnen we centraal op een
+        #  plek wijzigen wat we nodig hebben voor de cross sectie en dergelijke.
         #Deze variabelen zijn altijd 0 dus gebruiken we niet
-        cols_to_drop = ["yearweek", "gemaksbeleggenyn", "saldogemaksbeleggen", "participatieyn",
-                      "saldoparticipatie","vermogensbeheeryn", "saldovermogensbeheer"]
-        
+        # cols_to_drop = ["yearweek", "gemaksbeleggenyn", "saldogemaksbeleggen", "participatieyn",
+        #               "saldoparticipatie","vermogensbeheeryn", "saldovermogensbeheer"]
+        readArgs = {"usecols": declarationsFile.getPatColToParseCross(subset = "transactions")}
+
         if date.year >2019:
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2020.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2020.csv")]
-            , axis=0
-            ).drop(cols_to_drop,1)    
+            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2020.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2020.csv", **readArgs)]
+            , ignore_index= True)
+
         elif date.year == 2019:     
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2019.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2019.csv")]
-            , axis=0
-            ).drop(cols_to_drop,1)  
+            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2019.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2019.csv", **readArgs)]
+            , ignore_index= True)
         elif date.year == 2018:
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2018.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2018.csv")]
-            , axis=0
-            ).drop(cols_to_drop,1)  
+            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_retail_2018.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transactions_business_2018.csv", **readArgs)]
+            , ignore_index= True
+            )
         else: #  year < 2018
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business_add.csv")]
-            , axis=0
-            ).drop(cols_to_drop,1)  
+            [pd.read_csv(f"{self.indir}/portfolio_activity_transaction_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_transaction_business.csv", **readArgs)]
+            , ignore_index= True
+            )
             
         print(f"done concatenating transactions data at {utils.get_time()}")
     
@@ -609,45 +765,44 @@ class data_linking:
         dataset = dataset[dataset["dateeow"]<= date]
                 
         return dataset
-    
-    
-    
+
     def create_activity_data_crosssection(self, date):
         """creates activity data based on the cross-section for a specific date"""
         
         # We do not need the payment alert variables, can drop that already
-        cols_to_drop = ["yearweek","aantalbetaalalertsontv", "aantalbetaalalertsubscr"]
+        # cols_to_drop = ["yearweek","aantalbetaalalertsontv", "aantalbetaalalertsubscr"]
+        readArgs = {"usecols": declarationsFile.getPatColToParseCross(subset = "activity")}
         
         if date.year >2019:
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_retail_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_retail_2020.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_2020.csv")]
-            , axis=0
-            ).drop(cols_to_drop,1)  
+            [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_retail_2020.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business_2020.csv", **readArgs)]
+            , ignore_index=True
+            )
         elif date.year == 2019:     
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_retail_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_retail_2019.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_2019.csv")]
-            , axis=0
-            ).drop(cols_to_drop,1)   
+            [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_retail_2019.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business_2019.csv", **readArgs)]
+                , ignore_index=True
+            )
         elif date.year == 2018:
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_retail_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_retail_2018.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_2018.csv")]
-            , axis=0
-            ).drop(cols_to_drop,1)  
+            [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_retail_2018.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business_2018.csv", **readArgs)]
+            , ignore_index= True
+            )
         else: #  year < 2018
             dataset = pd.concat(
-            [pd.read_csv(f"{self.indir}/portfolio_activity_retail_add.csv"),
-            pd.read_csv(f"{self.indir}/portfolio_activity_business_add.csv")]
-            , axis=0
-            ).drop(cols_to_drop,1)  
+            [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
+            pd.read_csv(f"{self.indir}/portfolio_activity_business.csv", **readArgs)]
+            , ignore_index = True
+            )
             
         print(f"done concatenating activity data at {utils.get_time()}")
         
@@ -658,9 +813,7 @@ class data_linking:
         dataset = dataset[dataset["dateeow"]<= date]
                 
         return dataset
-    
-    
-    
+
     def summarize_activity(self, dataset, date, quarterly_period):
         """We summarize the activity per period, taking for logins the sum of
         all values in that quarter and for the remaining variables we take 
@@ -698,7 +851,6 @@ class data_linking:
         return dataset
 
 
-
     def summarize_transactions(self, dataset, date, quarterly_period):
         """We summarize the transactions per period, taking for logins the sum of
         all values in that quarter and for the remaining variables we take 
@@ -731,19 +883,216 @@ class data_linking:
         
         return dataset
 
+    def importPortfolioActivity(self, convertData=False, selectColumns=False, discardPat = False, **readArgs):
+        if convertData:
+            datatypeConvertAll = declarationsFile.getPatConvert()
+        else:
+            datatypeConvertAll = {}
+
+        if selectColumns:
+            readArgsAct = {**readArgs,
+                        "usecols": declarationsFile.getPatColToParseTS("activity")}
+            readArgsTrans = {**readArgs,
+                        "usecols": declarationsFile.getPatColToParseTS("transaction")}
+
+        else:
+            readArgsAct = {**readArgs}
+            readArgsTrans = {**readArgs}
+
+        tempList = [f"{self.indir}/portfolio_activity_business_2018.csv", f"{self.indir}/portfolio_activity_business_2019.csv",
+                    f"{self.indir}/portfolio_activity_business_2020.csv"]
+        pab1820 = utils.importAndConcat(tempList, **readArgsAct)
+
+        print(pab1820.shape, " are the dimensions of pab18-20")
+
+        tempList = [f"{self.indir}/portfolio_activity_retail_2018.csv", f"{self.indir}/portfolio_activity_retail_2019.csv",
+                    f"{self.indir}/portfolio_activity_retail_2020.csv"]
+        par1820 = utils.importAndConcat(tempList, **readArgsAct)
+        print(par1820.shape, " are the dimensions of par18-20")
+
+        pa1820 = pd.concat(
+            [pab1820, par1820], ignore_index=True)
+        del par1820, pab1820
+        gc.collect()
+        print(pa1820.shape, " are the dimensions of pa 18-20")
+
+        tempList = [f"{self.indir}/portfolio_activity_transactions_business_2018.csv",
+                    f"{self.indir}/portfolio_activity_transactions_business_2019.csv",
+                    f"{self.indir}/portfolio_activity_transactions_business_2020.csv"]
+        patb1820 = utils.importAndConcat(tempList, **readArgsTrans)
+        print(patb1820.shape, " are the dimensions of patb 18-20")
+
+        tempList = [f"{self.indir}/portfolio_activity_transactions_retail_2018.csv",
+                    f"{self.indir}/portfolio_activity_transactions_retail_2019.csv",
+                    f"{self.indir}/portfolio_activity_transactions_retail_2020.csv"]
+        patr1820 = utils.importAndConcat(tempList, **readArgsTrans)
+        print(patr1820.shape, " are the dimensions of patr 18-20")
+
+        pat1820 = pd.concat(
+            [patr1820, patb1820],
+            ignore_index=True)
+        print(pat1820.shape, " are the dimensions of pa before merge 18-20")
+        del patr1820, patb1820
+        gc.collect()
+
+        pat1820 = pd.merge(pa1820,
+                           pat1820, how="inner",
+                           on=["dateeow", "yearweek", "portfolioid", "pakketcategorie"])
+        del pa1820
+        gc.collect()
+        print(pat1820.shape, " are the dimensions of pa 18-20")
+
+        pa1820 = pat1820.astype(datatypeConvertAll)
+
+        # Todo verander of dee naam van deze bestanden of de naam van de andere bestanden
+        tempList = [f"{self.indir}/portfolio_activity_business.csv", f"{self.indir}/portfolio_activity_retail.csv", ]
+        pa1420 = utils.importAndConcat(tempList,chunkSize = 250000, **readArgsAct)
+        print(pa1420.shape, " are the dimensions of pa before merge 14-20")
+
+        tempList = [f"{self.indir}/portfolio_activity_transaction_business.csv", f"{self.indir}/portfolio_activity_transaction_retail.csv"]
+        pat1420 = utils.importAndConcat(tempList, chunkSize = 250000,**readArgsTrans)
+        print(pat1420.shape, " are the dimensions of pa before merge 14-20")
+        patotal1420 = pd.merge(pa1420,
+                               pat1420, how="inner",
+                               on=["dateeow", "yearweek", "portfolioid", "pakketcategorie"])
+        del pa1420, pat1420
+        gc.collect()
+        print(patotal1420.shape, " are the dimensions of pat 14-20")
+
+        patotal1420 = patotal1420.astype(datatypeConvertAll)
+
+        pat = pd.concat([patotal1420, pat1820])
+        print(pat.shape, " are the dimensions of pat 14-20")
+        if discardPat:
+            return pat
+        else:
+            self.df_pat = pat
 
 
 
+    def transformPA(self, period = "Q"):
+        if self.df_pat.empty:
+            self.importPortfolioActivity(convertData= True, selectColumns= True)
 
-if __name__ == "__main__":
-    
-    indirec = "./data"
-    outdirec = "./output"
-    datatest = data_linking(indirec,outdirec)
-    
-    cross_sec = datatest.create_base_cross_section(date_string="2020-12", 
-                                                   subsample=True,
-                                                   quarterly=True)
+        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
+        self.df_pat["yearPeriod"] = self.df_pat["dateeow"].dt.to_period(period)
+
+        ##Convert to pivot
+        patcolumns = ['dateeow', 'saldobetalen',
+                      'aantalloginsapp', 'aantalloginsweb', 'betalenyn']
+        pataggfunc = {
+            'dateeow': min,
+            'saldobetalen': "mean",
+            'aantalloginsapp': sum,
+            'aantalloginsweb': sum,
+            "betalenyn": max}
+
+        indexColumns = ["portfolioid", "yearPeriod"]
+
+        patpivot = pd.pivot_table(self.df_pat, values=patcolumns, index=indexColumns, aggfunc=pataggfunc)
+        patpivot.dropna(inplace=True)
+
+        self.time_pat = patpivot
+
+    def importPATsample(self):
+        self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
+
+    def linkTimeSets(self, period = "Q"):
+        # ToDo corrigeer voor al geimporteerde of bewerkte data
+        # Todo zorg er voor dat valid to date wordt gepakt
+        # If valid_to < period in Time Series
+        self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")
+        self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+        self.df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        self.portfolio_info = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        self.portfolio_status = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+
+        self.df_experian.dropna(how = "all", inplace = True)
+        self.df_experian["valid_to_dateeow"] = pd.to_datetime(self.df_experian["valid_to_dateeow"])
+        currentTime = datetime(2021,1,1)
+        self.df_experian["valid_to_dateeow"].fillna(currentTime, inplace=True)
+        self.df_experian["valid_from_dateeow"] = pd.to_datetime(self.df_experian["valid_from_dateeow"])
+        self.df_experian["yearPeriodTo"] = self.df_experian["valid_to_dateeow"].dt.to_period(period)
+        self.df_experian["yearPeriodFrom"] = self.df_experian["valid_from_dateeow"].dt.to_period(period)
+        self.df_experian.drop(["valid_from_dateeow", "valid_to_dateeow"], axis=1, inplace=True)
+
+        repeatList = self.df_experian.groupby("personid")["yearPeriodFrom"].count()
+        repeatList = repeatList[repeatList > 1]
+        repeatList = repeatList.index.to_list()
+        pass
+
+    ### DATA EXPLORATION METHODS
+    def exploreSets(self):
+        self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")
+        self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+        self.df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        self.portfolio_info = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        self.portfolio_status = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+        self.df_bhk.groupby("personid")["portfolioid"].count()
+
+        #person id's per protfolio and vice versa
+        nOfPIDperPort = self.df_linkpersonportfolio.groupby("portfolioid")["personid"].count().sort_values(ascending = False)
+        nOfPortPerPID = self.df_linkpersonportfolio.groupby("personid")["portfolioid"].count().sort_values(
+            ascending=False)
+
+
+    def explorePA(self):
+        pat = self.importPortfolioActivity(discardPat = True)
+
+        patSubID = ["dateeow", "yearweek", "portfolioid"]
+        patSubID1 = patSubID + ['pakketcategorie',
+                                'overstapserviceyn', 'betaalalertsyn', 'aantalbetaalalertsubscr',
+                                'aantalbetaalalertsontv', 'roodstandyn', 'saldoregulatieyn', 'appyn',
+                                'aantalloginsapp', 'aantalloginsweb', 'activitystatus']
+
+        patSubID2 = patSubID + ['betalenyn',
+                                'saldobetalen', 'aantalbetaaltransacties', 'aantalatmtransacties',
+                                'aantalpostransacties', 'aantalfueltransacties', 'aantaltegenrekeningenlaatsteq']
+
+        patSubID3 = patSubID + ['betalenyn',
+                                'saldobetalen', 'depositoyn',
+                                'saldodeposito', 'flexibelsparenyn', 'saldoflexibelsparen',
+                                'kwartaalsparenyn', 'saldokwartaalsparen', 'gemaksbeleggenyn',
+                                'saldogemaksbeleggen', 'participatieyn', 'saldoparticipatie',
+                                'vermogensbeheeryn', 'saldovermogensbeheer', 'saldototaal',
+                                'saldolangetermijnsparen']
+
+        patSub1 = pat.loc[:, patSubID1]
+        patSub2 = pat.loc[:, patSubID2]
+        patSub3 = pat.loc[:, patSubID3]
+
+        print(patSub1["pakketcategorie"].unique().tolist())
+        patSub1["indicatorZP"] = 0
+        patSub1["indicatorPB"] = 0
+        patSub1["indicatorKB"] = 0
+
+        patSub1.loc[patSub1["pakketcategorie"] == "Zakelijk pakket", "indicatorZP"] = 1
+        patSub1.loc[patSub1["pakketcategorie"] == "Particulier Betalend", "indicatorPB"] = 1
+        patSub1.loc[patSub1["pakketcategorie"] == "Knab Basis", "indicatorKB"] = 1
+
+        # Volgende stap: Indicator variabele voor deze pakketen maken en kijken hoeveel mensen van pakket wisselen
+        patS1gr = patSub1.groupby("portfolioid")[["indicatorZP", "indicatorPB", "indicatorKB"]].max()
+        patS1gr["multiple"] = patS1gr["indicatorZP"] + patS1gr["indicatorPB"] + patS1gr["indicatorKB"]
+        pats1Multi = patS1gr[patS1gr["multiple"] > 1]
+        text = "Van de {} mensen heeft {} meerdere portfolio's.".format(patS1gr.shape[0], pats1Multi.shape[0])
+        print(text)
+        res1 = pd.eval("(pats1Multi['indicatorZP'] == 1) & (pats1Multi['multiple'] > 1) ")
+        res2 = pd.eval("(pats1Multi['indicatorKB'] == 1) & (pats1Multi['indicatorPB'] == 1) ")
+        print("met Zakelijk en particulier: ", res1.sum(), "alleen particulier: ", res2.sum())
+
+        businessAndRetailList = pats1Multi[res1].index.to_list()
+        businessAndRetailObservations = pat[pat["portfolioid"].isin(businessAndRetailList)].copy()
+        businessAndRetailObservations.sort_values(["portfolioid", "dateeow"], inplace=True)
+# if __name__ == "__main__":
+#
+#     indirec = "./data"
+#     outdirec = "./output"
+#     datatest = data_linking(indirec,outdirec)
+#
+#     cross_sec = datatest.create_base_cross_section(date_string="2020-12",
+#                                                    subsample=True,
+#                                                    quarterly=True)
+
     
     #TODO We may want to do something with customer churn?
     # and make 'not a customer' a state that they can be in?       
