@@ -42,14 +42,15 @@ class dataProcessor:
 
     #TODO: add comments to describe what this is doing        
     def processCorporateData(self):
+        """Put function description here"""
         
+        #-------------READ IN CORPORATE DETAILS AND PROCESS------------
         self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
 
-        nameList = ["personid", "subtype", "name"]
-        nameList2 = ["personid", "birthday", "subtype", "code", "name"]
-        print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape)
-        
-        if self.print_info:
+        if self.print_info: # Print NaNs and most common values
+            nameList = ["personid", "subtype", "name"]
+            nameList2 = ["personid", "birthday", "subtype", "code", "name"]
+            print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape) 
             dataInsight.numberOfNaN(self.df_corporate_details, nameList2)
             dataInsight.mostCommonDict(self.df_corporate_details, nameList, 10)
 
@@ -63,12 +64,12 @@ class dataProcessor:
             "name": "businessSector"}
         self.df_corporate_details.rename(columns=tempDict, inplace=True)
 
-        if self.print_info:
-            # show dimensions
+        if self.print_info: # show dimensions
             print("shape of current data",self.df_corporate_details)
             self.df_corporate_details.sample()
 
-        """### Converting Birthday to foundingDate and creating  companyAgeInDays and foundingYear"""
+
+        #---------- CREATE foundingDate, companyAgeInDays AND foundingYear--------
 
         # use shorter var to refer to new columns
         aid = "businessAgeInDays"
@@ -90,10 +91,10 @@ class dataProcessor:
 
         # assumption that a company date beyond the end of 2020 is faulty
         self.df_corporate_details = self.df_corporate_details[self.df_corporate_details[aid] > 0].copy()
-        print(self.df_corporate_details["birthday"].describe())
-
-        # drop columns and
+        
         if self.print_info:
+            print(self.df_corporate_details["birthday"].describe())
+            
             dataInsight.mostCommon(self.df_corporate_details, aid, 10)
             print(self.df_corporate_details[aid].describe())
             self.df_corporate_details.sample(5)
@@ -105,13 +106,9 @@ class dataProcessor:
         a.append(220682)
         self.df_corporate_details[self.df_corporate_details.index.isin(a)]
 
-        """## Convert code to SBI name
-
-        ### Create list of SBI codes
-        """
-
+        #-------------PROCESS SBI CODES------------
         SBI_2019Data = pd.read_excel("SBI_2019.xlsx")
-        print(SBI_2019Data.head())
+        #print(SBI_2019Data.head())
 
         tempString = "SBIcode"
         tempString2 = "SBIname"
@@ -263,8 +260,8 @@ class dataProcessor:
 
         #------------------------ GET DATES INSIGHT -------------------------
         
-        self.base_df.loc[:,'valid_to_dateeow'] = pd.to_datetime(self.base_df['valid_to_dateeow'])
-        self.base_df.loc[:,'valid_from_dateeow'] = pd.to_datetime(self.base_df['valid_from_dateeow'])     
+        self.base_df.loc[:,['valid_to_dateeow']] = pd.to_datetime(self.base_df['valid_to_dateeow'])
+        self.base_df.loc[:,['valid_from_dateeow']] = pd.to_datetime(self.base_df['valid_from_dateeow'])     
 
         # See what the most recent date is in the data 
         # Find the latest and oldest dates where a customer was changed or added 
