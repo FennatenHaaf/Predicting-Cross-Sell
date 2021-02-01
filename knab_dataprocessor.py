@@ -347,6 +347,8 @@ class data_linking:
         # For activity information, we will take the average activity PER portfolio type
         for name, df in df_cross_link_dict.items():
             
+            
+            #---------- variables for portfolio types ------------
             # create a column of ones and the person id for each portfolio type
             indicator = df.loc[:,["personid"]]
             indicator[name] = 1 # make all of the value one and give it the name
@@ -355,7 +357,7 @@ class data_linking:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
             
-            # Now do some things for the activity variables
+            #---------- Incoporate the activity variables ------------
             indicator = df.loc[:,["personid"]]
             indicator[f"aantaltegenrekeningenlaatsteq_{name}"] = df.loc[:,"aantaltegenrekeningenlaatsteq"]
             indicator[f"aantalloginsapp_{name}"] = df.loc[:,"aantalloginsapp"]
@@ -367,6 +369,39 @@ class data_linking:
             # gemiddelde werkt mogelijk minder?
             indicator = indicator.groupby("personid").max()
             df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
+            
+            #---------- Incoporate the transaction variables ------------
+           
+            indicator = df.loc[:,["personid"]]
+            # Take the variables for number of transactions
+            indicator[f"aantalbetaaltransacties_{name}"] = df.loc[:,"aantalbetaaltransacties"]
+            indicator[f"aantalatmtransacties_{name}"] = df.loc[:,"aantalatmtransacties"]
+            indicator[f"aantalpostransacties_{name}"] = df.loc[:,"aantalpostransacties"]
+            indicator[f"aantalfueltransacties_{name}"] = df.loc[:,"aantalfueltransacties"]
+            # We pakken het MAXIMUM om de meest actieve rekening weer te geven
+            indicator = indicator.groupby("personid").max()
+            df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
+            
+            
+            # We pakken voor de binaire variabelen (depositoyn,etc) ook de 
+            # MAXIMUM (dus dan is het 1 als 1 van de rekeningen het heeft)
+            
+            # Maar voor de saldos pakken we de SOM over alles 
+            
+            
+            #------ Variables that are specific to portfoliotype -------
+            if name == 'joint': 
+                # Add gender for the joint portfolio?
+                # Possibly do other things for the joint porfolio data to
+                # take into account that people are more active?
+                indicator = df.loc[:,["personid"]]
+                indicator[f"geslacht_{name}"] = df.loc[:,"geslacht"]
+                indicator = indicator.drop_duplicates(subset=["personid"])
+                df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
             
@@ -384,25 +419,41 @@ class data_linking:
                 
                 # make some kind of summary for the business details
                 # -> voor bedrijf types pakken we de type OF we pakken ''meerdere''
-        
+                indicator = df.loc[:,["personid", "birthday", "subtype", "code", "name"]]
+                
+                
+                
                 
                 # TODO: fill in the blank spaces who are missing with 0??
                 # Need to differentiate between missing data and data that is
                 # not there?
             
         #----------- Merge remaining things --------
+        
         # merge frequencies of all portfolios (including ones without any info)
         # which we made earlier
         df_cross= df_cross.merge(frequencies,
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
         
-        characteristics = df_cross_link.loc[:,["personid", "birthyear",
-                                         "geslacht"]].drop_duplicates(inplace=False)
         
+        # Get the personid and birthyear which were stored in crosslink 
+        # - first drop the duplicates
+        characteristics = df_cross_link.loc[:,["personid","birthyear","geslacht",
+                "enofyn"]]
+        # Sort the characteristics by enofyn, so that the joint portfolios appear later.
+        # then drop duplicates and keep the first entries that appear.
+        characteristics = characteristics.sort_values("enofyn")
+        characteristics = characteristics.drop_duplicates(subset=["personid"],
+                          keep='first', inplace=False)                               
         df_cross= df_cross.merge(characteristics, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],) 
+        
+        
+        #TODO: zorg dat de pakketcategorie en een paar 'algemene' variabelen
+        # er nog in komen??
+        
         
         #----------- Save the final product --------
         
