@@ -303,7 +303,7 @@ class data_linking:
                                              "valid_from_dateeow","valid_to_dateeow"],
                                             1,inplace=True)
         
-        # Pak het aantal unieke overlay ids per combinaie van persoon en portfolio
+        # Pak het aantal unieke overlay ids per combinatie van persoon en portfolio
         df_portfolio_boekhoudkoppeling.drop_duplicates(inplace=True)
         df_portfolio_boekhoudkoppeling = df_portfolio_boekhoudkoppeling.groupby(["personid","portfolioid"]).size().reset_index(name="accountoverlays")
         # utils.save_df_to_csv(df_portfolio_boekhoudkoppeling, self.outdir, 
