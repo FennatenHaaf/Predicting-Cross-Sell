@@ -15,7 +15,7 @@ import utils
 import declarationsFile
 import gc
 
-class data_linking:
+class dataProcessor:
 
     # ToDo Randomize seed. Interdir toegevoegd om snel csv te importeren ipv hele set te runnen
     def __init__(self,indir,interdir,outdir, seed = 1234):
@@ -183,7 +183,7 @@ class data_linking:
 
 
 
-    def linkData(self):
+    def link_data(self):
         """This function creates a base dataset containing person IDs linked
         to their portfolio ids and the corresponding portfolio information.
         It also links the person IDs to business IDs and corresponding 
@@ -193,6 +193,7 @@ class data_linking:
     
         #---------------------READING AND MERGING RAW DATA---------------------
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")                     
+        
         if self.df_corporate_details.empty:
             self.processCorporateData()
 
@@ -229,25 +230,18 @@ class data_linking:
         # present, so dateinstroomweek should NOT be blank
         # TODO: add loc thingo?
         valid_ids = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
+        final_df = self.df_experian.loc[self.df_experian["personid"].isin(valid_ids)] 
+
+        # TODO use dataInsight print unique IDs function        
+
+        #------------------------ GET DATES INSIGHT -------------------------
         
-        self.final_df = self.df_experian.loc[self.df_experian["personid"].isin(valid_ids)] 
-        # (we could also take a subselection of the variables?)
-        print(f'unique ids in final dataset')
-        print(len(pd.DataFrame(self.final_df["personid"].unique())))
-        
-        # utils.save_df_to_csv(self.final_df, self.outdir, 
-        #                       "z_fullexperian", add_time = False )      
-        # print(f"Finished and output saved, at {utils.get_time()}")
-        
-        
-        #------------------------ DATES -----------------------------
-        
-        self.final_df.loc[:,'valid_to_dateeow'] = pd.to_datetime(self.final_df['valid_to_dateeow'])
-        self.final_df.loc[:,'valid_from_dateeow'] = pd.to_datetime(self.final_df['valid_from_dateeow'])     
+        final_df.loc[:,'valid_to_dateeow'] = pd.to_datetime(final_df['valid_to_dateeow'])
+        final_df.loc[:,'valid_from_dateeow'] = pd.to_datetime(final_df['valid_from_dateeow'])     
 
         # See what the most recent date is in the data 
         # Find the latest and oldest dates where a customer was changed or added 
-        all_dates = pd.concat([self.final_df['valid_to_dateeow'],self.final_df['valid_from_dateeow']])
+        all_dates = pd.concat([final_df['valid_to_dateeow'],final_df['valid_from_dateeow']])
         self.last_date = all_dates.max()
         self.first_date = all_dates.min()
         
@@ -257,6 +251,13 @@ class data_linking:
         time_string = self.first_date.strftime("%Y-%m-%d")
         print(f"Oldest data in Experian is from {time_string}")
         
+        #------------------------ SAVE & RETURN -------------------------
+        
+        # utils.save_df_to_csv(final_df, self.outdir, 
+        #                       "z_fullexperian", add_time = False )      
+        # print(f"Finished and output saved, at {utils.get_time()}")
+        
+        return final_df
         
         print("-------------------------------------")
         
@@ -264,6 +265,7 @@ class data_linking:
 
         
     def create_base_cross_section(self,
+                                  base_df,
                                   subsample = False,
                                   sample_size = 1000, 
                                   date_string = None,
@@ -277,9 +279,6 @@ class data_linking:
         Result: two datasets, one that the model is made on and then the next
         quarter or month which can be used to test predictions"""
 
-        #ToDo wellicht ook intermediate bestand of apart het eerste deel doen en daarna deze
-        #create Data to create cross sections of
-        self.linkData()
 
         print(f"****Creating cross-sectional data, at {utils.get_time()}****")
         
@@ -330,9 +329,9 @@ class data_linking:
         print(f"next date {next_date.strftime(time_format)}")
         
         ## Now get the base dataset for this current period and the next 
-        df_cross = self.get_time_slice(self.final_df,cross_date)
+        df_cross = self.get_time_slice(base_df,cross_date)
         #print(f"There is data for {len(df_cross)} customers at the cross-section point")
-        df_next = self.get_time_slice(self.final_df,next_date)
+        df_next = self.get_time_slice(base_df,next_date)
         #print(f"{len(df_next)}")
         
         #---------------------Taking subsample---------------------
@@ -372,8 +371,10 @@ class data_linking:
         # is gespecifceerd !!! Dus, pas aan het begin aan zodat als de datum
         # kleiner is dan het laatste kwartaal er een variabele op true staat
 
+
+
     def create_cross_section_perportfolio(self, df_cross, cross_date, 
-                             quarterly): 
+                             quarterly=True): 
         """Creates a dataset of information for a set of people at a 
         specific time"""
         
@@ -640,8 +641,6 @@ class data_linking:
                               "z_final_df", add_time = False )
         print(f"Finished and output saved, at {utils.get_time()}") 
  
-
-
 
 
 
