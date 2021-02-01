@@ -12,34 +12,47 @@ import numpy as np
 from datetime import datetime
 from datetime import timedelta
 import utils
+import dataInsight
 import declarationsFile
 import gc
 
-class data_linking:
+
+class dataProcessor:
 
     # ToDo Randomize seed. Interdir toegevoegd om snel csv te importeren ipv hele set te runnen
-    def __init__(self,indir,interdir,outdir, seed = 1234):
+    def __init__(self,indir,interdir,outdir, 
+                 save_intermediate=False,
+                 print_info=False,
+                 seed = 1234):
         """This method processes data provided by Knab"""
         
         #-------------------------INITIALISATION-----------------------
-        
         self.indir= indir # location of input files
         self.interdir = interdir #location of intermediate files
         self.outdir = outdir # location of linked output files
+        self.save_intermediate = save_intermediate # location of linked output files
+        self.print_info = print_info #Determines how verbose it is
         self.seed = seed
 
         #Declare data variables to check if data has been printed
         self.df_corporate_details = pd.DataFrame()
         self.df_pat = pd.DataFrame()
-        #---------------------READING AND MERGING RAW DATA---------------------
+        
+        
+
+    #TODO: add comments to describe what this is doing        
     def processCorporateData(self):
+        """Put function description here"""
+        
+        #-------------READ IN CORPORATE DETAILS AND PROCESS------------
         self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
 
-        nameList = ["personid", "subtype", "name"]
-        nameList2 = ["personid", "birthday", "subtype", "code", "name"]
-        print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape)
-        utils.numberOfNaN(self.df_corporate_details, nameList2)
-        utils.mostCommonDict(self.df_corporate_details, nameList, 10)
+        if self.print_info: # Print NaNs and most common values
+            nameList = ["personid", "subtype", "name"]
+            nameList2 = ["personid", "birthday", "subtype", "code", "name"]
+            print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape) 
+            dataInsight.numberOfNaN(self.df_corporate_details, nameList2)
+            dataInsight.mostCommonDict(self.df_corporate_details, nameList, 10)
 
         # Copy DataFrame for editing and drop code column and rows with NaN value
         self.df_corporate_details = self.df_corporate_details.copy()
@@ -51,11 +64,12 @@ class data_linking:
             "name": "businessSector"}
         self.df_corporate_details.rename(columns=tempDict, inplace=True)
 
-        # show dimensions
-        print("shape of current data",self.df_corporate_details)
-        self.df_corporate_details.sample()
+        if self.print_info: # show dimensions
+            print("shape of current data",self.df_corporate_details)
+            self.df_corporate_details.sample()
 
-        """### Converting Birthday to foundingDate and creating  companyAgeInDays and foundingYear"""
+
+        #---------- CREATE foundingDate, companyAgeInDays AND foundingYear--------
 
         # use shorter var to refer to new columns
         aid = "businessAgeInDays"
@@ -77,27 +91,24 @@ class data_linking:
 
         # assumption that a company date beyond the end of 2020 is faulty
         self.df_corporate_details = self.df_corporate_details[self.df_corporate_details[aid] > 0].copy()
-        print(self.df_corporate_details["birthday"].describe())
-
-        # drop columns and
-        utils.mostCommon(self.df_corporate_details, aid, 10)
-        print(self.df_corporate_details[aid].describe())
-        self.df_corporate_details.sample(5)
-
-        utils.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
-        self.df_corporate_details[aid].describe()
+        
+        if self.print_info:
+            print(self.df_corporate_details["birthday"].describe())
+            
+            dataInsight.mostCommon(self.df_corporate_details, aid, 10)
+            print(self.df_corporate_details[aid].describe())
+            self.df_corporate_details.sample(5)
+    
+            dataInsight.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
+            self.df_corporate_details[aid].describe()
 
         a = self.df_corporate_details.index[:10].to_list()
         a.append(220682)
         self.df_corporate_details[self.df_corporate_details.index.isin(a)]
 
-        """## Convert code to SBI name
-
-        ### Create list of SBI codes
-        """
-
+        #-------------PROCESS SBI CODES------------
         SBI_2019Data = pd.read_excel("SBI_2019.xlsx")
-        print(SBI_2019Data.head())
+        #print(SBI_2019Data.head())
 
         tempString = "SBIcode"
         tempString2 = "SBIname"
@@ -163,30 +174,34 @@ class data_linking:
             SBI_2019DataEdited.loc[tempIndex, "SBIsector"] = values[0]
 
         SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="inner", on="SBIsector")
-        SBI_2019DataEdited.sample(3)
+        #SBI_2019DataEdited.sample(3)
 
         tempString = "SBIcode"
         self.df_corporate_details[tempString] = self.df_corporate_details["businessSector"].str[:2]
         self.df_corporate_details[tempString] = pd.to_numeric(self.df_corporate_details[tempString],
                                                                 downcast="unsigned")
-        self.df_corporate_details.sample(3)
+        #self.df_corporate_details.sample(3)
 
         self.df_corporate_details = pd.merge(self.df_corporate_details, SBI_2019DataEdited, how="inner",
                                                on="SBIcode")
         self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
 
-    def linkData(self):
+
+
+    def link_data(self, outname = "base_linkinfo"):
+        """This function creates a dataset containing person IDs linked
+        to their portfolio ids and the corresponding portfolio information.
+        It also links the person IDs to business IDs and corresponding 
+        business information based on the corporate portfolio IDs"""
+        
         print(f"****Processing data, at {utils.get_time()}****")
     
-
+        #---------------------READING AND MERGING RAW DATA---------------------
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")                     
+        
         if self.df_corporate_details.empty:
             self.processCorporateData()
 
-        # print(f'unique ids in linkpersionportfolio')
-        # print(len(pd.DataFrame(self.df_linkpersonportfolio["personid"].unique())))
-        # print(f'unique ids in experian')
-        # print(len(pd.DataFrame(self.df_experian["personid"].unique())))
         
         # Do a left join to add portfolio information  
         self.df_link = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv").merge(
@@ -195,18 +210,17 @@ class data_linking:
                                   right_on=["portfolioid"],) 
 
         #Split the corporate persons off and rename
-        self.df_corporatelink = self.df_link[self.df_link["iscorporatepersonyn"]==1]
-        self.df_corporatelink = self.df_corporatelink.loc[:,["personid","portfolioid"]]
-        self.df_corporatelink = self.df_corporatelink.rename(columns={"personid": "corporateid",})
+        df_corporatelink = self.df_link[self.df_link["iscorporatepersonyn"]==1]
+        df_corporatelink = df_corporatelink.loc[:,["personid","portfolioid"]]
+        df_corporatelink = df_corporatelink.rename(columns={"personid": "corporateid",})
         
         # Merge to find which human personids are linked to which corporate ids
-        self.df_link = self.df_link.merge(self.df_corporatelink, 
+        self.df_link = self.df_link.merge(df_corporatelink, 
                                   how="left", left_on=["portfolioid"],
                                   right_on=["portfolioid"],) 
         # TODO check if human person ids could be getting linked to multiple
         # corporate ids?
         self.df_corporate_details = self.df_corporate_details.rename(columns={"personid": "corporateid"})
-
 
         # Merge this with business information
         self.df_link = self.df_link.merge(self.df_corporate_details, 
@@ -214,32 +228,43 @@ class data_linking:
                                   right_on=["corporateid"],)
         # TODO check if businesses appear multiple times!!
         
+        #------------------------ SAVE & RETURN -------------------------
+        if self.save_intermediate:
+            utils.save_df_to_csv(self.df_link, self.interdir, 
+                                  outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
+            
+        # TODO make the function return df_link and make it an input for the
+        # other functions rather than calling with self. ??
+        #return self.df_link 
+        
+        
+        
+    def create_experian_base(self, outname = "base_experian" ):   
+        """Creates a base dataset of all unique person IDs from
+        the Experian dataset, which the portfolio information will be merged
+        with later"""
+        
         #---------------------FINAL DATASET BASE---------------------
         
         # We take all columns from experian data as a base, but we only want
         # those ids for which AT LEAST SOME of the portfolio information is
         # present, so dateinstroomweek should NOT be blank
-        # TODO: add loc thingo?
         valid_ids = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
+        self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy() 
+
+        # Print number of unique IDs
+        dataInsight.unique_IDs(self.base_df,"base Experian dataset")       
+
+        #------------------------ GET DATES INSIGHT -------------------------
         
-        self.final_df = self.df_experian.loc[self.df_experian["personid"].isin(valid_ids)] 
-        # (we could also take a subselection of the variables?)
-        print(f'unique ids in final dataset')
-        print(len(pd.DataFrame(self.final_df["personid"].unique())))
-        
-        # utils.save_df_to_csv(self.final_df, self.outdir, 
-        #                       "z_fullexperian", add_time = False )      
-        # print(f"Finished and output saved, at {utils.get_time()}")
-        
-        
-        #------------------------ DATES -----------------------------
-        
-        self.final_df.loc[:,'valid_to_dateeow'] = pd.to_datetime(self.final_df['valid_to_dateeow'])
-        self.final_df.loc[:,'valid_from_dateeow'] = pd.to_datetime(self.final_df['valid_from_dateeow'])     
+        # pd.to_datetime does not work on a DF, only a series or list, so we use .astype()
+        self.base_df.loc[:,['valid_to_dateeow']] = self.base_df.loc[:,['valid_to_dateeow']].astype('datetime64[ns]')
+        self.base_df.loc[:,['valid_from_dateeow']] = self.base_df.loc[:,['valid_from_dateeow']].astype('datetime64[ns]')
 
         # See what the most recent date is in the data 
         # Find the latest and oldest dates where a customer was changed or added 
-        all_dates = pd.concat([self.final_df['valid_to_dateeow'],self.final_df['valid_from_dateeow']])
+        all_dates = pd.concat([self.base_df['valid_to_dateeow'],self.base_df['valid_from_dateeow']])
         self.last_date = all_dates.max()
         self.first_date = all_dates.min()
         
@@ -249,9 +274,16 @@ class data_linking:
         time_string = self.first_date.strftime("%Y-%m-%d")
         print(f"Oldest data in Experian is from {time_string}")
         
-        # Add a column to make dates quarterly
-        # self.final_df.loc[:,'valid_to_dateeow_q'] = pd.PeriodIndex(self.final_df['valid_to_dateeow'], freq='Q')
-        # self.final_df.loc[:,'valid_from_dateeow_q'] = pd.PeriodIndex(self.final_df['valid_from_dateeow'], freq='Q')
+        #------------------------ SAVE & RETURN -------------------------
+        if self.save_intermediate:
+            utils.save_df_to_csv(self.base_df, self.interdir, 
+                                 outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
+        
+        # TODO make the function return base_df and make it an input for the
+        # other functions rather than calling with self. ??
+        # return base_df 
+        #return base_df
         
         print("-------------------------------------")
         
@@ -263,6 +295,7 @@ class data_linking:
                                   sample_size = 1000, 
                                   date_string = None,
                                   quarterly = True,
+                                  outname = "cross_experian",
                                   seed = 1234):  
         """Method to create a cross-sectional dataset of the unique person ids.
         For this cross-sectional dataset we use only the information of the 
@@ -272,9 +305,6 @@ class data_linking:
         Result: two datasets, one that the model is made on and then the next
         quarter or month which can be used to test predictions"""
 
-        #ToDo wellicht ook intermediate bestand of apart het eerste deel doen en daarna deze
-        #create Data to create cross sections of
-        self.linkData()
 
         print(f"****Creating cross-sectional data, at {utils.get_time()}****")
         
@@ -308,8 +338,7 @@ class data_linking:
             print(f"Using quarterly data, time-slice date is {time_string}")
             quarter = ((date.month-1)//3)+1  #the quarter of our time slice
             print(f"quarter is Q{quarter}, we take the last date of the quarter")
-            #initial_day_quarter = datetime(date.year, 3 * quarter - 2, 1) 
-            
+  
             cross_date = self.get_last_day_period(date,next_period=False,quarterly=True)
             next_date = self.get_last_day_period(date,next_period=True,quarterly=True)
         
@@ -325,9 +354,9 @@ class data_linking:
         print(f"next date {next_date.strftime(time_format)}")
         
         ## Now get the base dataset for this current period and the next 
-        df_cross = self.get_time_slice(self.final_df,cross_date)
+        df_cross = self.get_time_slice(self.base_df,cross_date)
+        df_next = self.get_time_slice(self.base_df,next_date)
         #print(f"There is data for {len(df_cross)} customers at the cross-section point")
-        df_next = self.get_time_slice(self.final_df,next_date)
         #print(f"{len(df_next)}")
         
         #---------------------Taking subsample---------------------
@@ -355,20 +384,32 @@ class data_linking:
             print(f"Done at {utils.get_time()}.")
             print(f"length after: {len(df_cross)}.") 
        
-        # print("saving to csv")
-        # utils.save_df_to_csv(df_cross, self.outdir, 
-        #                       "z_crossexperian", add_time = False )      
-        # print(f"Finished and output saved, at {utils.get_time()}") 
+        
+        #------------------------ SAVE & RETURN -------------------------
+        
+        if self.save_intermediate:
+            utils.save_df_to_csv(df_cross, self.interdir, 
+                                 outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
+        
+        # TODO make the function return base_df and make it an input for the
+        # other functions rather than calling with self. ??
+        # return base_df 
+        #return base_df
+        return df_cross, cross_date, df_next, next_date
+        
        
         print("-------------------------------------")
     
-        self.create_cross_section_perportfolio(df_cross, cross_date, quarterly)
+        #self.create_cross_section_perportfolio(df_cross, cross_date, quarterly)
         # TODO Vervolgens willen we dit ook voor next doen als er een datum
         # is gespecifceerd !!! Dus, pas aan het begin aan zodat als de datum
         # kleiner is dan het laatste kwartaal er een variabele op true staat
 
+
+
     def create_cross_section_perportfolio(self, df_cross, cross_date, 
-                             quarterly): 
+                             quarterly=True): 
         """Creates a dataset of information for a set of people at a 
         specific time"""
         
@@ -632,11 +673,9 @@ class data_linking:
         
         print("Saving final product to csv")
         utils.save_df_to_csv(df_cross, self.outdir, 
-                              "z_final_df", add_time = False )
+                              "final_df", add_time = False )
         print(f"Finished and output saved, at {utils.get_time()}") 
  
-
-
 
 
 
@@ -1111,17 +1150,16 @@ class data_linking:
         businessAndRetailList = pats1Multi[res1].index.to_list()
         businessAndRetailObservations = pat[pat["portfolioid"].isin(businessAndRetailList)].copy()
         businessAndRetailObservations.sort_values(["portfolioid", "dateeow"], inplace=True)
-# if __name__ == "__main__":
-#
-#     indirec = "./data"
-#     outdirec = "./output"
-#     datatest = data_linking(indirec,outdirec)
-#
-#     cross_sec = datatest.create_base_cross_section(date_string="2020-12",
-#                                                    subsample=True,
-#                                                    quarterly=True)
 
+
+
+if __name__ == "__main__":
     
+    indirec = "./data"
+    outdirec = "./output"
+    interdir = "./interdata"
+    datatest = data_linking(indirec,interdir,outdirec)
+
     #TODO We may want to do something with customer churn?
     # and make 'not a customer' a state that they can be in?       
     
