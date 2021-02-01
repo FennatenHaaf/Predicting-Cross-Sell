@@ -93,12 +93,12 @@ def exportChunk(data, chunkSize, exportString, **writeArgs):
     nRows = data.shape[0]
     if chunkSize > nRows:
         chunkSize = nRows
-    data.iloc[:chunkSize, :].to_csv(path_or_buf=exportString, mode="a", **writeArgs)
+    data.iloc[:chunkSize, :].to_csv(path_or_buf=exportString, mode="a",**writeArgs)
 
     startIndex = chunkSize
     endIndex = startIndex + chunkSize
     while endIndex <= nRows:
-        data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a", header=False,
+        data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a",header=False,
                                                  **writeArgs)
         startIndex += chunkSize
         endIndex += chunkSize

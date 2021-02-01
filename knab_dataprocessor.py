@@ -37,6 +37,7 @@ class dataProcessor:
         #Declare data variables to check if data has been printed
         self.df_corporate_details = pd.DataFrame()
         self.df_pat = pd.DataFrame()
+        self.df_expTS = pd.DataFrame()
         
         
 
@@ -1036,53 +1037,115 @@ class dataProcessor:
     def importPATsample(self):
         self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
 
+    def importSets(self, fileID):
+        ##Import Raw Files
+        if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
+            return pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+
+        if fileID == "bhk" or fileID == "portfolio_boekhoudkoppeling.csv" :
+            return pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+
+        if fileID == "pin" or fileID == "portfolio_info.csv":
+            return pd.read_csv(f"{self.indir}/portfolio_info.csv")
+
+        if fileID == "pst" or fileID ==  "portfolio_status.csv":
+            return pd.read_csv(f"{self.indir}/portfolio_status.csv")
+
+        if fileID == "exp" or fileID ==  "experian.csv":
+            return pd.read_csv(f"{self.indir}/experian.csv")
+
+        ##Import Intermediate Files
+        if fileID == "expts" or fileID ==  "experianTS.csv":
+            return utils.importChunk(f"{self.interdir}/experianTS.csv", 250000)
+
+
+    def exportEdited(self, fileID):
+        if fileID == "expts":
+            writeArgs = {"index": False}
+            utils.exportChunk(self.df_expTS, 250000, "experianTS.csv", **writeArgs)
+
     def linkTimeSets(self, period = "Q"):
         # ToDo corrigeer voor al geimporteerde of bewerkte data
         # Todo zorg er voor dat valid to date wordt gepakt
         # Todo itereer over rij en resample the observaties
         # If valid_to < period in Time Series
-        expTime = pd.read_csv(f"{self.indir}/experian.csv")
+        if self.df_expTS.empty:
+            self.transformExperianTS(period = period)
+
         self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
-        self.df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
         self.portfolio_info = pd.read_csv(f"{self.indir}/portfolio_info.csv")
         self.portfolio_status = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+        self.df_bhk = bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
 
-        expTime.dropna(how = "all", inplace = True)
-        expTime["valid_to_dateeow"] = pd.to_datetime(expTime["valid_to_dateeow"])
+    def transformExperianTS(self, period = "Q"):
+            expTime = pd.read_csv(f"{self.indir}/experian.csv")
+            expTime.dropna(how = "all", inplace = True)
+            expTime["valid_to_dateeow"] = pd.to_datetime(expTime["valid_to_dateeow"])
+            currentTime = datetime(2020,12,31)
+            expTime["valid_from_dateeow"] = pd.to_datetime(expTime["valid_from_dateeow"])
+            expTime["valid_to_dateeow"].fillna(currentTime, inplace=True)
+            uniqueList = expTime["personid"].unique().tolist()
+            time_key = pd.Grouper(key = "valid_from_dateeow",freq=period)
+            expTime2 = expTime.groupby(["personid", time_key])[["valid_to_dateeow"]]
+            expTime3 = expTime2.max()
+
+            concatList = []
+            counter = 0
+            for item in uniqueList:
+                counter += 1
+                print("printing Item no: ",counter," which is personid ",item)
+                tempData = expTime3.loc[item]
+                maxDate = tempData.max()[0]
+                tempData.loc[maxDate,:] = maxDate
+                tempData = tempData.resample("Q").pad()
+                tempData.loc[:,"personid"] = item
+                tempData.index = tempData.index.to_period("Q")
+                concatList.append(tempData.reset_index())
+            expTime2 = pd.concat(concatList, ignore_index= True)
+
+            expTime.drop("valid_from_dateeow", axis = 1,inplace = True)
+            self.df_expTS = pd.merge(expTime,expTime2, on = ["personid","valid_to_dateeow"])
+
+    def bhkToTS(self,period = "Q"):
+        bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        bhk.dropna(how = "all", inplace = True)
+        bhk["valid_to_dateeow"] = pd.to_datetime(bhk["valid_to_dateeow"])
         currentTime = datetime(2020,12,31)
-        expTime["valid_from_dateeow"] = pd.to_datetime(expTime["valid_from_dateeow"])
-        expTime["valid_to_dateeow"].fillna(currentTime, inplace=True)
-        expTime["yearPeriodFrom"] = expTime["valid_from_dateeow"].dt.to_period(period)
-        expTime["yearPeriodTo"] = expTime["valid_to_dateeow"].dt.to_period(period)
-        repeatList = expTime.groupby("personid")["yearPeriodFrom"].count()
-        uniqueExperian = repeatList.index
+        bhk["valid_from_dateeow"] = pd.to_datetime(bhk["valid_from_dateeow"])
+        bhk["valid_to_dateeow"].fillna(currentTime, inplace=True)
+        bhk["yearPeriodFrom"] = bhk["valid_from_dateeow"].dt.to_period(period)
+        repeatList = bhk.groupby("personid")["yearPeriodFrom"].count()
+        uniqueBHK = repeatList.index
         repeatList = repeatList[repeatList > 1]
         repeatList = repeatList.index.to_list()
         randomizer = np.random.RandomState(901267)
-        randomSamp = randomizer.choice(repeatList, 10)
-        expTime = expTime[expTime["personid"].isin(randomSamp)]
+        randomSamp = randomizer.choice(repeatList, 20)
+
+        bhk = bhk[bhk["personid"].isin(randomSamp)]
 
         time_key = pd.Grouper(key = "valid_from_dateeow",freq=period)
-        expTime2 = expTime.groupby(["personid", time_key])[["valid_to_dateeow"]]
-        expTime3 = expTime2.max()
-        concatList = []
-        spec = "4361b3f17d515680ee8f7034e01b537a322ebb85"
-        expTime2 = expTime.groupby(["personid", time_key])[["valid_to_dateeow"]]
-        expTime3 = expTime2.max()
+        bhk2 = bhk.groupby(["personid", time_key])[["valid_to_dateeow"]]
+        bhk3 = bhk2.max()
 
         concatList = []
         for item in randomSamp:
-            tempData = expTime3.loc[item]
+            tempData = bhk3.loc[item]
             maxDate = tempData.max()[0]
             tempData.loc[maxDate,:] = maxDate
             tempData = tempData.resample("Q").pad()
             tempData.loc[:,"personid"] = item
             tempData.index = tempData.index.to_period("Q")
             concatList.append(tempData.reset_index())
-        expTime2 = pd.concat(concatList, ignore_index= True)
+        bhk2 = pd.concat(concatList, ignore_index= True)
 
-        expTime.drop("valid_from_dateeow", axis = 1,inplace = True)
-        expTime_Final = pd.merge(expTime,expTime2, on = ["personid","valid_to_dateeow"])
+        bhk.drop("valid_from_dateeow", axis = 1,inplace = True)
+        self.df_expTS = pd.merge(bhk,bhk2, on = ["personid","valid_to_dateeow"])
+
+
+
+
+
+
 
 
 
@@ -1101,6 +1164,9 @@ class dataProcessor:
         nOfPIDperPort = self.df_linkpersonportfolio.groupby("portfolioid")["personid"].count().sort_values(ascending = False)
         nOfPortPerPID = self.df_linkpersonportfolio.groupby("personid")["portfolioid"].count().sort_values(
             ascending=False)
+
+
+        dataInsight.recurringValues(self.df_bhk, "portfolioid", "personid", threshold = 1)
 
 
     def explorePA(self):
