@@ -114,6 +114,7 @@ def getPatColToParseTS(subset="total"):
     else:
         print("error getting list")
 
+# Todo test
 def getPatConvert(subset = "total"):
     datatypeConvertP1 = {
         'dateeow': "datetime64",
