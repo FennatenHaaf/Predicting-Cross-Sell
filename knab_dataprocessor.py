@@ -12,20 +12,24 @@ import numpy as np
 from datetime import datetime
 from datetime import timedelta
 import utils
+import dataInsight
 import declarationsFile
 import gc
+
 
 class dataProcessor:
 
     # ToDo Randomize seed. Interdir toegevoegd om snel csv te importeren ipv hele set te runnen
-    def __init__(self,indir,interdir,outdir, seed = 1234):
+    def __init__(self,indir,interdir,outdir, 
+                 save_intermediate=False,
+                 seed = 1234):
         """This method processes data provided by Knab"""
         
         #-------------------------INITIALISATION-----------------------
-        
         self.indir= indir # location of input files
         self.interdir = interdir #location of intermediate files
         self.outdir = outdir # location of linked output files
+        self.save_intermediate = save_intermediate # location of linked output files
         self.seed = seed
 
         #Declare data variables to check if data has been printed
@@ -42,8 +46,8 @@ class dataProcessor:
         nameList = ["personid", "subtype", "name"]
         nameList2 = ["personid", "birthday", "subtype", "code", "name"]
         print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape)
-        utils.numberOfNaN(self.df_corporate_details, nameList2)
-        utils.mostCommonDict(self.df_corporate_details, nameList, 10)
+        dataInsight.numberOfNaN(self.df_corporate_details, nameList2)
+        dataInsight.mostCommonDict(self.df_corporate_details, nameList, 10)
 
         # Copy DataFrame for editing and drop code column and rows with NaN value
         self.df_corporate_details = self.df_corporate_details.copy()
@@ -84,11 +88,11 @@ class dataProcessor:
         print(self.df_corporate_details["birthday"].describe())
 
         # drop columns and
-        utils.mostCommon(self.df_corporate_details, aid, 10)
+        dataInsight.mostCommon(self.df_corporate_details, aid, 10)
         print(self.df_corporate_details[aid].describe())
         self.df_corporate_details.sample(5)
 
-        utils.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
+        dataInsight.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
         self.df_corporate_details[aid].describe()
 
         a = self.df_corporate_details.index[:10].to_list()
@@ -181,10 +185,8 @@ class dataProcessor:
 
 
 
-
-
-    def link_data(self):
-        """This function creates a base dataset containing person IDs linked
+    def link_data(self, outname = "base_linkinfo"):
+        """This function creates a dataset containing person IDs linked
         to their portfolio ids and the corresponding portfolio information.
         It also links the person IDs to business IDs and corresponding 
         business information based on the corporate portfolio IDs"""
@@ -205,12 +207,12 @@ class dataProcessor:
                                   right_on=["portfolioid"],) 
 
         #Split the corporate persons off and rename
-        self.df_corporatelink = self.df_link[self.df_link["iscorporatepersonyn"]==1]
-        self.df_corporatelink = self.df_corporatelink.loc[:,["personid","portfolioid"]]
-        self.df_corporatelink = self.df_corporatelink.rename(columns={"personid": "corporateid",})
+        df_corporatelink = self.df_link[self.df_link["iscorporatepersonyn"]==1]
+        df_corporatelink = df_corporatelink.loc[:,["personid","portfolioid"]]
+        df_corporatelink = df_corporatelink.rename(columns={"personid": "corporateid",})
         
         # Merge to find which human personids are linked to which corporate ids
-        self.df_link = self.df_link.merge(self.df_corporatelink, 
+        self.df_link = self.df_link.merge(df_corporatelink, 
                                   how="left", left_on=["portfolioid"],
                                   right_on=["portfolioid"],) 
         # TODO check if human person ids could be getting linked to multiple
@@ -223,6 +225,23 @@ class dataProcessor:
                                   right_on=["corporateid"],)
         # TODO check if businesses appear multiple times!!
         
+        #------------------------ SAVE & RETURN -------------------------
+        if self.save_intermediate:
+            utils.save_df_to_csv(self.df_link, self.interdir, 
+                                  outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
+            
+        # TODO make the function return df_link and make it an input for the
+        # other functions rather than calling with self. ??
+        #return self.df_link 
+        
+        
+        
+    def create_experian_base(self, outname = "base_experian" ):   
+        """Creates a base dataset of all unique person IDs from
+        the Experian dataset, which the portfolio information will be merged
+        with later"""
+        
         #---------------------FINAL DATASET BASE---------------------
         
         # We take all columns from experian data as a base, but we only want
@@ -230,18 +249,19 @@ class dataProcessor:
         # present, so dateinstroomweek should NOT be blank
         # TODO: add loc thingo?
         valid_ids = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
-        final_df = self.df_experian.loc[self.df_experian["personid"].isin(valid_ids)] 
+        self.base_df = self.df_experian.loc[self.df_experian["personid"].isin(valid_ids)] 
 
-        # TODO use dataInsight print unique IDs function        
+        # Print number of unique IDs
+        dataInsight.unique_IDs(self.base_df,"base Experian dataset")       
 
         #------------------------ GET DATES INSIGHT -------------------------
         
-        final_df.loc[:,'valid_to_dateeow'] = pd.to_datetime(final_df['valid_to_dateeow'])
-        final_df.loc[:,'valid_from_dateeow'] = pd.to_datetime(final_df['valid_from_dateeow'])     
+        self.base_df.loc[:,'valid_to_dateeow'] = pd.to_datetime(self.base_df['valid_to_dateeow'])
+        self.base_df.loc[:,'valid_from_dateeow'] = pd.to_datetime(self.base_df['valid_from_dateeow'])     
 
         # See what the most recent date is in the data 
         # Find the latest and oldest dates where a customer was changed or added 
-        all_dates = pd.concat([final_df['valid_to_dateeow'],final_df['valid_from_dateeow']])
+        all_dates = pd.concat([self.base_df['valid_to_dateeow'],self.base_df['valid_from_dateeow']])
         self.last_date = all_dates.max()
         self.first_date = all_dates.min()
         
@@ -252,12 +272,15 @@ class dataProcessor:
         print(f"Oldest data in Experian is from {time_string}")
         
         #------------------------ SAVE & RETURN -------------------------
+        if self.save_intermediate:
+            utils.save_df_to_csv(self.base_df, self.interdir, 
+                                 outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
         
-        # utils.save_df_to_csv(final_df, self.outdir, 
-        #                       "z_fullexperian", add_time = False )      
-        # print(f"Finished and output saved, at {utils.get_time()}")
-        
-        return final_df
+        # TODO make the function return base_df and make it an input for the
+        # other functions rather than calling with self. ??
+        # return base_df 
+        #return base_df
         
         print("-------------------------------------")
         
@@ -265,11 +288,11 @@ class dataProcessor:
 
         
     def create_base_cross_section(self,
-                                  base_df,
                                   subsample = False,
                                   sample_size = 1000, 
                                   date_string = None,
                                   quarterly = True,
+                                  outname = "cross_experian",
                                   seed = 1234):  
         """Method to create a cross-sectional dataset of the unique person ids.
         For this cross-sectional dataset we use only the information of the 
@@ -312,8 +335,7 @@ class dataProcessor:
             print(f"Using quarterly data, time-slice date is {time_string}")
             quarter = ((date.month-1)//3)+1  #the quarter of our time slice
             print(f"quarter is Q{quarter}, we take the last date of the quarter")
-            #initial_day_quarter = datetime(date.year, 3 * quarter - 2, 1) 
-            
+  
             cross_date = self.get_last_day_period(date,next_period=False,quarterly=True)
             next_date = self.get_last_day_period(date,next_period=True,quarterly=True)
         
@@ -329,9 +351,9 @@ class dataProcessor:
         print(f"next date {next_date.strftime(time_format)}")
         
         ## Now get the base dataset for this current period and the next 
-        df_cross = self.get_time_slice(base_df,cross_date)
+        df_cross = self.get_time_slice(self.base_df,cross_date)
+        df_next = self.get_time_slice(self.base_df,next_date)
         #print(f"There is data for {len(df_cross)} customers at the cross-section point")
-        df_next = self.get_time_slice(base_df,next_date)
         #print(f"{len(df_next)}")
         
         #---------------------Taking subsample---------------------
@@ -359,14 +381,24 @@ class dataProcessor:
             print(f"Done at {utils.get_time()}.")
             print(f"length after: {len(df_cross)}.") 
        
-        # print("saving to csv")
-        # utils.save_df_to_csv(df_cross, self.outdir, 
-        #                       "z_crossexperian", add_time = False )      
-        # print(f"Finished and output saved, at {utils.get_time()}") 
+        
+        #------------------------ SAVE & RETURN -------------------------
+        
+        if self.save_intermediate:
+            utils.save_df_to_csv(df_cross, self.interdir, 
+                                 outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
+        
+        # TODO make the function return base_df and make it an input for the
+        # other functions rather than calling with self. ??
+        # return base_df 
+        #return base_df
+        return df_cross, cross_date, df_next, next_date
+        
        
         print("-------------------------------------")
     
-        self.create_cross_section_perportfolio(df_cross, cross_date, quarterly)
+        #self.create_cross_section_perportfolio(df_cross, cross_date, quarterly)
         # TODO Vervolgens willen we dit ook voor next doen als er een datum
         # is gespecifceerd !!! Dus, pas aan het begin aan zodat als de datum
         # kleiner is dan het laatste kwartaal er een variabele op true staat
@@ -638,7 +670,7 @@ class dataProcessor:
         
         print("Saving final product to csv")
         utils.save_df_to_csv(df_cross, self.outdir, 
-                              "z_final_df", add_time = False )
+                              "final_df", add_time = False )
         print(f"Finished and output saved, at {utils.get_time()}") 
  
 
