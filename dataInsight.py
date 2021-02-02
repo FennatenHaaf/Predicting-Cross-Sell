@@ -75,3 +75,8 @@ def mostCommonDict(data, nameList, numberOfValues=1):
     dictOfTables = {}
     for columnName in nameList:
         dictOfTables[columnName] = mostCommon(data, columnName, numberOfValues, True)
+
+def recurringValues(data, indexCol, colToTest, threshold = 1):
+    def filterMultiple(x):
+        return x.count() > threshold
+    print(data.groupby(indexCol)[colToTest].filter(filterMultiple).count())
