@@ -1036,9 +1036,6 @@ class dataProcessor:
 
         self.time_pat = patpivot
 
-    def importPATsample(self):
-        self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
-
     def importSets(self, fileID):
         ##Import Raw Files
         if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
@@ -1060,10 +1057,19 @@ class dataProcessor:
         if fileID == "expts" or fileID ==  "experianTS.csv":
             return utils.importChunk(f"{self.interdir}/experianTS.csv", 250000)
 
+        if fileID == "cored" or "df_corporate_details":
+            return pd.read_csv(f"{self.interdir}/corporate_details_processed.csv",)
+
+        if fileID == "pasmp" or fileID =="total_portfolio_activity_larger_sample.csv":
+            self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
+
     def exportEdited(self, fileID):
         if fileID == "expts":
             writeArgs = {"index": False}
             utils.exportChunk(self.df_expTS, 250000, "experianTS.csv", **writeArgs)
+
+        if fileID == "cored" or "df_corporate_details":
+            self.df_corporate_details.to_csv(f"{self.interdir}/corporate_details_processed.csv",index= False)
 
     def linkTimeSets(self, period = "Q"):
         # ToDo corrigeer voor al geimporteerde of bewerkte data
@@ -1078,8 +1084,10 @@ class dataProcessor:
         df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
         df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
         df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
-
-        self.importPATsample()
+        if self.df_corporate_details.empty:
+            self.processCorporateData()
+        df_cor = self.df_corporate_details
+        self.importSets("pasmp")
         self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
         self.df_pat[self.df_pat["dateeow"] == "2021-01-03"] = self.endDate
 
@@ -1102,14 +1110,18 @@ class dataProcessor:
 
         #TODO remove nan values (no val in experian) and see if they match something different.
         #TODO check if end dates are taken over well
+        #TODO corporate details erbij pakken en proberen te matchen aan de corporate ID's
+        #TODO splits business en retail om de juiste dingen te pakken
+        expUnique = exp2["personid"].unique().tolist()
         joined2.sort_values(["dateeow", "personid","portfolioid"], inplace=True)
+        joinIndex = joined2[joined2["personid"]]
         joined3 = pd.merge_asof(joined2, exp2, by="personid", left_on="dateeow", right_on="valid_to_dateeow").pad()
 
         def checkV(data,value,column = "personid"):
             return data[data[column] == value]
 
-        exex = exp2[exp2["personid"] == "0d1b71855882292c8bf2a3616526ffb8eaea0ebd"]
-        examp = joined3[joined3["personid"] == "0d1b71855882292c8bf2a3616526ffb8eaea0ebd"]
+        exex = exp2[exp2["personid"] == "9cac9d73f8bead685f7d06b94821a910c9af8a91"]
+        examp = joined3[joined3["personid"] == "9cac9d73f8bead685f7d06b94821a910c9af8a91"]
 
         pass
 
@@ -1267,16 +1279,3 @@ class dataProcessor:
         businessAndRetailList = pats1Multi[res1].index.to_list()
         businessAndRetailObservations = pat[pat["portfolioid"].isin(businessAndRetailList)].copy()
         businessAndRetailObservations.sort_values(["portfolioid", "dateeow"], inplace=True)
-
-
-
-if __name__ == "__main__":
-    
-    indirec = "./data"
-    outdirec = "./output"
-    interdir = "./interdata"
-    datatest = data_linking(indirec,interdir,outdirec)
-
-    #TODO We may want to do something with customer churn?
-    # and make 'not a customer' a state that they can be in?       
-    
