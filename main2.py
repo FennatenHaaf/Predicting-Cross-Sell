@@ -8,36 +8,33 @@ Created on Mon Feb  1 10:43:27 2021
 import numpy as np 
 from math import comb
 import matplotlib.pyplot as plt
-from scipy.stats import multinomial
+import scipy.stats as sci
 
+class HMM:
+    
+def initialisation(self, list_dataframes, list_dep_var, list_covariates, n_segments, tol):
+    
+                   self.list_dataframes = list_dataframes
+                   self.list_dep_var = list_dep_var
+                   self.list_covariates = list_covariates
+                   self.n_segments = n_segments
+                   self.n_covariates = size(list_covariates)
+                   self.n_dep_var = size(list_dep_var)
+                   self.n_customers = 
+                   self.n_categories = 
+                   self.T = size(list_dataframe)
+                   self.tol = tol
 
-#initialise 
-data = 
-Y = 
-Z =
-
-n_segments = 
-n_covariates = 
-n_products = 
-n_customers = 
-n_categories = 
-n_customers = 
-
-T = 
-
-
-#parameters of P(S_0 = s|Z)
-gamma_0 = np.ones( (n_segments-1,n_covariates+1) )
-
-#parameters of P(S_t = s | S_t+1 = r)
-gamma_sr_0 = np.ones( (n_segments-1,n_segments) )
-gamma_sk_t = np.ones( (n_segments-1,n_covariates) )
-
-#parameters of P(Y|s) \\ kan ook (n_categories,n_segments)!!
-beta = ( (n_products,n_categories,n_segments) )
-
-
-tol = 10^-4 * np.ones(n_parameters,1) #tolerance
+                   #parameters of P(S_0 = s|Z)
+                   gamma_0 = np.ones( (self.n_segments-1,self.n_covariates+1) )
+                    
+                   #parameters of P(S_t = s | S_t+1 = r)
+                   gamma_sr_0 = np.ones( (self.n_segments-1,self.n_segments) )
+                   gamma_sk_t = np.ones( (self.n_segments-1,self.n_covariates) )
+                    
+                   #parameters of P(Y|s) \\ kan ook (n_categories,n_segments)!!
+                   beta = ( (self.n_products,self.n_categories,self.n_segments) )
+                    
 
 
 #Begin algorithm
@@ -50,9 +47,9 @@ def EM(gamma_0, gamma_sr_0, gamma_sk_t, beta, tolerance):
         gamma_sk_t_in = gamma_sk_t_out
         beta_in = beta_out
         
-        [] = expectation_step(gamma_0_in, gamma_sr_0_in, gamma_sk_t_in, beta_in)
+        [alpha,beta] = expectation_step(Y, Z, gamma_0_in, gamma_sr_0_in, gamma_sk_t_in, beta_in)
         
-        [gamma_0_out, gamma_sr_0_out, gamma_sk_t_out, beta_out] = maximization_step()
+        [gamma_0_out, gamma_sr_0_out, gamma_sk_t_out, beta_out] = maximization_step(Y, Z, , alpha, beta, gamma_0_in, gamma_sr_0_in, gamma_sk_t_in, beta_in, T)
         
         difference = (any(abs(gamma_0_in-gamma_0_out)) > tol) | (any(abs(gamma_sr_0_in-gamma_sr_0_out)) > tol) | (any(abs(gamma_sk_t_in-gamma_sk_t_out)) > tol) | (any(abs(beta_in-beta_out > tol)))
         
@@ -126,8 +123,92 @@ def prob_P_s_given_r(gamma_sr_0, gamma_sk_t, Z):
     return P_s_given_r
     
     
+#------------Functies voor de expectation step------------
+    
+#function for expectation step
+def expectation_step(gamma_0, gamma_sr_0, gamma_sk_t, beta, t):
+        
+    [alpha,beta] = forward_backward_procedure(Y,Z, beta, gamma_0, gamma_sr_0, gamma_sk_t, t)
+    
+
+    return
+
+#forward-backward algorithm
+def forward_backward_procedure(Y,Z, beta, gamma_0, gamma_sr_0, gamma_sk_t, T):
+    
+    n_customers = Y.shape[0]
+    n_segments = beta.shape[2]
+    pi = prob_pi(beta)
+    
+    alpha = np.zeros(n_customers, T, n_segment)
+    beta = np.zeros(n_customers, T, n_segment)
+
+    for i in range(0,n_customers):
+        for t in range(0,T):
+            v = T - t
+  
+            P_y_given_s = prob_P_y_given_s(Y[i,:,t], pi)
+            
+            if t == 0:
+                P_s_given_s = prob_P_s_given_Z(gamma_0, Z)
+                alpha[i,t,:] = multiply(P_y_given_s,P_s_given_Z)
+                beta[i,v,:] = np.ones( (1,1,n_segments) )
+            else:
+                P_s_given_r = prob_P_s_given_r(gamma_sr_0, gamma_sk_t, Z)
+
+                sum_alpha = np.zeros( (n_segments,1) )
+                sum_beta = np.zeros( (n_segments,1) )
+                for r in range(0,n_segments):
+                    sum_alpha = sum_alpha + multiply( multiply(alpha[i,t-1,:],P_s_given_r[:,r]), P_y_given_s)
+                    sum_beta = sum_beta + multiply( multiply(beta[i,v+1,:],P_s_given_r[r,]), P_y_given_s)
+
+            
+            alpha[i,t,:] = sum_alpha
+            beta[i,t,:]  = sum_beta
+                
+        
+               
+    return [alpha,beta]
 
 
+
+#------------Functies voor de maximiation step------------
+
+#function for maximization step
+def maximization_step(Y, Z, , alpha, beta, gamma_0_in, gamma_sr_0_in, gamma_sk_t_in, beta_in, T):
+    
+    
+    n_gamma_0 = gamma_0.size
+    n_gamma_sr_0 = gamma_sr_0.size
+    n_gamma_sk_t = gamma_sk_t.size
+    n_beta = beta.size
+    n_parameters = n_gamma_0 + n_gamma_sr_0 + n_gamma_sk_t + n_beta
+    
+    x0 = concatenate(gamma_0.flatten(), gamma__sr_0.flatten() gamma_sk_t.flatten() beta.flatten())
+    
+    [param_out] = sci.optimize.minimize(optimization_function, x0, args=(alpha,beta,Y,Z,T))
+    
+    #get right output
+    gamma_0_out = param_out[0:n_gamma_0]
+    gamma_sr_0_out = [n_gamma_0:n_gamma_0+n_gamma_sr_0]
+    gamma_sk_t_out = [n_gamma_0+n_gamma_sr_0:n_gamma_0+n_gamma_sr_0+n_gamma_sk_t]
+    beta_out = [n_gamma_0+n_gamma_sr_0+n_gamma_sk_t:n_parameters]
+    
+    #transform parameter output to matrix 
+    
+    return [gamma_0_out, gamma_sr_0_out, gamma_sk_t_out, beta_out]
+
+def optimization_function(x, alpha, beta, Y, Z, T):
+    
+    return 
+    
+def joint_event():
+    
+    return
+
+def state_event():
+    
+    return
 
 
 

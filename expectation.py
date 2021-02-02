@@ -5,32 +5,14 @@ Created on Mon Feb  1 11:08:14 2021
 @author: matth
 """
 import numpy as np 
-from scipy.stats import multinomial
 
-
-#initialise 
-data = 
-Y = 
-Z =
-
-n_segments = 
-n_covariates = 
-n_products = 
-n_customers = 
-n_categories = 
-n_customers = 
-
-T = 
 
 #function for expectation step
-def expectation_step(gamma_0, gamma_sr_0, gamma_sk_t, beta, t):
+def expectation_step(Y, Z, gamma_0, gamma_sr_0, gamma_sk_t, beta, T):
         
-    [alpha,beta] = forward_backward_procedure(Y,Z, beta, gamma_0, gamma_sr_0, gamma_sk_t, t)
+    [alpha,beta] = forward_backward_procedure(Y,Z, beta, gamma_0, gamma_sr_0, gamma_sk_t, T)
     
-    
-    [] = joint_event()
-    [] = state_event()
-    return
+    return [alpha,beta]
 
 #subfunctions for expectation step
 def forward_backward_procedure(Y,Z, beta, gamma_0, gamma_sr_0, gamma_sk_t, T):
@@ -71,10 +53,3 @@ def forward_backward_procedure(Y,Z, beta, gamma_0, gamma_sr_0, gamma_sk_t, T):
 
 
     
-def joint_event():
-    
-    return
-
-def state_event():
-    
-    return
