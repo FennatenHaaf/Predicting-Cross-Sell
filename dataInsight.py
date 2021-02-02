@@ -14,9 +14,11 @@ import pandas as pd
 Printing Intermediate Results
 """
 def unique_IDs(df,name):
-    """Print number of unique person IDs in a dataset"""
+    """Print number of unique person IDs in a dataset
+    """
     nunique = len(pd.DataFrame(df["personid"].unique()))
     print(f'unique person ids in {name}: {nunique}')
+
 
 def numberOfNaN(data, nameList):
     for item in nameList:
