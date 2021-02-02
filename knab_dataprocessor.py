@@ -68,8 +68,6 @@ class dataProcessor:
 
         if self.print_info: # show dimensions
             print("shape of current data",self.df_corporate_details)
-            self.df_corporate_details.sample()
-
 
         #---------- CREATE foundingDate, companyAgeInDays AND foundingYear--------
 
@@ -925,6 +923,64 @@ class dataProcessor:
         
         return dataset
 
+
+
+    def importSets(self, fileID):
+        ##Import Raw Files
+        if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
+            return pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+
+        elif fileID == "bhk" or fileID == "portfolio_boekhoudkoppeling.csv" :
+            return pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+
+        elif fileID == "pin" or fileID == "portfolio_info.csv":
+            return pd.read_csv(f"{self.indir}/portfolio_info.csv")
+
+        elif fileID == "pst" or fileID ==  "portfolio_status.csv":
+            return pd.read_csv(f"{self.indir}/portfolio_status.csv")
+
+        elif fileID == "exp" or fileID ==  "experian.csv":
+            return pd.read_csv(f"{self.indir}/experian.csv")
+
+
+
+        ##Import Intermediate Files
+        elif fileID == "expts" or fileID ==  "experianTS.csv":
+            return utils.importChunk(f"{self.interdir}/experianTS.csv", 250000)
+
+        elif fileID == "cored" or fileID == "df_corporate_details":
+            self.df_corporate_details = pd.read_csv(f"{self.interdir}/corporate_details_processed.csv")
+
+        elif fileID == "patot" or fileID ==  "experian.csv":
+            self.df_pat = utils.importChunk("total_portfolio_activity.csv", 250000)
+
+        elif fileID == "pasmp" or fileID =="total_portfolio_activity_sample.csv":
+            self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
+
+        else:
+            print("error importing")
+
+    def exportEdited(self, fileID):
+        if fileID == "expts":
+            writeArgs = {"index": False}
+            utils.exportChunk(self.df_expTS, 250000, f"{self.interdir}/experianTS.csv", **writeArgs)
+
+        elif fileID == "patot" or fileID == "total_portfolio_activity.csv":
+            writeArgs = {"index": False}
+            utils.exportChunk(self.df_pat, 250000, f"{self.interdir}/total_portfolio_activity.csv", **writeArgs)
+
+        elif fileID == "cored" or "df_corporate_details":
+            self.df_corporate_details.to_csv(f"{self.interdir}/corporate_details_processed.csv",index= False)
+
+        elif fileID == "cored" or "df_corporate_details":
+            self.df_corporate_details.to_csv(f"{self.interdir}/corporate_details_processed.csv",index= False)
+
+        elif fileID == "patsmp" or fileID == "total_portfolio_activity_sample.csv":
+            self.df_pat_sample.to_csv(f"{self.interdir}/total_portfolio_activity_sample.csv", index = False)
+
+        else:
+            print("error exporting")
+
     def importPortfolioActivity(self, convertData=False, selectColumns=False, discardPat = False, **readArgs):
         if convertData:
             datatypeConvertAll = declarationsFile.getPatConvert()
@@ -1010,66 +1066,19 @@ class dataProcessor:
         else:
             self.df_pat = pat
 
-
-
-    def transformPA(self, period = "Q"):
+    def portfolioActivitySampler(self, n = 4000, replaceGlobal = True):
+        randomizer = np.random.RandomState(self.seed)
         if self.df_pat.empty:
-            self.importPortfolioActivity(convertData= True, selectColumns= True)
+            self.importPortfolioActivity()
+        uniqueList = self.df_pat["portfolioid"].unique()
+        chosenID = randomizer.choice(uniqueList, n)
+        indexID = self.df_pat["portfolioid"].isin(chosenID)
+        self.df_pat_sample = self.df_pat[indexID].copy()
+        if replaceGlobal:
+            self.df_pat = self.df_pat_sample.copy()
 
-        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
-        self.df_pat["yearPeriod"] = self.df_pat["dateeow"].dt.to_period(period)
 
-        ##Convert to pivot
-        patcolumns = ['dateeow', 'saldobetalen',
-                      'aantalloginsapp', 'aantalloginsweb', 'betalenyn']
-        pataggfunc = {
-            'dateeow': min,
-            'saldobetalen': "mean",
-            'aantalloginsapp': sum,
-            'aantalloginsweb': sum,
-            "betalenyn": max}
 
-        indexColumns = ["portfolioid", "yearPeriod"]
-
-        patpivot = pd.pivot_table(self.df_pat, values=patcolumns, index=indexColumns, aggfunc=pataggfunc)
-        patpivot.dropna(inplace=True)
-
-        self.time_pat = patpivot
-
-    def importSets(self, fileID):
-        ##Import Raw Files
-        if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
-            return pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
-
-        if fileID == "bhk" or fileID == "portfolio_boekhoudkoppeling.csv" :
-            return pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
-
-        if fileID == "pin" or fileID == "portfolio_info.csv":
-            return pd.read_csv(f"{self.indir}/portfolio_info.csv")
-
-        if fileID == "pst" or fileID ==  "portfolio_status.csv":
-            return pd.read_csv(f"{self.indir}/portfolio_status.csv")
-
-        if fileID == "exp" or fileID ==  "experian.csv":
-            return pd.read_csv(f"{self.indir}/experian.csv")
-
-        ##Import Intermediate Files
-        if fileID == "expts" or fileID ==  "experianTS.csv":
-            return utils.importChunk(f"{self.interdir}/experianTS.csv", 250000)
-
-        if fileID == "cored" or "df_corporate_details":
-            return pd.read_csv(f"{self.interdir}/corporate_details_processed.csv",)
-
-        if fileID == "pasmp" or fileID =="total_portfolio_activity_larger_sample.csv":
-            self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
-
-    def exportEdited(self, fileID):
-        if fileID == "expts":
-            writeArgs = {"index": False}
-            utils.exportChunk(self.df_expTS, 250000, "experianTS.csv", **writeArgs)
-
-        if fileID == "cored" or "df_corporate_details":
-            self.df_corporate_details.to_csv(f"{self.interdir}/corporate_details_processed.csv",index= False)
 
     def linkTimeSets(self, period = "Q"):
         # ToDo corrigeer voor al geimporteerde of bewerkte data
@@ -1078,14 +1087,15 @@ class dataProcessor:
         # If valid_to < period in Time Series
         # if self.df_expTS.empty:
         #     self.transformExperianTS(period = period)
+        if self.df_corporate_details.empty:
+            self.processCorporateData()
 
         df_exp = pd.read_csv(f"{self.indir}/experian.csv")
         df_lpp = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
         df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
         df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
         df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
-        if self.df_corporate_details.empty:
-            self.processCorporateData()
+
         df_cor = self.df_corporate_details
         self.importSets("pasmp")
         self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
@@ -1103,25 +1113,30 @@ class dataProcessor:
         exp2["valid_to_dateeow"] = pd.to_datetime(exp2["valid_to_dateeow"])
         exp2["valid_to_dateeow"].fillna(self.endDate, inplace = True)
         exp2.sort_values(["valid_to_dateeow", "personid"], inplace=True)
+        exp2.dropna(axis = 0, subset = exp2.columns[3:].tolist(), how = "all", inplace = True)
+
+        expIndex = exp2["age_hh"].isna()
+        expNoChar = exp2[expIndex].copy()
+        exp2 = exp2[~expIndex]
 
         randomizer = np.random.RandomState(self.seed)
         randomList = randomizer.choice(joined2["personid"].unique(), 30)
         joined2 = joined2[joined2["personid"].isin(randomList)].copy()
-
         #TODO remove nan values (no val in experian) and see if they match something different.
         #TODO check if end dates are taken over well
         #TODO corporate details erbij pakken en proberen te matchen aan de corporate ID's
         #TODO splits business en retail om de juiste dingen te pakken
         expUnique = exp2["personid"].unique().tolist()
-        joined2.sort_values(["dateeow", "personid","portfolioid"], inplace=True)
-        joinIndex = joined2[joined2["personid"]]
-        joined3 = pd.merge_asof(joined2, exp2, by="personid", left_on="dateeow", right_on="valid_to_dateeow").pad()
+        joined2.sort_values(["dateeow", "personid"], inplace=True)
+        joinIndex = joined2["personid"].isin(expUnique)
+        notJoinIndex = ~joined2["personid"].isin(expUnique)
+        joined3 = pd.merge_asof(joined2[joinIndex], exp2, by="personid", left_on="dateeow", right_on="valid_to_dateeow").bfill()
+#,direction = "forward"
+        ju3 = joined3["personid"].unique()
+        ch1, ch2 = dataInsight.checkAVL(ju3), dataInsight.checkAVL(ju3)
+        tstr = "ex1, ex2 = dataInsight.checkV1( joined3,next(ch1)),dataInsight.checkV1(exp2,next(ch2))"
+        exec(tstr)
 
-        def checkV(data,value,column = "personid"):
-            return data[data[column] == value]
-
-        exex = exp2[exp2["personid"] == "9cac9d73f8bead685f7d06b94821a910c9af8a91"]
-        examp = joined3[joined3["personid"] == "9cac9d73f8bead685f7d06b94821a910c9af8a91"]
 
         pass
 
@@ -1207,6 +1222,30 @@ class dataProcessor:
 
 
         pass
+
+    def transformPA(self, period = "Q"):
+        if self.df_pat.empty:
+            self.importPortfolioActivity(convertData= True, selectColumns= True)
+
+        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
+        self.df_pat["yearPeriod"] = self.df_pat["dateeow"].dt.to_period(period)
+
+        ##Convert to pivot
+        patcolumns = ['dateeow', 'saldobetalen',
+                      'aantalloginsapp', 'aantalloginsweb', 'betalenyn']
+        pataggfunc = {
+            'dateeow': min,
+            'saldobetalen': "mean",
+            'aantalloginsapp': sum,
+            'aantalloginsweb': sum,
+            "betalenyn": max}
+
+        indexColumns = ["portfolioid", "yearPeriod"]
+
+        patpivot = pd.pivot_table(self.df_pat, values=patcolumns, index=indexColumns, aggfunc=pataggfunc)
+        patpivot.dropna(inplace=True)
+
+        self.time_pat = patpivot
 
     ### DATA EXPLORATION METHODS
     def exploreSets(self):

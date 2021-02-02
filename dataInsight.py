@@ -80,3 +80,14 @@ def recurringValues(data, indexCol, colToTest, threshold = 1):
     def filterMultiple(x):
         return x.count() > threshold
     print(data.groupby(indexCol)[colToTest].filter(filterMultiple).count())
+
+def checkV1(data, value, column="personid"):
+    return data[data[column] == value]
+
+def checkAVD(data, column):
+    for value in data[column].unique():
+        yield data[data[column] == value]
+
+def checkAVL(list):
+    for value in list:
+        yield value
