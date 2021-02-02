@@ -393,24 +393,15 @@ class dataProcessor:
                                  outname, add_time = False )      
             print(f"Finished and output saved, at {utils.get_time()}")
         
-        # TODO make the function return base_df and make it an input for the
-        # other functions rather than calling with self. ??
-        # return base_df 
-        #return base_df
         return df_cross, cross_date, df_next, next_date
-        
-       
+           
         print("-------------------------------------")
-    
-        #self.create_cross_section_perportfolio(df_cross, cross_date, quarterly)
-        # TODO Vervolgens willen we dit ook voor next doen als er een datum
-        # is gespecifceerd !!! Dus, pas aan het begin aan zodat als de datum
-        # kleiner is dan het laatste kwartaal er een variabele op true staat
 
 
 
     def create_cross_section_perportfolio(self, df_cross, cross_date, 
-                             quarterly=True): 
+                                          outname = "df_cross_portfoliolink",
+                                          quarterly=True): 
         """Creates a dataset of information for a set of people at a 
         specific time"""
         
@@ -426,6 +417,7 @@ class dataProcessor:
                                             valid_to_string = 'validtodate',
                                             valid_from_string = 'validfromdate')
         
+        # Take the same subsample of people as what we took from the experian data
         df_cross_link = df_cross_link.loc[df_cross_link["personid"].isin(
             df_cross["personid"].unique())]
         
@@ -444,7 +436,7 @@ class dataProcessor:
                                              cross_date,
                                              valid_to_string = 'outflow_date',
                                              valid_from_string = 'inflow_date')
-        # Take the same subsample of people as what we took from the experian data
+        
         df_cross_link = df_cross_link.loc[df_cross_link["portfolioid"].isin(
             df_portfolio_status["portfolioid"].unique())]
         
@@ -508,30 +500,33 @@ class dataProcessor:
         df_cross_link = df_cross_link.merge(df_portfolio_boekhoudkoppeling,
                                             how="left", left_on=["personid","portfolioid"],
                                             right_on=["personid","portfolioid"])
-                
-        # Save the final product
-        utils.save_df_to_csv(df_cross_link, self.outdir, 
-                              "z_df_cross_portfoliolink", add_time = False )  
         
+        #------------------------ SAVE & RETURN -------------------------
+        
+        if self.save_intermediate:
+            utils.save_df_to_csv(df_cross_link, self.interdir, 
+                                 outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
+
+        return df_cross_link  
         print("-------------------------------------")
         
-        #----------------------------------------------------------------
-        #----------------------------------------------------------------
-        #----Transform per-portfolio Link data into per-person data -----
-        #----------------------------------------------------------------
-        #----------------------------------------------------------------
         
+        
+        
+    def create_cross_section_perperson(self, df_cross, df_cross_link,
+                                       cross_date, outname = "final_df",
+                                       quarterly=True):  
+        """This function takes a dataset linking each person ID to
+        information for each portfolio separately, and returns a dataset
+        where all the portfolio information is aggregated per person ID"""
+       
         print(f"****Summarizing all information per ID, at {utils.get_time()}****")
-        # TODO Make the below things a separate function as well so there is the 
-        # option to only run this part on the linked crosssection data
         
-        # Now we have this information per portfolio, we want to incorporate
-        # it into the final cross_df dataset which should be per ID!
+        #-------------------------------------------------------------------
         
-        #----------- Portfolio indicators --------
-        
+        # Create a dictionary of the data separated by portfolio type
         df_cross_link_dict = {}
-        
         df_cross_link_dict['business'] = df_cross_link[df_cross_link["type"]=="Corporate Portfolio"]
         df_cross_link_dict['retail'] = df_cross_link[(df_cross_link["type"]=="Private Portfolio")\
                                              & (df_cross_link["enofyn"]==0)]
@@ -637,25 +632,27 @@ class dataProcessor:
                 # We laten duplicates alvast vallen
                 indicator = indicator.drop_duplicates()
                 
-                
-                
                 # TODO: fill in the blank spaces who are missing with 0??
                 # Need to differentiate between missing data and data that is
                 # not there?
             
+            
         #----------- Merge remaining things --------
         
-        # merge frequencies of all portfolios (including ones without any info)
-        # which we made earlier
-        df_cross= df_cross.merge(frequencies,
-                                  how="left", left_on=["personid"],
-                                  right_on=["personid"],)
+        # TODO check if this is necessary? And if so, make it so that 
+        # frequencies is an input to the function
+        # merge frequencies of ALL portfolios (including ones without any info)
+        # which we made earlier 
+        # df_cross= df_cross.merge(frequencies,
+        #                           how="left", left_on=["personid"],
+        #                           right_on=["personid"],)
         
         
         # Get the personid and birthyear which were stored in crosslink 
         # - first drop the duplicates
         characteristics = df_cross_link.loc[:,["personid","birthyear","geslacht",
                 "enofyn"]]
+        
         # Sort the characteristics by enofyn, so that the joint portfolios appear later.
         # then drop duplicates and keep the first entries that appear.
         characteristics = characteristics.sort_values("enofyn")
@@ -669,14 +666,18 @@ class dataProcessor:
         #TODO: zorg dat de pakketcategorie en een paar 'algemene' variabelen
         # er nog in komen??
         
+        #------------------------ SAVE & RETURN -------------------------
         
-        #----------- Save the final product --------
+        #if self.save_intermediate:
+        utils.save_df_to_csv(df_cross, self.interdir, 
+                             outname, add_time = False )      
+        print(f"Finished and output saved, at {utils.get_time()}")
+
+       #return df_cross
+           
+        print("-------------------------------------")
         
-        print("Saving final product to csv")
-        utils.save_df_to_csv(df_cross, self.outdir, 
-                              "final_df", add_time = False )
-        print(f"Finished and output saved, at {utils.get_time()}") 
- 
+
 
 
 

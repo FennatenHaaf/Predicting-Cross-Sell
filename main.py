@@ -7,11 +7,13 @@ if __name__ == "__main__":
     indirec = "./data"
     outdirec = "./output"
     interdir = "./interdata"
-    save_intermediate_results = False
-    print_information = False
-    #TODO maak ook een variabele get_insight of verbose oid
-    # en verwerk dat in de dataprocessor om dingen wel of niet te printen 
+    save_intermediate_results = False # Save the intermediate outputs
+    print_information = False # Print things like frequency tables or not
+    quarters = True # In which period do we want to aggregate the data?
+    # TODO zou ook quarterly een .self variabele kunnnen maken in dataprocessor,
+    # alleen dan kan het niet verschillen per dataset maar dat is misschien niet erg
     
+
     start = utils.get_time()
     
     #----------------INITIALISE DATASET CREATION-------------------
@@ -29,11 +31,20 @@ if __name__ == "__main__":
     
     #----------------MAKE CROSS-SECTIONAL DATASETS-------------------
     
-    quarters = True # In which period do we want to aggregate the data
-    
     df_cross, cross_date, df_next, next_date = test.create_base_cross_section(
-        date_string="2020-12", subsample=True, sample_size = 1000, quarterly= quarters)
+        date_string="2020-12", subsample=True, sample_size = 1000, quarterly=quarters)
     
+    
+    df_cross_link = test.create_cross_section_perportfolio(df_cross, cross_date, 
+                                          outname = "df_cross_portfoliolink",
+                                          quarterly= quarters)
+    
+    test.create_cross_section_perperson(df_cross, df_cross_link,
+                                       cross_date, outname = "final_df",
+                                       quarterly= quarters)
+    
+    
+    #-----------------------------------------------------------------
     
     end = utils.get_time()
     diff = utils.get_time_diff(start,end)
