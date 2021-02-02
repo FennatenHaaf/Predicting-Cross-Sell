@@ -23,7 +23,7 @@ class dataProcessor:
     def __init__(self,indir,interdir,outdir, 
                  save_intermediate=False,
                  print_info=False,
-                 seed = 1234):
+                 seed = 978391):
         """This method processes data provided by Knab"""
         
         #-------------------------INITIALISATION-----------------------
@@ -33,6 +33,7 @@ class dataProcessor:
         self.save_intermediate = save_intermediate # location of linked output files
         self.print_info = print_info #Determines how verbose it is
         self.seed = seed
+        self.endDate = datetime(2020, 12, 31) #Initalizes a last date for NaN values
 
         #Declare data variables to check if data has been printed
         self.df_corporate_details = pd.DataFrame()
@@ -1058,7 +1059,6 @@ class dataProcessor:
         if fileID == "expts" or fileID ==  "experianTS.csv":
             return utils.importChunk(f"{self.interdir}/experianTS.csv", 250000)
 
-
     def exportEdited(self, fileID):
         if fileID == "expts":
             writeArgs = {"index": False}
@@ -1069,14 +1069,51 @@ class dataProcessor:
         # Todo zorg er voor dat valid to date wordt gepakt
         # Todo itereer over rij en resample the observaties
         # If valid_to < period in Time Series
-        if self.df_expTS.empty:
-            self.transformExperianTS(period = period)
+        # if self.df_expTS.empty:
+        #     self.transformExperianTS(period = period)
 
-        self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
-        self.portfolio_info = pd.read_csv(f"{self.indir}/portfolio_info.csv")
-        self.portfolio_status = pd.read_csv(f"{self.indir}/portfolio_status.csv")
-        self.df_bhk = bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        df_exp = pd.read_csv(f"{self.indir}/experian.csv")
+        df_lpp = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+        df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
 
+        self.importPATsample()
+        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
+        self.df_pat[self.df_pat["dateeow"] == "2021-01-03"] = self.endDate
+
+        short_lpp = df_lpp[["personid", "portfolioid"]]
+        joined = pd.merge(self.df_pat, df_lpp, on="portfolioid")
+        joined = joined[["dateeow","personid"] + joined.columns[1:35].tolist()].copy()
+        joined.drop("yearweek", axis=1, inplace = True)
+        sampleCol = ["dateeow", "personid","portfolioid", "pakketcategorie", "activitystatus", "saldobetalen"]
+        joined2 = joined[sampleCol].copy()
+        joined2.sort_values(["dateeow", "personid"], inplace = True)
+
+        exp2 = df_exp.copy()
+        exp2["valid_to_dateeow"] = pd.to_datetime(exp2["valid_to_dateeow"])
+        exp2["valid_to_dateeow"].fillna(self.endDate, inplace = True)
+        exp2.sort_values(["valid_to_dateeow", "personid"], inplace=True)
+
+        randomizer = np.random.RandomState(self.seed)
+        randomList = randomizer.choice(joined2["personid"].unique(), 30)
+        joined2 = joined2[joined2["personid"].isin(randomList)].copy()
+
+        #TODO remove nan values (no val in experian) and see if they match something different.
+        #TODO check if end dates are taken over well
+        joined2.sort_values(["dateeow", "personid","portfolioid"], inplace=True)
+        joined3 = pd.merge_asof(joined2, exp2, by="personid", left_on="dateeow", right_on="valid_to_dateeow").pad()
+
+        def checkV(data,value,column = "personid"):
+            return data[data[column] == value]
+
+        exex = exp2[exp2["personid"] == "0d1b71855882292c8bf2a3616526ffb8eaea0ebd"]
+        examp = joined3[joined3["personid"] == "0d1b71855882292c8bf2a3616526ffb8eaea0ebd"]
+
+        pass
+
+    #Todo Dit is echt bizar langzaam, moet een alternatief zijn. Pandas merge_asof of pandas merge_ordered. Ander
+    # alternatief is een aparte functie voor personid met 1 observatie en meerdere.
     def transformExperianTS(self, period = "Q"):
             expTime = pd.read_csv(f"{self.indir}/experian.csv")
             expTime.dropna(how = "all", inplace = True)
@@ -1085,6 +1122,13 @@ class dataProcessor:
             expTime["valid_from_dateeow"] = pd.to_datetime(expTime["valid_from_dateeow"])
             expTime["valid_to_dateeow"].fillna(currentTime, inplace=True)
             uniqueList = expTime["personid"].unique().tolist()
+
+            expTime["yearPeriodFrom"] = expTime["valid_from_dateeow"].dt.to_period(period)
+            repeatList = expTime.groupby("personid")["yearPeriodFrom"].count()
+            repeatList = repeatList[repeatList > 1]
+            repeatList = repeatList.index.to_list()
+            randomizer = np.random.RandomState(901267)
+            randomSamp = randomizer.choice(repeatList, 20)
             time_key = pd.Grouper(key = "valid_from_dateeow",freq=period)
             expTime2 = expTime.groupby(["personid", time_key])[["valid_to_dateeow"]]
             expTime3 = expTime2.max()
@@ -1156,8 +1200,8 @@ class dataProcessor:
         expTime = pd.read_csv(f"{self.indir}/experian.csv")
         self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
         self.df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
-        self.portfolio_info = pd.read_csv(f"{self.indir}/portfolio_info.csv")
-        self.portfolio_status = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+        self.df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        self.df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
         self.df_bhk.groupby("personid")["portfolioid"].count()
 
         #person id's per protfolio and vice versa
@@ -1167,6 +1211,12 @@ class dataProcessor:
 
 
         dataInsight.recurringValues(self.df_bhk, "portfolioid", "personid", threshold = 1)
+
+        uL = self.df_bhk["personid"].unique()
+        print("unique Person ID in bhk :",uL.shape)
+        uList2 = self.df_lpp["personid"].unique()
+        print("unique Person id in Lpp :",uList2.shape)
+
 
 
     def explorePA(self):
