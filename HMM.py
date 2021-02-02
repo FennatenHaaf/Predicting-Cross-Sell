@@ -54,8 +54,8 @@ def EM(gamma_0, gamma_sr_0, gamma_sk_t, beta, tolerance):
         difference = (any(abs(gamma_0_in-gamma_0_out)) > tol) | (any(abs(gamma_sr_0_in-gamma_sr_0_out)) > tol) | (any(abs(gamma_sk_t_in-gamma_sk_t_out)) > tol) | (any(abs(beta_in-beta_out > tol)))
         
         iteration = iteration + 1
-    return 
-
+        
+        return [gamma_0_out, gamma_sr_0_out, gamma_sk_t_out, beta_out]
 
 #------------Functies waarmee je van de parameters naar de kansen gaat------------
     
@@ -82,7 +82,7 @@ def prob_pi(beta):
     return pi
 
 
-#van pi naar probabilities P(Y|s)
+#van pi naar probabilities P(Y_it | X_it = s)
 def prob_P_y_given_s(y, pi):
     n_products = pi.shape(0)
     n_categories = pi.shape(1)
@@ -96,7 +96,7 @@ def prob_P_y_given_s(y, pi):
     return P_y_given_s 
 
 
-#from gamma_0 to probabilities P(S_0 = s|Z)
+#from gamma_0 to probabilities P(X_i0 = s| Z_i0)
 def prob_P_s_given_Z(gamma_0, Z):  
     n_segments = gamma_0.shape[0]+1
     
@@ -109,7 +109,7 @@ def prob_P_s_given_Z(gamma_0, Z):
     return P_s_given_Z
     
 
-#from gamma_sr_0 and gamma_sk_t to probabilities P(S_t = s | S_t+1 = r)
+#from gamma_sr_0 and gamma_sk_t to probabilities P(X_it = s | X_it-1 = r, Z_it)
 def prob_P_s_given_r(gamma_sr_0, gamma_sk_t, Z):
     n_segments = gamma_sk_t.shape[0]+1
 
@@ -123,7 +123,7 @@ def prob_P_s_given_r(gamma_sr_0, gamma_sk_t, Z):
     return P_s_given_r
     
     
-#------------Functies voor de expectation step------------
+#------------Functions for the expectation step------------
     
 #function for expectation step
 def expectation_step(gamma_0, gamma_sr_0, gamma_sk_t, beta, t):
@@ -165,9 +165,7 @@ def forward_backward_procedure(Y,Z, beta, gamma_0, gamma_sr_0, gamma_sk_t, T):
             
             alpha[i,t,:] = sum_alpha
             beta[i,t,:]  = sum_beta
-                
-        
-               
+            
     return [alpha,beta]
 
 
@@ -198,14 +196,17 @@ def maximization_step(Y, Z, , alpha, beta, gamma_0_in, gamma_sr_0_in, gamma_sk_t
     
     return [gamma_0_out, gamma_sr_0_out, gamma_sk_t_out, beta_out]
 
+#function that has to be minimized
 def optimization_function(x, alpha, beta, Y, Z, T):
     
     return 
-    
+
+#function for deriving P(X_it = s|Y)_i, Z_i
 def joint_event():
     
     return
 
+#function for deriving P(X_it-1 = s. X_it = s|Y_i, Z_i)
 def state_event():
     
     return
