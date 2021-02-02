@@ -26,14 +26,14 @@ n_customers =
 T = 
 
 
-#parameters of pi
-gamma_0 = ones( (n_segments-1,n_covariates+1) )
+#parameters of P(S_0 = s|Z)
+gamma_0 = np.ones( (n_segments-1,n_covariates+1) )
 
-#parameters of A
-gamma_sr_0 = ones( (n_segments,n_segments) )
-gamma_sk_t = ones( (n_segments-1,n_covariates) )
+#parameters of P(S_t = s | S_t+1 = r)
+gamma_sr_0 = np.ones( (n_segments-1,n_segments) )
+gamma_sk_t = np.ones( (n_segments-1,n_covariates) )
 
-#parameters of B \\ kan ook (n_categories,n_segments)!!
+#parameters of P(Y|s) \\ kan ook (n_categories,n_segments)!!
 beta = ( (n_products,n_categories,n_segments) )
 
 
@@ -60,10 +60,9 @@ def EM(gamma_0, gamma_sr_0, gamma_sk_t, beta, tolerance):
     return 
 
 
+#------------Functies waarmee je van de parameters naar de kansen gaat------------
     
-
-
-#from beta to probabilities pi(j,c,s) // kan ook pi(c,s)
+#van beta naar probabilities pi(j,c,s) // kan ook pi(c,s)
 def prob_pi(beta): 
     pi = np.ones( (n_products,n_categories,n_segments) )
     
@@ -85,8 +84,46 @@ def prob_pi(beta):
             
     return pi
 
-         
-               
+
+#van pi naar probabilities P(Y|s)
+def prob_P_y_given_s(y, pi):
+    n_products = pi.shape(0)
+    n_categories = pi.shape(1)
+    n_segments = pi.shape(2)
+
+    P_y_given_s = np.ones( (n_segments,1) )
+    
+    for p in range(0,n_products):
+        for c in range(0,n_categories):
+            P_y_given_s = P_y_given_s * pi[p,c,:]**(y[p] == c)   
+    return P_y_given_s 
+
+
+#from gamma_0 to probabilities P(S_0 = s|Z)
+def prob_P_s_given_Z(gamma_0, Z):  
+    n_segments = gamma_0.shape[0]+1
+    
+    P_s_given_Z = np.zeros((n_segments-1))
+    
+    P_s_given_Z = exp( gamma_0[:,0] + np.matmul(gamma_0[:,1:n_covariates+1] , Z) )
+    P_s_given_Z = np.vstack([P_s_given_Z, [1]]) #for the base case
+    P_s_given_Z = P_s_given_Z/np.sum(P_s_given_Z)
+    
+    return P_s_given_Z
+    
+
+#from gamma_sr_0 and gamma_sk_t to probabilities P(S_t = s | S_t+1 = r)
+def prob_P_s_given_r(gamma_sr_0, gamma_sk_t, Z):
+    n_segments = gamma_sk_t.shape[0]+1
+
+    P_s_given_r = np.zeros((n_segments,n_segments))
+    
+    for r in range (0,n_segments):
+        P_s_given_r[:,r] = exp( gamma_sr_0[:,r] + np.matmul(gamma_sk_t[:,0:n_covariates] , Z ) 
+        P_s_given_r[:,r] = np.concatenate(P_s_given_r[:,r],[1])#for the base case
+        P_s_given_r[:,r] = P_s_given_r[:,r]/np.sum(P_s_given_r)
+
+    return P_s_given_r
     
     
 
