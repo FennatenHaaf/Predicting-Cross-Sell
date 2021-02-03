@@ -39,6 +39,7 @@ class dataProcessor:
         self.df_corporate_details = pd.DataFrame()
         self.df_pat = pd.DataFrame()
         self.df_expTS = pd.DataFrame()
+        self.df_pat_sample = pd.DataFrame()
         
         
 
@@ -925,74 +926,24 @@ class dataProcessor:
 
 
 
-    def importSets(self, fileID):
-        ##Import Raw Files
-        if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
-            return pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
-
-        elif fileID == "bhk" or fileID == "portfolio_boekhoudkoppeling.csv" :
-            return pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
-
-        elif fileID == "pin" or fileID == "portfolio_info.csv":
-            return pd.read_csv(f"{self.indir}/portfolio_info.csv")
-
-        elif fileID == "pst" or fileID ==  "portfolio_status.csv":
-            return pd.read_csv(f"{self.indir}/portfolio_status.csv")
-
-        elif fileID == "exp" or fileID ==  "experian.csv":
-            return pd.read_csv(f"{self.indir}/experian.csv")
 
 
-
-        ##Import Intermediate Files
-        elif fileID == "expts" or fileID ==  "experianTS.csv":
-            return utils.importChunk(f"{self.interdir}/experianTS.csv", 250000)
-
-        elif fileID == "cored" or fileID == "df_corporate_details":
-            self.df_corporate_details = pd.read_csv(f"{self.interdir}/corporate_details_processed.csv")
-
-        elif fileID == "patot" or fileID ==  "experian.csv":
-            self.df_pat = utils.importChunk("total_portfolio_activity.csv", 250000)
-
-        elif fileID == "pasmp" or fileID =="total_portfolio_activity_sample.csv":
-            self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_larger_sample.csv")
-
-        else:
-            print("error importing")
-
-    def exportEdited(self, fileID):
-        if fileID == "expts":
-            writeArgs = {"index": False}
-            utils.exportChunk(self.df_expTS, 250000, f"{self.interdir}/experianTS.csv", **writeArgs)
-
-        elif fileID == "patot" or fileID == "total_portfolio_activity.csv":
-            writeArgs = {"index": False}
-            utils.exportChunk(self.df_pat, 250000, f"{self.interdir}/total_portfolio_activity.csv", **writeArgs)
-
-        elif fileID == "cored" or "df_corporate_details":
-            self.df_corporate_details.to_csv(f"{self.interdir}/corporate_details_processed.csv",index= False)
-
-        elif fileID == "cored" or "df_corporate_details":
-            self.df_corporate_details.to_csv(f"{self.interdir}/corporate_details_processed.csv",index= False)
-
-        elif fileID == "patsmp" or fileID == "total_portfolio_activity_sample.csv":
-            self.df_pat_sample.to_csv(f"{self.interdir}/total_portfolio_activity_sample.csv", index = False)
-
-        else:
-            print("error exporting")
 
     def importPortfolioActivity(self, convertData=False, selectColumns=False, discardPat = False, **readArgs):
-        if convertData:
-            datatypeConvertAll = declarationsFile.getPatConvert()
-        else:
-            datatypeConvertAll = {}
+
+        mergeSet = ["dateeow", "yearweek", "portfolioid", "pakketcategorie"]
 
         if selectColumns:
             readArgsAct = {**readArgs,
                         "usecols": declarationsFile.getPatColToParseTS("activity")}
             readArgsTrans = {**readArgs,
                         "usecols": declarationsFile.getPatColToParseTS("transaction")}
-
+            readArgs = {**readArgsTrans, **readArgsAct}
+            mergeSetNew = []
+            for item in mergeSet:
+                if item in readArgs["usecols"]:
+                    mergeSetNew.append(item)
+            mergeSet = mergeSetNew
         else:
             readArgsAct = {**readArgs}
             readArgsTrans = {**readArgs}
@@ -1012,7 +963,9 @@ class dataProcessor:
             [pab1820, par1820], ignore_index=True)
         del par1820, pab1820
         gc.collect()
-        print(pa1820.shape, " are the dimensions of pa 18-20")
+        print(pa1820.shape, " are the dimensions of pa 18-20 before merge")
+        if convertData:
+            pa1820 = self.doConvertFromDict(pa1820)
 
         tempList = [f"{self.indir}/portfolio_activity_transactions_business_2018.csv",
                     f"{self.indir}/portfolio_activity_transactions_business_2019.csv",
@@ -1032,15 +985,18 @@ class dataProcessor:
         print(pat1820.shape, " are the dimensions of pa before merge 18-20")
         del patr1820, patb1820
         gc.collect()
+        if convertData:
+            pat1820 = self.doConvertFromDict(pat1820)
 
         pat1820 = pd.merge(pa1820,
                            pat1820, how="inner",
-                           on=["dateeow", "yearweek", "portfolioid", "pakketcategorie"])
+                           on=mergeSet)
         del pa1820
         gc.collect()
-        print(pat1820.shape, " are the dimensions of pa 18-20")
+        print(pat1820.shape, " are the dimensions of pat 18-20")
 
-        pa1820 = pat1820.astype(datatypeConvertAll)
+        if convertData:
+            pat1820 = self.doConvertFromDict(pat1820)
 
         # Todo verander of dee naam van deze bestanden of de naam van de andere bestanden
         tempList = [f"{self.indir}/portfolio_activity_business.csv", f"{self.indir}/portfolio_activity_retail.csv", ]
@@ -1052,21 +1008,20 @@ class dataProcessor:
         print(pat1420.shape, " are the dimensions of pa before merge 14-20")
         patotal1420 = pd.merge(pa1420,
                                pat1420, how="inner",
-                               on=["dateeow", "yearweek", "portfolioid", "pakketcategorie"])
+                               on=mergeSet)
         del pa1420, pat1420
         gc.collect()
         print(patotal1420.shape, " are the dimensions of pat 14-20")
 
-        patotal1420 = patotal1420.astype(datatypeConvertAll)
+        if convertData:
+            patotal1420 = self.doConvertFromDict(patotal1420)
 
         pat = pd.concat([patotal1420, pat1820])
         print(pat.shape, " are the dimensions of pat 14-20")
-        if discardPat:
-            return pat
-        else:
-            self.df_pat = pat
 
-    def portfolioActivitySampler(self, n = 4000, replaceGlobal = True):
+        self.df_pat = pat
+
+    def portfolioActivitySampler(self, n = 4000, replaceGlobal = False):
         randomizer = np.random.RandomState(self.seed)
         if self.df_pat.empty:
             self.importPortfolioActivity()
@@ -1076,8 +1031,6 @@ class dataProcessor:
         self.df_pat_sample = self.df_pat[indexID].copy()
         if replaceGlobal:
             self.df_pat = self.df_pat_sample.copy()
-
-
 
 
     def linkTimeSets(self, period = "Q"):
@@ -1090,6 +1043,9 @@ class dataProcessor:
         if self.df_corporate_details.empty:
             self.processCorporateData()
 
+        if self.df_pat.empty:
+            self.importPortfolioActivity(convertData= True, selectColumns= True)
+
         df_exp = pd.read_csv(f"{self.indir}/experian.csv")
         df_lpp = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
         df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
@@ -1097,14 +1053,14 @@ class dataProcessor:
         df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
 
         df_cor = self.df_corporate_details
-        self.importSets("pasmp")
-        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
-        self.df_pat[self.df_pat["dateeow"] == "2021-01-03"] = self.endDate
 
+
+        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
+        self.df_pat.loc[ self.df_pat["dateeow"] == "2021-01-03 00:00:00","dateeow" ] = self.endDate
         short_lpp = df_lpp[["personid", "portfolioid"]]
         joined = pd.merge(self.df_pat, df_lpp, on="portfolioid")
-        joined = joined[["dateeow","personid"] + joined.columns[1:35].tolist()].copy()
-        joined.drop("yearweek", axis=1, inplace = True)
+        jc1, jc2 = joined.columns.get_loc("pakketcategorie"), joined.columns.get_loc("personid")
+        joined = joined[["dateeow","personid", "portfolioid"] + joined.columns[jc1:jc2].tolist() + joined.columns[(jc2+1):].tolist() ]
         sampleCol = ["dateeow", "personid","portfolioid", "pakketcategorie", "activitystatus", "saldobetalen"]
         joined2 = joined[sampleCol].copy()
         joined2.sort_values(["dateeow", "personid"], inplace = True)
@@ -1130,13 +1086,14 @@ class dataProcessor:
         joined2.sort_values(["dateeow", "personid"], inplace=True)
         joinIndex = joined2["personid"].isin(expUnique)
         notJoinIndex = ~joined2["personid"].isin(expUnique)
-        joined3 = pd.merge_asof(joined2[joinIndex], exp2, by="personid", left_on="dateeow", right_on="valid_to_dateeow").bfill()
-#,direction = "forward"
+        joined3 = joined3 = pd.merge_asof(joined2[joinIndex], exp2, by="personid", left_on="dateeow", right_on="valid_to_dateeow",
+                                          direction = "forward")
+
+        #Generator to test different observations
         ju3 = joined3["personid"].unique()
         ch1, ch2 = dataInsight.checkAVL(ju3), dataInsight.checkAVL(ju3)
         tstr = "ex1, ex2 = dataInsight.checkV1( joined3,next(ch1)),dataInsight.checkV1(exp2,next(ch2))"
         exec(tstr)
-
 
         pass
 
@@ -1270,9 +1227,9 @@ class dataProcessor:
         print("unique Person id in Lpp :",uList2.shape)
 
 
-
+    ##IMPORT AND CONVERT METHODS--------------------------------------------------------##
     def explorePA(self):
-        pat = self.importPortfolioActivity(discardPat = True)
+        pat = self.df_pat
 
         patSubID = ["dateeow", "yearweek", "portfolioid"]
         patSubID1 = patSubID + ['pakketcategorie',
@@ -1292,9 +1249,9 @@ class dataProcessor:
                                 'vermogensbeheeryn', 'saldovermogensbeheer', 'saldototaal',
                                 'saldolangetermijnsparen']
 
-        patSub1 = pat.loc[:, patSubID1]
-        patSub2 = pat.loc[:, patSubID2]
-        patSub3 = pat.loc[:, patSubID3]
+        patSub1 = pat.loc[:, patSubID1].copy()
+        patSub2 = pat.loc[:, patSubID2].copy()
+        patSub3 = pat.loc[:, patSubID3].copy()
 
         print(patSub1["pakketcategorie"].unique().tolist())
         patSub1["indicatorZP"] = 0
@@ -1318,3 +1275,80 @@ class dataProcessor:
         businessAndRetailList = pats1Multi[res1].index.to_list()
         businessAndRetailObservations = pat[pat["portfolioid"].isin(businessAndRetailList)].copy()
         businessAndRetailObservations.sort_values(["portfolioid", "dateeow"], inplace=True)
+
+    def importSets(self, fileID, **readArgs):
+        if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
+            return pd.read_csv(f"{self.indir}/linkpersonportfolio.csv", **readArgs)
+
+        elif fileID == "bhk" or fileID == "portfolio_boekhoudkoppeling.csv":
+            return pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv", **readArgs)
+
+        elif fileID == "pin" or fileID == "portfolio_info.csv":
+            return pd.read_csv(f"{self.indir}/portfolio_info.csv", **readArgs)
+
+        elif fileID == "pst" or fileID == "portfolio_status.csv":
+            return pd.read_csv(f"{self.indir}/portfolio_status.csv", **readArgs)
+
+        elif fileID == "exp" or fileID == "experian.csv":
+            return pd.read_csv(f"{self.indir}/experian.csv", **readArgs)
+
+
+        ##Import Intermediate Files
+        elif fileID == "expts" or fileID == "experianTS.csv":
+            return utils.importChunk(f"{self.interdir}/experianTS.csv", 250000, **readArgs)
+
+        elif fileID == "cored" or fileID == "df_corporate_details":
+            self.df_corporate_details = pd.read_csv(f"{self.interdir}/corporate_details_processed.csv", **readArgs)
+
+        elif fileID == "patot" or fileID == "experian.csv":
+            self.df_pat = utils.importChunk(f"{self.interdir}/total_portfolio_activity.csv", 250000, **readArgs)
+
+        elif fileID == "patsmp" or fileID == "total_portfolio_activity_sample.csv":
+            self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_sample.csv", **readArgs)
+        else:
+            print("error importing")
+
+    def exportEdited(self, fileID):
+        errorMessage = ""
+        if fileID == "expts":
+            writeArgs = {"index": False}
+            utils.exportChunk(self.df_expTS, 250000, f"{self.interdir}/experianTS.csv", **writeArgs)
+
+        elif fileID == "patot" or fileID == "total_portfolio_activity.csv":
+            if self.df_pat.empty:
+                return print(errorMessage)
+            writeArgs = {"index": False}
+            utils.exportChunk(self.df_pat, 250000, f"{self.interdir}/total_portfolio_activity.csv", **writeArgs)
+
+        elif fileID == "cored" or "df_corporate_details":
+            if self.df_corporate_details.empty:
+                return print(errorMessage)
+            self.df_corporate_details.to_csv(f"{self.interdir}/corporate_details_processed.csv", index=False)
+
+        elif fileID == "patsmp" or fileID == "total_portfolio_activity_sample.csv":
+            if self.df_pat_sample.empty():
+                return print(errorMessage)
+            return print(errorMessage)
+            self.df_pat_sample.to_csv(f"{self.interdir}/total_portfolio_activity_sample.csv", index=False)
+        else:
+            print("error exporting")
+
+    def doConvertNumeric(self, data):
+        for item in data.dtypes.index:
+            currentDtype = str(data.dtypes[item]).lower()
+            if "float" in currentDtype or "int" in currentDtype:
+                data.loc[:, item] = pd.to_numeric(data.loc[:, item], downcast="integer")
+        return data
+
+    def doConvertFromDict(self, data):
+        fullDict = declarationsFile.getConvertDict()
+        endDict = {}
+        for colName in data.columns:
+            if colName in fullDict:
+                endDict[colName] = fullDict[colName]
+        return data.astype(endDict)
+
+    def doConvertPAT(self):
+        if self.df_pat.empty:
+            return print("No df_pat to convert")
+        self.df_pat = self.doConvertFromDict(self.df_pat)
