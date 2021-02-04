@@ -15,7 +15,7 @@ from datetime import timedelta
 from csv import writer
 from tqdm import tqdm
 
-
+import declarationsFile
 """
 TIME
 """
@@ -140,3 +140,20 @@ def selectChunk(data, numberOfChunks=4):
 
     return pd.concat(chunkList, ignore_index=True)
 
+def doConvertFromDict(data, exclusion_list = []):
+    fullDict = declarationsFile.getConvertDict()
+    endDict = {}
+    data_excluded_col = data.columns
+    for item in exclusion_list:
+        data_excluded_col = data_excluded_col.drop(item)
+    for colName in data_excluded_col:
+        if colName in fullDict:
+            endDict[colName] = fullDict[colName]
+    return data.astype(endDict)
+
+def doConvertNumeric(self, data):
+    for item in data.dtypes.index:
+        currentDtype = str(data.dtypes[item]).lower()
+        if "float" in currentDtype or "int" in currentDtype:
+            data.loc[:, item] = pd.to_numeric(data.loc[:, item], downcast="integer")
+    return data

@@ -965,7 +965,7 @@ class dataProcessor:
         gc.collect()
         print(pa1820.shape, " are the dimensions of pa 18-20 before merge")
         if convertData:
-            pa1820 = self.doConvertFromDict(pa1820)
+            pa1820 = utils.doConvertFromDict(pa1820)
 
         tempList = [f"{self.indir}/portfolio_activity_transactions_business_2018.csv",
                     f"{self.indir}/portfolio_activity_transactions_business_2019.csv",
@@ -986,7 +986,7 @@ class dataProcessor:
         del patr1820, patb1820
         gc.collect()
         if convertData:
-            pat1820 = self.doConvertFromDict(pat1820)
+            pat1820 = utils.doConvertFromDict(pat1820)
 
         pat1820 = pd.merge(pa1820,
                            pat1820, how="inner",
@@ -996,7 +996,7 @@ class dataProcessor:
         print(pat1820.shape, " are the dimensions of pat 18-20")
 
         if convertData:
-            pat1820 = self.doConvertFromDict(pat1820)
+            pat1820 = utils.doConvertFromDict(pat1820)
 
         # Todo verander of dee naam van deze bestanden of de naam van de andere bestanden
         tempList = [f"{self.indir}/portfolio_activity_business.csv", f"{self.indir}/portfolio_activity_retail.csv", ]
@@ -1014,7 +1014,7 @@ class dataProcessor:
         print(patotal1420.shape, " are the dimensions of pat 14-20")
 
         if convertData:
-            patotal1420 = self.doConvertFromDict(patotal1420)
+            patotal1420 = utils.doConvertFromDict(patotal1420)
 
         pat = pd.concat([patotal1420, pat1820])
         print(pat.shape, " are the dimensions of pat 14-20")
@@ -1037,6 +1037,10 @@ class dataProcessor:
         # ToDo corrigeer voor al geimporteerde of bewerkte data
         # Todo zorg er voor dat valid to date wordt gepakt
         # Todo itereer over rij en resample the observaties
+        #TODO koppel bhk
+        #TODO koppel portfolioinfo
+        #TODO koppel corporate
+
         # If valid_to < period in Time Series
         # if self.df_expTS.empty:
         #     self.transformExperianTS(period = period)
@@ -1046,185 +1050,184 @@ class dataProcessor:
         if self.df_pat.empty:
             self.importPortfolioActivity(convertData= True, selectColumns= True)
 
-        df_exp = pd.read_csv(f"{self.indir}/experian.csv")
         df_lpp = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+        df_exp = pd.read_csv(f"{self.indir}/experian.csv")
         df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
         df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
-        df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
-
         df_cor = self.df_corporate_details
 
 
-        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
-        self.df_pat.loc[ self.df_pat["dateeow"] == "2021-01-03 00:00:00","dateeow" ] = self.endDate
-        short_lpp = df_lpp[["personid", "portfolioid"]]
-        joined = pd.merge(self.df_pat, df_lpp, on="portfolioid")
-        jc1, jc2 = joined.columns.get_loc("pakketcategorie"), joined.columns.get_loc("personid")
-        joined = joined[["dateeow","personid", "portfolioid"] + joined.columns[jc1:jc2].tolist() + joined.columns[(jc2+1):].tolist() ]
-        sampleCol = ["dateeow", "personid","portfolioid", "pakketcategorie", "activitystatus", "saldobetalen"]
-        joined2 = joined[sampleCol].copy()
-        joined2.sort_values(["dateeow", "personid"], inplace = True)
+        #TO CREATE QUICKER SAMPLE
+        pat_unique = self.df_pat["portfolioid"].unique()
+        #SAMPLEFORTEST
+        df_lpp = df_lpp.loc[df_lpp["portfolioid"].isin(pat_unique),:]
+        #SAMPLEFORTESTEND
+
+        df_lpp = utils.doConvertFromDict(df_lpp)
+        df_lpp_table_port_corp_retail = df_lpp.groupby("portfolioid")["iscorporatepersonyn"].mean()
+        df_lpp_table_port_corp_retail = df_lpp_table_port_corp_retail.reset_index()
+        df_lpp_table_port_corp_retail.loc[:,"indicator_corp_and_retail"] = 0
+        lpp_index_both = pd.eval(" (df_lpp_table_port_corp_retail['iscorporatepersonyn'] > 0) & "
+                                 "(df_lpp_table_port_corp_retail['iscorporatepersonyn'] < 1) ")
+        df_lpp_table_port_corp_retail.loc[lpp_index_both,"indicator_corp_and_retail"] = 1
+        df_lpp_table_port_corp_retail.drop("iscorporatepersonyn", axis=1, inplace=True)
+        df_lpp.drop(["validfromdate", "validfromyearweek", "validtodate"], axis=1, inplace=True)
+        df_lpp = pd.merge(df_lpp,df_lpp_table_port_corp_retail, on = "portfolioid")
+
+        index_link_cr = pd.eval("df_lpp['indicator_corp_and_retail'] == 1")
+        index_corp_pers = pd.eval("df_lpp['iscorporatepersonyn'] == 1")
+        portid_link_cr = df_lpp.loc[index_link_cr, "portfolioid"].unique()
+        persid_link_cr = df_lpp.loc[index_link_cr, "personid"].unique()
+        persid_no_link_cr = df_lpp.loc[~index_link_cr, "personid"].unique()
+        id_link_cr_corp = df_lpp.loc[(index_link_cr & index_corp_pers) , "personid"].unique()
+        id_link_cr_ret = df_lpp.loc[(index_link_cr & ~index_corp_pers), "personid"].unique()
+        id_no_link_cr_corp = df_lpp.loc[(~index_link_cr & index_corp_pers), "personid"].unique()
+        id_no_link_cr_ret = df_lpp.loc[(~index_link_cr & ~index_corp_pers), "personid"].unique()
+
+        df_lpp_linked = df_lpp[pd.eval("df_lpp['personid'].isin(persid_link_cr)")]
+        # df_lpp_linked = df_lpp[pd.eval("df_lpp['personid'].isin(portid_link_cr)")]
+        df_lpp_only_corp = df_lpp[pd.eval("df_lpp['personid'].isin(id_no_link_cr_corp)")]
+        df_lpp_only_ret = df_lpp[pd.eval("df_lpp['personid'].isin(id_no_link_cr_ret)")]
+
+        ### LINK LARGE SETS BOTH
+        # joined = pd.merge(self.df_pat, df_lpp, on="portfolioid")
+        # jc1, jc2 = joined.columns.get_loc("pakketcategorie"), joined.columns.get_loc("personid")
+        # joined = joined[["dateeow","personid", "portfolioid"] + joined.columns[jc1:jc2].tolist() + joined.columns[(jc2+1):].tolist() ]
+
+        sampleCol = ["dateeow","portfolioid", "pakketcategorie", "activitystatus", "saldobetalen"]
+        joined = self.df_pat[sampleCol].copy()
+        joined["dateeow"] = pd.to_datetime(joined["dateeow"])
+        joined.loc[joined["dateeow"] == "2021-01-03 00:00:00","dateeow" ] = self.endDate
 
         exp2 = df_exp.copy()
+        #SAMPLEFORTEST START
+        exp2 = exp2[(exp2["personid"].isin(persid_link_cr)) | (exp2["personid"].isin(persid_no_link_cr))]
+        #END SAMPLE
+
         exp2["valid_to_dateeow"] = pd.to_datetime(exp2["valid_to_dateeow"])
         exp2["valid_to_dateeow"].fillna(self.endDate, inplace = True)
         exp2.sort_values(["valid_to_dateeow", "personid"], inplace=True)
         exp2.dropna(axis = 0, subset = exp2.columns[3:].tolist(), how = "all", inplace = True)
+        index_only_buss_finergy = exp2["age_hh"].isna()
+        # exp_only_buss_finergy = exp2[index_only_buss_finergy].copy()
+        exp2 = exp2[~index_only_buss_finergy]
 
-        expIndex = exp2["age_hh"].isna()
-        expNoChar = exp2[expIndex].copy()
-        exp2 = exp2[~expIndex]
-
-        randomizer = np.random.RandomState(self.seed)
-        randomList = randomizer.choice(joined2["personid"].unique(), 30)
-        joined2 = joined2[joined2["personid"].isin(randomList)].copy()
         #TODO remove nan values (no val in experian) and see if they match something different.
-        #TODO check if end dates are taken over well
+        #TODO do something with only business and finergy columns
         #TODO corporate details erbij pakken en proberen te matchen aan de corporate ID's
         #TODO splits business en retail om de juiste dingen te pakken
-        expUnique = exp2["personid"].unique().tolist()
-        joined2.sort_values(["dateeow", "personid"], inplace=True)
-        joinIndex = joined2["personid"].isin(expUnique)
-        notJoinIndex = ~joined2["personid"].isin(expUnique)
-        joined3 = joined3 = pd.merge_asof(joined2[joinIndex], exp2, by="personid", left_on="dateeow", right_on="valid_to_dateeow",
-                                          direction = "forward")
 
-        #Generator to test different observations
-        ju3 = joined3["personid"].unique()
-        ch1, ch2 = dataInsight.checkAVL(ju3), dataInsight.checkAVL(ju3)
-        tstr = "ex1, ex2 = dataInsight.checkV1( joined3,next(ch1)),dataInsight.checkV1(exp2,next(ch2))"
-        exec(tstr)
+        #Link joined and
+        exp_lpp_linked = pd.merge(exp2, df_lpp_linked[["personid", "portfolioid"]], on=["personid"])
+        exp_lpp_linked.sort_values(["valid_to_dateeow","personid","portfolioid"], inplace= True)
+        exp_lpp_linked["portfolioid"].unique()
 
+        joined, exp_lpp_linked = utils.doConvertFromDict(joined), utils.doConvertFromDict(exp_lpp_linked)
+        joined.sort_values(["dateeow", "portfolioid"], inplace=True)
+        joined["portfolioid"] = joined["portfolioid"].astype("str")
+        exp_lpp_linked["portfolioid"] =  exp_lpp_linked["portfolioid"].astype("str")
+        #checked if this removes right observations.
+        joined_linked = pd.merge_asof(joined, exp_lpp_linked, by="portfolioid", left_on="dateeow", right_on="valid_to_dateeow",
+                                direction = "forward")
+        joined_linked.dropna(subset=["valid_to_dateeow"], inplace = True)
+
+
+        ##SAMPLESTART
+        df_bhk = df_bhk[df_bhk["portfolioid"].isin(pat_unique)]
+        ##SAMPLEEND
+
+        df_bhk["valid_to_dateeow"] = pd.to_datetime(df_bhk["valid_to_dateeow"])
+        df_bhk.loc[df_bhk["valid_to_dateeow"].isna(), "valid_to_dateeow"] = self.endDate
+        df_bhk.drop("valid_from_dateeow", axis = 1)
+        df_bhk.sort_values(["valid_to_dateeow", "personid", "portfolioid"], inplace=True)
+        joinedRetail = pd.merge_asof(joinedRetail, df_bhk, by=["personid", "portfolioid"], left_on="dateeow", right_on="valid_to_dateeow",
+                                direction="forward")
+
+
+
+        sample_columns = ["dateeow","personid","portfolioid","saldobetalen","age_hh","finergy_tp"]
+        joined3 = joinedRetail[sample_columns]
+
+        #Generator example
+        # j2_list = joined2["portfolioid"].unique().tolist()
+        # gen1, gen2 = dataInsight.checkAVL(j2_list), dataInsight.checkAVL(j2_list)
+        # tstr = "ex1, ex2 = dataInsight.checkV1(joined2,next(gen1), 'portfolioid'),dataInsight.checkV1(df_pst,next(gen2), 'portfolioid')"
+        # exec(tstr)
         pass
-
-    #Todo Dit is echt bizar langzaam, moet een alternatief zijn. Pandas merge_asof of pandas merge_ordered. Ander
-    # alternatief is een aparte functie voor personid met 1 observatie en meerdere.
-    def transformExperianTS(self, period = "Q"):
-            expTime = pd.read_csv(f"{self.indir}/experian.csv")
-            expTime.dropna(how = "all", inplace = True)
-            expTime["valid_to_dateeow"] = pd.to_datetime(expTime["valid_to_dateeow"])
-            currentTime = datetime(2020,12,31)
-            expTime["valid_from_dateeow"] = pd.to_datetime(expTime["valid_from_dateeow"])
-            expTime["valid_to_dateeow"].fillna(currentTime, inplace=True)
-            uniqueList = expTime["personid"].unique().tolist()
-
-            expTime["yearPeriodFrom"] = expTime["valid_from_dateeow"].dt.to_period(period)
-            repeatList = expTime.groupby("personid")["yearPeriodFrom"].count()
-            repeatList = repeatList[repeatList > 1]
-            repeatList = repeatList.index.to_list()
-            randomizer = np.random.RandomState(901267)
-            randomSamp = randomizer.choice(repeatList, 20)
-            time_key = pd.Grouper(key = "valid_from_dateeow",freq=period)
-            expTime2 = expTime.groupby(["personid", time_key])[["valid_to_dateeow"]]
-            expTime3 = expTime2.max()
-
-            concatList = []
-            counter = 0
-            for item in uniqueList:
-                counter += 1
-                print("printing Item no: ",counter," which is personid ",item)
-                tempData = expTime3.loc[item]
-                maxDate = tempData.max()[0]
-                tempData.loc[maxDate,:] = maxDate
-                tempData = tempData.resample("Q").pad()
-                tempData.loc[:,"personid"] = item
-                tempData.index = tempData.index.to_period("Q")
-                concatList.append(tempData.reset_index())
-            expTime2 = pd.concat(concatList, ignore_index= True)
-
-            expTime.drop("valid_from_dateeow", axis = 1,inplace = True)
-            self.df_expTS = pd.merge(expTime,expTime2, on = ["personid","valid_to_dateeow"])
-
-    def bhkToTS(self,period = "Q"):
-        bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
-        bhk.dropna(how = "all", inplace = True)
-        bhk["valid_to_dateeow"] = pd.to_datetime(bhk["valid_to_dateeow"])
-        currentTime = datetime(2020,12,31)
-        bhk["valid_from_dateeow"] = pd.to_datetime(bhk["valid_from_dateeow"])
-        bhk["valid_to_dateeow"].fillna(currentTime, inplace=True)
-        bhk["yearPeriodFrom"] = bhk["valid_from_dateeow"].dt.to_period(period)
-        repeatList = bhk.groupby("personid")["yearPeriodFrom"].count()
-        uniqueBHK = repeatList.index
-        repeatList = repeatList[repeatList > 1]
-        repeatList = repeatList.index.to_list()
-        randomizer = np.random.RandomState(901267)
-        randomSamp = randomizer.choice(repeatList, 20)
-
-        bhk = bhk[bhk["personid"].isin(randomSamp)]
-
-        time_key = pd.Grouper(key = "valid_from_dateeow",freq=period)
-        bhk2 = bhk.groupby(["personid", time_key])[["valid_to_dateeow"]]
-        bhk3 = bhk2.max()
-
-        concatList = []
-        for item in randomSamp:
-            tempData = bhk3.loc[item]
-            maxDate = tempData.max()[0]
-            tempData.loc[maxDate,:] = maxDate
-            tempData = tempData.resample("Q").pad()
-            tempData.loc[:,"personid"] = item
-            tempData.index = tempData.index.to_period("Q")
-            concatList.append(tempData.reset_index())
-        bhk2 = pd.concat(concatList, ignore_index= True)
-
-        bhk.drop("valid_from_dateeow", axis = 1,inplace = True)
-        self.df_expTS = pd.merge(bhk,bhk2, on = ["personid","valid_to_dateeow"])
-
-
-
-
-
-
-
-
-
-        pass
-
-    def transformPA(self, period = "Q"):
-        if self.df_pat.empty:
-            self.importPortfolioActivity(convertData= True, selectColumns= True)
-
-        self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
-        self.df_pat["yearPeriod"] = self.df_pat["dateeow"].dt.to_period(period)
-
-        ##Convert to pivot
-        patcolumns = ['dateeow', 'saldobetalen',
-                      'aantalloginsapp', 'aantalloginsweb', 'betalenyn']
-        pataggfunc = {
-            'dateeow': min,
-            'saldobetalen': "mean",
-            'aantalloginsapp': sum,
-            'aantalloginsweb': sum,
-            "betalenyn": max}
-
-        indexColumns = ["portfolioid", "yearPeriod"]
-
-        patpivot = pd.pivot_table(self.df_pat, values=patcolumns, index=indexColumns, aggfunc=pataggfunc)
-        patpivot.dropna(inplace=True)
-
-        self.time_pat = patpivot
 
     ### DATA EXPLORATION METHODS
-    def exploreSets(self):
+    #TODO show PA explorer in here
+    def exploreSets(self, link_corp = False, link_pat = False):
         expTime = pd.read_csv(f"{self.indir}/experian.csv")
-        self.df_linkpersonportfolio = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
-        self.df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
-        self.df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
-        self.df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
-        self.df_bhk.groupby("personid")["portfolioid"].count()
+        df_lpp= pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+        df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+        df_bhk.groupby("personid")["portfolioid"].count()
 
         #person id's per protfolio and vice versa
-        nOfPIDperPort = self.df_linkpersonportfolio.groupby("portfolioid")["personid"].count().sort_values(ascending = False)
-        nOfPortPerPID = self.df_linkpersonportfolio.groupby("personid")["portfolioid"].count().sort_values(
+        nOfPIDperPort = df_lpp.groupby("portfolioid")["personid"].count().sort_values(ascending = False)
+        nOfPortPerPID = df_lpp.groupby("personid")["portfolioid"].count().sort_values(
             ascending=False)
 
+        col_list = ["personid", "portfolioid", "accountoverlayid", "accountid"]
+        dataInsight.uniqueValsList(df_bhk, col_list)
+        dataInsight.recurringValues(df_bhk, "portfolioid", "personid", threshold = 1)
 
-        dataInsight.recurringValues(self.df_bhk, "portfolioid", "personid", threshold = 1)
+        lpp_col_to_test = ["personid"]
+        dataInsight.uniqueValsList(df_lpp, lpp_col_to_test)
 
-        uL = self.df_bhk["personid"].unique()
-        print("unique Person ID in bhk :",uL.shape)
-        uList2 = self.df_lpp["personid"].unique()
-        print("unique Person id in Lpp :",uList2.shape)
+        #Link bhk en lpp
+        df_bhk_lpp = pd.merge(df_bhk, df_lpp[["personid", "portfolioid", "iscorporatepersonyn"]], on=["personid", "portfolioid"])
+        print("Number of corporate portfolios for overlay in lpp :", df_bhk_lpp["iscorporatepersonyn"].sum())
+
+        #LPP
+        df_lpp = utils.doConvertFromDict(df_lpp)
+        df_lpp_table_port_corp_retail = df_lpp.groupby("portfolioid")["iscorporatepersonyn"].mean()
+        df_lpp_table_port_corp_retail = df_lpp_table_port_corp_retail.reset_index()
+        df_lpp_table_port_corp_retail.loc[:,"indicator_corp_and_retail"] = 0
+        lpp_index_both = pd.eval(" (df_lpp_table_port_corp_retail['iscorporatepersonyn'] > 0) & "
+                                 "(df_lpp_table_port_corp_retail['iscorporatepersonyn'] < 1) ")
+        df_lpp_table_port_corp_retail.loc[lpp_index_both,"indicator_corp_and_retail"] = 1
+        df_lpp_table_port_corp_retail.drop("iscorporatepersonyn", axis=1, inplace=True)
+        df_lpp.drop(["validfromdate", "validfromyearweek", "validtodate"], axis=1, inplace=True)
+        df_lpp = pd.merge(df_lpp,df_lpp_table_port_corp_retail, on = "portfolioid")
+
+        index_link_cr = pd.eval("df_lpp['indicator_corp_and_retail'] == 1")
+        index_corp_pers = pd.eval("df_lpp['iscorporatepersonyn'] == 1")
+        id_link_cr = df_lpp.loc[index_link_cr, "personid"].unique()
+        id_no_link_cr = df_lpp.loc[~index_link_cr, "personid"].unique()
+        id_link_cr_corp = df_lpp.loc[(index_link_cr & index_corp_pers) , "personid"].unique()
+        id_link_cr_ret = df_lpp.loc[(index_link_cr & ~index_corp_pers), "personid"].unique()
+        id_no_link_cr_corp = df_lpp.loc[(~index_link_cr & index_corp_pers), "personid"].unique()
+        id_no_link_cr_ret = df_lpp.loc[(~index_link_cr & ~index_corp_pers), "personid"].unique()
+
+        df_bhk["personid"].isin(id_link_cr).sum()
+        df_bhk["personid"].isin(id_link_cr_corp).sum()
+        df_bhk["personid"].isin(id_no_link_cr_corp).sum()
+        df_bhk["personid"].isin(id_link_cr_ret).sum()
+        df_bhk["personid"].isin(id_no_link_cr_ret).sum()
+        id_link_cr_ret.isin(id_no_link_cr_ret)
+
+
+
+
+        # bhk_to_corp_pivot = pd.pivot_table(df_bhk_lpp,vales = "","index = "boekhoudkoppeling", columns =  "iscorporatepersonyn", aggfunc= "count")
+        #Portfolio Status
+        df_pst[df_pst["outflow_date"] == "9999-12-31"] = self.endDate
+        df_pst["outflow_date"] = pd.to_datetime(df_pst["outflow_date"])
+
+        if link_corp:
+            if self.df_corporate_details.empty:
+                self.processCorporateData()
+            df_bhk[df_bhk["personid"].isin(self.df_corporate_details["personid"].unique())]
+
+        if link_pat:
+            columns_to_use = ["portfolioid"]
+            if self.df_pat.empty:
+                readArgs = {"usecols":columns_to_use}
+                self.importPortfolioActivity()
+
 
 
     ##IMPORT AND CONVERT METHODS--------------------------------------------------------##
@@ -1249,9 +1252,9 @@ class dataProcessor:
                                 'vermogensbeheeryn', 'saldovermogensbeheer', 'saldototaal',
                                 'saldolangetermijnsparen']
 
-        patSub1 = pat.loc[:, patSubID1].copy()
-        patSub2 = pat.loc[:, patSubID2].copy()
-        patSub3 = pat.loc[:, patSubID3].copy()
+        patSub1 = self.df_pat.loc[:, patSubID1].copy()
+        patSub2 = self.df_pat.loc[:, patSubID2].copy()
+        patSub3 = self.df_pat.loc[:, patSubID3].copy()
 
         print(patSub1["pakketcategorie"].unique().tolist())
         patSub1["indicatorZP"] = 0
@@ -1333,22 +1336,31 @@ class dataProcessor:
         else:
             print("error exporting")
 
-    def doConvertNumeric(self, data):
-        for item in data.dtypes.index:
-            currentDtype = str(data.dtypes[item]).lower()
-            if "float" in currentDtype or "int" in currentDtype:
-                data.loc[:, item] = pd.to_numeric(data.loc[:, item], downcast="integer")
-        return data
-
-    def doConvertFromDict(self, data):
-        fullDict = declarationsFile.getConvertDict()
-        endDict = {}
-        for colName in data.columns:
-            if colName in fullDict:
-                endDict[colName] = fullDict[colName]
-        return data.astype(endDict)
-
     def doConvertPAT(self):
         if self.df_pat.empty:
             return print("No df_pat to convert")
-        self.df_pat = self.doConvertFromDict(self.df_pat)
+        self.df_pat = utils.doConvertFromDict(self.df_pat)
+
+        # def transformPA(self, period="Q"):
+        #     if self.df_pat.empty:
+        #         self.importPortfolioActivity(convertData=True, selectColumns=True)
+        #
+        #     self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
+        #     self.df_pat["yearPeriod"] = self.df_pat["dateeow"].dt.to_period(period)
+        #
+        #     ##Convert to pivot
+        #     patcolumns = ['dateeow', 'saldobetalen',
+        #                   'aantalloginsapp', 'aantalloginsweb', 'betalenyn']
+        #     pataggfunc = {
+        #         'dateeow': min,
+        #         'saldobetalen': "mean",
+        #         'aantalloginsapp': sum,
+        #         'aantalloginsweb': sum,
+        #         "betalenyn": max}
+        #
+        #     indexColumns = ["portfolioid", "yearPeriod"]
+        #
+        #     patpivot = pd.pivot_table(self.df_pat, values=patcolumns, index=indexColumns, aggfunc=pataggfunc)
+        #     patpivot.dropna(inplace=True)
+        #
+        #     self.time_pat = patpivot
