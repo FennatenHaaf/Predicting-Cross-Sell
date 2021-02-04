@@ -58,9 +58,6 @@ def getPatColToParseCross(subset="total"):
         print("error getting list")
 
 
-
-
-# Todo test
 def getConvertDict():
     datatypeGeneralActivity = {
         'dateeow': "datetime64",
@@ -103,7 +100,28 @@ def getConvertDict():
         'saldolangetermijnsparen': "uint32",
         'aantaltegenrekeningenlaatsteq': "uint16"}
 
-    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans}
+    df_lpp_dict = {
+        "validfromdate" : "datetime64",
+        "validfromyearweek" : "int32",
+        "personid": "category",
+        "iscorporatepersonyn": "uint8"
+    }
+
+    df_exp_dict = {
+        'valid_from_dateeow':"datetime64",
+        'valid_to_dateeow':"datetime64",
+        'age_hh' :"uint8",
+        'hh_child' :"uint8",
+        'hh_size' :"uint8",
+        'income':"uint8" ,
+        'educat4':"uint8",
+        'housetype':"uint8",
+        'finergy_tp': "category",
+        'lfase':"uint8",
+        'business':"uint8",
+        'huidigewaarde_klasse':"uint8" }
+
+    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, **df_lpp_dict, **df_exp_dict}
 
 
 
