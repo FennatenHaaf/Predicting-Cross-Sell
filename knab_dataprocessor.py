@@ -1021,7 +1021,7 @@ class dataProcessor:
 
         self.df_pat = pat
 
-    def portfolioActivitySampler(self, n = 4000, replaceGlobal = False):
+    def portfolioActivitySampler(self, n = 4000, export_after = False, replaceGlobal = False):
         randomizer = np.random.RandomState(self.seed)
         if self.df_pat.empty:
             self.importPortfolioActivity()
@@ -1031,6 +1031,8 @@ class dataProcessor:
         self.df_pat_sample = self.df_pat[indexID].copy()
         if replaceGlobal:
             self.df_pat = self.df_pat_sample.copy()
+        self.exportEdited("patsmp")
+
 
 
     def linkTimeSets(self, period = "Q"):
@@ -1131,8 +1133,34 @@ class dataProcessor:
                             (joined_linked['valid_to_dateeow'] >= joined_linked['dateeow'])")
         joined_linked = joined_linked[tempindex]
 
+        #TODO Check if every associated business is coupled through portfolio.
+        #TODO Can see how much personid's from corporate can be associated : Multiple merge, portfolio to person, then new person to portfolio
+
+        # MERGE CORP WITH LPP
+        corporate_columns_to_use = ['personid', 'businessType', 'businessAgeInDays', 'foundingYear', 'SBIcode', 'SBIname', 'SBIsector',
+                                    'SBIsectorName']
+
+        # SAMPLED SIZE#
+        print("amount of observations of corp in lpp linked :", df_cor['personid'].isin(persid_link_cr).sum())
+
+        df_cor = df_cor[corporate_columns_to_use]
+        df_cor = utils.doConvertFromDict(df_cor)
+        print("Dimension corporate details before merge :", df_cor.shape)
+        cor_lpp_linked = pd.merge(df_cor, df_lpp_linked[['personid', 'portfolioid']], on="personid")
+        print("Dimension of merged file :", cor_lpp_linked.shape)
+
+        # Merge corp_lpp with large joined table
+        print(f"before merge dimension of joined_linked : {joined_linked.shape} and dimension of cor_lpp : {cor_lpp_linked.shape}")
+        joined_linked = pd.merge(joined_linked, cor_lpp_linked, on = "portfolioid", suffixes = ['','_business'])
+        print(f"after merge dimension: {joined_linked.shape}")
+        """
+        Merge Boekhoudkoppeling to large file
+        """
         ##SAMPLESTART
         df_bhk = df_bhk[df_bhk['portfolioid'].isin(pat_unique)]
+        sample_columns = ['dateeow', 'personid', 'portfolioid', 'saldobetalen', 'age_hh', 'finergy_tp', 'personid_business',
+                          'businessAgeInDays', 'SBIsectorName']
+        joined_linked = joined_linked[sample_columns]
         ##SAMPLEEND
 
         df_bhk = utils.doConvertFromDict(df_bhk)
@@ -1145,9 +1173,9 @@ class dataProcessor:
         #Chosen to merge on person rather than portfolio
         person_id_in_bhk = df_bhk['personid'].unique()
         before_merge_index_bhk = joined_linked['personid'].isin(person_id_in_bhk)
-        sample_columns = ['dateeow', 'personid', 'portfolioid', 'saldobetalen', 'age_hh', 'finergy_tp']
-        joined_linked = joined_linked[sample_columns]
 
+
+        #BHK Tests
         ztest11 =  "n1 = df_bhk.groupby('personid')[['personid','portfolioid', 'boekhoudkoppeling', 'valid_from_dateeow', 'valid_to_dateeow']]. \
             filter(lambda x: x['boekhoudkoppeling'].unique().shape[0] > 1) "
         ztest11a =  "n1.drop_duplicates(inplace=True)"
@@ -1167,32 +1195,47 @@ class dataProcessor:
         ztest1all = "exec(ztest11),exec(ztest11a),exec(ztest13),exec(ztest13a),exec(ztest14),exec(ztest15)"
 
         print("with bhk dimensions before merge :",joined_linked.shape)
-        joined_linked_no_bkh = joined_linked[~before_merge_index_bhk].copy()
-        print("no bhk bhk dimensions :",joined_linked_no_bkh.shape)
 
-        joined_linked = pd.merge(joined_linked, df_bhk, on=['personid','portfolioid'])
-        tempindex = pd.eval("(joined_linked['valid_from_dateeow'] <= joined_linked['dateeow']) & \
-                                                (joined_linked['valid_to_dateeow'] >= joined_linked['dateeow'])")
-        joined_linked = joined_linked[tempindex]
-        #Probably erronous that bhk can be active one day only
-        joined_linked = joined_linked[pd.eval("joined_linked['valid_from_dateeow'] != joined_linked['valid_to_dateeow']")]
-        print('Size file after merge :',joined_linked.shape)
-        print('Not NA after merge :',joined_linked["boekhoudkoppeling"].notna().sum() )
-        print('Not NA after merge :', joined_linked["valid_from_dateeow"].notna().sum())
+        templist = ['dateeow','personid','portfolioid']
+        joined_linked_bkh = pd.merge(joined_linked.loc[before_merge_index_bhk, templist], df_bhk, on=['personid', 'portfolioid'])
+        tempindex = pd.eval("(joined_linked_bkh['valid_from_dateeow'] <= joined_linked_bkh['dateeow']) & \
+                                                (joined_linked_bkh['valid_to_dateeow'] >= joined_linked_bkh['dateeow'])")
+        joined_linked_bkh = joined_linked_bkh[tempindex]
+        # Probably erronous that bhk can be active one day only
+        joined_linked_bkh = joined_linked_bkh[pd.eval("joined_linked_bkh['valid_from_dateeow'] != joined_linked_bkh['valid_to_dateeow']")].copy()
+        print('Size file after merge :', joined_linked_bkh.shape)
+        print('Not NA after merge :', joined_linked_bkh["boekhoudkoppeling"].notna().sum())
+        print('Not NA after merge :', joined_linked_bkh["valid_from_dateeow"].notna().sum())
 
-        #MERGE CORP WITH LPP
+        joined_linked_bkh.drop(['valid_from_dateeow','valid_to_dateeow'],axis = 1, inplace = True)
+        joined_linked = pd.merge(joined_linked, joined_linked_bkh, how = "left", on = ["dateeow","personid","portfolioid"])
 
-        #Merge corp_lpp with large joined table
+        tempindex = pd.eval("joined_linked['boekhoudkoppeling'].isna()")
+        joined_linked['has_account_overlay'] = np.nan
+        joined_linked.loc[tempindex, 'has_account_overlay'] = 0
+        joined_linked.loc[~tempindex, 'has_account_overlay'] = 1
+
 
         #Merge df_pin with joined_linked
+
+        #TODO convert to other period: Use oen variable to aggregate and merge all values that cant be found
+        # Or use this joined_linked['activitystatus'].mode()
 
         #Merge retail only
 
         #Merge corporate only
 
+        #TODO Concat files or keep apart
 
+        #TODO
         print(f"****Finished linking timeseries sets at {utils.get_time()}****")
         pass
+
+        """
+        Used for checking data:
+        
+        
+        """
 
     ### DATA EXPLORATION METHODS
     #TODO show PA explorer in here
@@ -1412,27 +1455,3 @@ class dataProcessor:
         if self.df_pat.empty:
             return print("No df_pat to convert")
         self.df_pat = utils.doConvertFromDict(self.df_pat)
-
-        # def transformPA(self, period="Q"):
-        #     if self.df_pat.empty:
-        #         self.importPortfolioActivity(convertData=True, selectColumns=True)
-        #
-        #     self.df_pat["dateeow"] = pd.to_datetime(self.df_pat["dateeow"])
-        #     self.df_pat["yearPeriod"] = self.df_pat["dateeow"].dt.to_period(period)
-        #
-        #     ##Convert to pivot
-        #     patcolumns = ['dateeow', 'saldobetalen',
-        #                   'aantalloginsapp', 'aantalloginsweb', 'betalenyn']
-        #     pataggfunc = {
-        #         'dateeow': min,
-        #         'saldobetalen': "mean",
-        #         'aantalloginsapp': sum,
-        #         'aantalloginsweb': sum,
-        #         "betalenyn": max}
-        #
-        #     indexColumns = ["portfolioid", "yearPeriod"]
-        #
-        #     patpivot = pd.pivot_table(self.df_pat, values=patcolumns, index=indexColumns, aggfunc=pataggfunc)
-        #     patpivot.dropna(inplace=True)
-        #
-        #     self.time_pat = patpivot

@@ -121,7 +121,21 @@ def getConvertDict():
         'business':"uint8",
         'huidigewaarde_klasse':"uint8" }
 
-    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, **df_lpp_dict, **df_exp_dict}
+    df_cor_dict = {
+         'personid':"category",
+         'businessType': "category",
+          'foundingDate':'datetime64',
+         'businessAgeInDays':'uint16',
+        'businessAgeInMonths': 'uint16',
+        'businessAgeInYears': 'float16',
+         'foundingYear':'uint16',
+         'SBIcode':'category',
+         'SBIname':'category',
+         'SBIsector':'category',
+         'SBIsectorName':'category'
+    }
+
+    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, **df_lpp_dict, **df_exp_dict, **df_cor_dict}
 
 
 
