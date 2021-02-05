@@ -1025,9 +1025,9 @@ class dataProcessor:
         randomizer = np.random.RandomState(self.seed)
         if self.df_pat.empty:
             self.importPortfolioActivity()
-        uniqueList = self.df_pat["portfolioid"].unique()
+        uniqueList = self.df_pat['portfolioid'].unique()
         chosenID = randomizer.choice(uniqueList, n)
-        indexID = self.df_pat["portfolioid"].isin(chosenID)
+        indexID = self.df_pat['portfolioid'].isin(chosenID)
         self.df_pat_sample = self.df_pat[indexID].copy()
         if replaceGlobal:
             self.df_pat = self.df_pat_sample.copy()
@@ -1040,7 +1040,7 @@ class dataProcessor:
         #TODO koppel bhk
         #TODO koppel portfolioinfo
         #TODO koppel corporate
-
+        print(f"****linking timeseries sets, starting at {utils.get_time()}****")
         # If valid_to < period in Time Series
         # if self.df_expTS.empty:
         #     self.transformExperianTS(period = period)
@@ -1050,19 +1050,180 @@ class dataProcessor:
         if self.df_pat.empty:
             self.importPortfolioActivity(convertData= True, selectColumns= True)
 
-        df_lpp = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
-        df_exp = pd.read_csv(f"{self.indir}/experian.csv")
-        df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
-        df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        df_lpp = pd.read_csv(f'{self.indir}/linkpersonportfolio.csv')
+        df_exp = pd.read_csv(f'{self.indir}/experian.csv')
+        df_bhk = pd.read_csv(f'{self.indir}/portfolio_boekhoudkoppeling.csv')
+        df_pin = pd.read_csv(f'{self.indir}/portfolio_info.csv')
         df_cor = self.df_corporate_details
 
 
         #TO CREATE QUICKER SAMPLE
-        pat_unique = self.df_pat["portfolioid"].unique()
+        pat_unique = self.df_pat['portfolioid'].unique()
         #SAMPLEFORTEST
-        df_lpp = df_lpp.loc[df_lpp["portfolioid"].isin(pat_unique),:]
+        df_lpp = df_lpp.loc[df_lpp['portfolioid'].isin(pat_unique),:]
         #SAMPLEFORTESTEND
 
+        df_lpp = utils.doConvertFromDict(df_lpp)
+        df_lpp_table_port_corp_retail = df_lpp.groupby("portfolioid")["iscorporatepersonyn"].mean()
+        df_lpp_table_port_corp_retail = df_lpp_table_port_corp_retail.reset_index()
+        df_lpp_table_port_corp_retail.loc[:,"indicator_corp_and_retail"] = 0
+        lpp_index_both = pd.eval(" (df_lpp_table_port_corp_retail['iscorporatepersonyn'] > 0) & "
+                                 "(df_lpp_table_port_corp_retail['iscorporatepersonyn'] < 1) ")
+        df_lpp_table_port_corp_retail.loc[lpp_index_both,"indicator_corp_and_retail"] = 1
+        df_lpp_table_port_corp_retail.drop("iscorporatepersonyn", axis=1, inplace=True)
+        df_lpp.drop(["validfromdate", "validfromyearweek", "validtodate"], axis=1, inplace=True)
+        df_lpp = pd.merge(df_lpp,df_lpp_table_port_corp_retail, on = "portfolioid")
+
+        index_link_cr = pd.eval("df_lpp['indicator_corp_and_retail'] == 1")
+        index_corp_pers = pd.eval("df_lpp['iscorporatepersonyn'] == 1")
+
+        # portid_link_cr = df_lpp.loc[index_link_cr, "portfolioid"].unique()
+        persid_link_cr = df_lpp.loc[index_link_cr, "personid"].unique()
+        persid_no_link_cr = df_lpp.loc[~index_link_cr, "personid"].unique()
+        persid_no_link_cr = persid_no_link_cr[~persid_no_link_cr.isin(persid_link_cr)]
+
+        id_link_cr_corp = df_lpp.loc[(index_link_cr & index_corp_pers) , "personid"].unique()
+        id_link_cr_ret = df_lpp.loc[(index_link_cr & ~index_corp_pers), "personid"].unique()
+        id_no_link_cr_corp = df_lpp.loc[(~index_link_cr & index_corp_pers), "personid"].unique()
+        id_no_link_cr_ret = df_lpp.loc[(~index_link_cr & ~index_corp_pers), "personid"].unique()
+
+        df_lpp_linked = df_lpp[pd.eval("df_lpp['personid'].isin(persid_link_cr)")]
+        df_lpp_only_corp = df_lpp[pd.eval("df_lpp['personid'].isin(id_no_link_cr_corp)")]
+        df_lpp_only_ret = df_lpp[pd.eval("df_lpp['personid'].isin(id_no_link_cr_ret)")]
+
+        ### LINK LARGE SETS BOTH
+        # pat_to_edit = pd.merge(self.df_pat, df_lpp, on="portfolioid")
+        # jc1, jc2 = pat_to_edit.columns.get_loc("pakketcategorie"), pat_to_edit.columns.get_loc("personid")
+        # pat_to_edit = pat_to_edit[["dateeow","personid", "portfolioid"] + pat_to_edit.columns[jc1:jc2].tolist() + pat_to_edit.columns[(jc2+1):].tolist() ]
+
+        sampleCol = ["dateeow","portfolioid", "pakketcategorie", "activitystatus", "saldobetalen"]
+        pat_to_edit = self.df_pat[sampleCol].copy()
+        pat_to_edit = utils.doConvertFromDict(pat_to_edit)
+        pat_to_edit.loc[pat_to_edit["dateeow"] == "2021-01-03 00:00:00","dateeow" ] = self.endDate
+
+        exp2 = df_exp.copy()
+        #SAMPLEFORTEST START
+        exp2 = exp2[(exp2['personid'].isin(persid_link_cr)) | (exp2['personid'].isin(persid_no_link_cr))]
+        #END SAMPLE
+
+        exp2['valid_to_dateeow'] = pd.to_datetime(exp2['valid_to_dateeow'])
+        exp2['valid_to_dateeow'].fillna(self.endDate, inplace = True)
+        exp2.sort_values(['valid_to_dateeow', 'personid'], inplace=True)
+        exp2.dropna(axis = 0, subset = exp2.columns[3:].tolist(), how = 'all', inplace = True)
+        index_only_buss_finergy = exp2['age_hh'].isna()
+        # exp_only_buss_finergy = exp2[index_only_buss_finergy].copy()
+        exp2 = exp2[~index_only_buss_finergy]
+        exp2 = utils.doConvertFromDict(exp2)
+
+        #used later in merging
+        value_counts_exp = exp2["personid"].value_counts()
+        value_counts_multiple_exp = value_counts_exp[value_counts_exp > 2].reset_index()["index"]
+
+        #Link pat_to_edit and
+        exp_lpp_linked = pd.merge(exp2, df_lpp_linked[['personid', 'portfolioid']], on=['personid'])
+        exp_lpp_linked.sort_values(['valid_to_dateeow','personid','portfolioid'], inplace= True)
+        pat_to_edit.sort_values(['dateeow', 'portfolioid'], inplace=True)
+
+
+        #Merge joined by picking records to match that are before valid_to_dateeow, not matching records or expired records discarded
+        joined_linked = pd.merge(pat_to_edit, exp_lpp_linked, on="portfolioid")
+        tempindex = pd.eval("(joined_linked['valid_from_dateeow'] <= joined_linked['dateeow']) & \
+                            (joined_linked['valid_to_dateeow'] >= joined_linked['dateeow'])")
+        joined_linked = joined_linked[tempindex]
+
+        ##SAMPLESTART
+        df_bhk = df_bhk[df_bhk['portfolioid'].isin(pat_unique)]
+        ##SAMPLEEND
+
+        df_bhk = utils.doConvertFromDict(df_bhk)
+        df_bhk.loc[df_bhk['valid_to_dateeow'].isna(), 'valid_to_dateeow'] = self.endDate
+        df_bhk.drop(['accountid','accountoverlayid'], axis = 1, inplace = True) #Drop unused vars
+        df_bhk.drop_duplicates(inplace = True)
+        df_bhk.sort_values(['valid_to_dateeow', 'personid', 'portfolioid'], inplace=True)
+        joined_linked.sort_values(['dateeow','personid','portfolioid'])
+
+        #Chosen to merge on person rather than portfolio
+        person_id_in_bhk = df_bhk['personid'].unique()
+        before_merge_index_bhk = joined_linked['personid'].isin(person_id_in_bhk)
+        sample_columns = ['dateeow', 'personid', 'portfolioid', 'saldobetalen', 'age_hh', 'finergy_tp']
+        joined_linked = joined_linked[sample_columns]
+
+        ztest11 =  "n1 = df_bhk.groupby('personid')[['personid','portfolioid', 'boekhoudkoppeling', 'valid_from_dateeow', 'valid_to_dateeow']]. \
+            filter(lambda x: x['boekhoudkoppeling'].unique().shape[0] > 1) "
+        ztest11a =  "n1.drop_duplicates(inplace=True)"
+        ztest12 =  "n2 = df_bhk.groupby('portfolioid')[['personid','portfolioid', 'boekhoudkoppeling', 'valid_from_dateeow', 'valid_to_dateeow']]. \
+            filter(lambda x: x['boekhoudkoppeling'].unique().shape[0] > 1) "
+        ztest12a =  "n2.drop_duplicates(inplace=True)"
+        ztest13 = "bhk_multiple_list = n1['personid'].unique()"
+        ztest13a = "bhk_multiple_list = bhk_multiple_list[pd.Series(bhk_multiple_list).isin(joined_linked['personid'])]"
+        ztest14 = "gen1, gen2, gen3, gen4, gen5, gen6 = dataInsight.checkAVL(bhk_multiple_list), dataInsight.checkAVL(bhk_multiple_list), \
+                                                 dataInsight.checkAVL(bhk_multiple_list), dataInsight.checkAVL(bhk_multiple_list),\
+                                                 dataInsight.checkAVL(bhk_multiple_list), dataInsight.checkAVL(bhk_multiple_list)"
+
+        ztest15 = "ex1, ex2, ex3, ex4, ex5, ex6 = dataInsight.checkV1(joined_linked1, next(gen1)), dataInsight.checkV1(joined_linked2," \
+                  " next(gen2), 'personid_x'), dataInsight.checkV1(joined_linked3, next(gen3)) ,dataInsight.checkV1(df_bhk, next(gen4)), \
+                                       dataInsight.checkV1(exp_lpp_linked, next(gen5)),\
+                                       dataInsight.checkV1(joined_linked, next(gen6))"
+        ztest1all = "exec(ztest11),exec(ztest11a),exec(ztest13),exec(ztest13a),exec(ztest14),exec(ztest15)"
+
+        print("with bhk dimensions before merge :",joined_linked.shape)
+        joined_linked_no_bkh = joined_linked[~before_merge_index_bhk].copy()
+        print("no bhk bhk dimensions :",joined_linked_no_bkh.shape)
+
+        joined_linked = pd.merge(joined_linked, df_bhk, on=['personid','portfolioid'])
+        tempindex = pd.eval("(joined_linked['valid_from_dateeow'] <= joined_linked['dateeow']) & \
+                                                (joined_linked['valid_to_dateeow'] >= joined_linked['dateeow'])")
+        joined_linked = joined_linked[tempindex]
+        #Probably erronous that bhk can be active one day only
+        joined_linked = joined_linked[pd.eval("joined_linked['valid_from_dateeow'] != joined_linked['valid_to_dateeow']")]
+        print('Size file after merge :',joined_linked.shape)
+        print('Not NA after merge :',joined_linked["boekhoudkoppeling"].notna().sum() )
+        print('Not NA after merge :', joined_linked["valid_from_dateeow"].notna().sum())
+
+        #MERGE CORP WITH LPP
+
+        #Merge corp_lpp with large joined table
+
+        #Merge df_pin with joined_linked
+
+        #Merge retail only
+
+        #Merge corporate only
+
+
+        print(f"****Finished linking timeseries sets at {utils.get_time()}****")
+        pass
+
+    ### DATA EXPLORATION METHODS
+    #TODO show PA explorer in here
+    def exploreSets(self, link_corp = False, link_pat = False):
+        df_exp = pd.read_csv(f"{self.indir}/experian.csv")
+        df_lpp= pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
+        df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
+        df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
+        df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
+        df_bhk.groupby("personid")["portfolioid"].count()
+
+        #person id's per protfolio and vice versa
+        nOfPIDperPort = df_lpp.groupby("portfolioid")["personid"].count().sort_values(ascending = False)
+        nOfPortPerPID = df_lpp.groupby("personid")["portfolioid"].count().sort_values(
+            ascending=False)
+
+        col_list = ["personid", "portfolioid", "accountoverlayid", "accountid"]
+        dataInsight.uniqueValsList(df_bhk, col_list)
+        dataInsight.recurringValues(df_bhk, "portfolioid", "personid", threshold = 1)
+
+        lpp_col_to_test = ["personid"]
+        dataInsight.uniqueValsList(df_lpp, lpp_col_to_test)
+
+        ##EXP
+        (df_exp.groupby("personid")["valid_from_dateeow"].count() > 1).sum()
+
+        #Link bhk en lpp
+        df_bhk_lpp = pd.merge(df_bhk, df_lpp[["personid", "portfolioid", "iscorporatepersonyn"]], on=["personid", "portfolioid"])
+        print("Number of corporate portfolios for overlay in lpp :", df_bhk_lpp["iscorporatepersonyn"].sum())
+
+        #LPP
         df_lpp = utils.doConvertFromDict(df_lpp)
         df_lpp_table_port_corp_retail = df_lpp.groupby("portfolioid")["iscorporatepersonyn"].mean()
         df_lpp_table_port_corp_retail = df_lpp_table_port_corp_retail.reset_index()
@@ -1085,129 +1246,40 @@ class dataProcessor:
         id_no_link_cr_ret = df_lpp.loc[(~index_link_cr & ~index_corp_pers), "personid"].unique()
 
         df_lpp_linked = df_lpp[pd.eval("df_lpp['personid'].isin(persid_link_cr)")]
-        # df_lpp_linked = df_lpp[pd.eval("df_lpp['personid'].isin(portid_link_cr)")]
-        df_lpp_only_corp = df_lpp[pd.eval("df_lpp['personid'].isin(id_no_link_cr_corp)")]
-        df_lpp_only_ret = df_lpp[pd.eval("df_lpp['personid'].isin(id_no_link_cr_ret)")]
-
-        ### LINK LARGE SETS BOTH
-        # joined = pd.merge(self.df_pat, df_lpp, on="portfolioid")
-        # jc1, jc2 = joined.columns.get_loc("pakketcategorie"), joined.columns.get_loc("personid")
-        # joined = joined[["dateeow","personid", "portfolioid"] + joined.columns[jc1:jc2].tolist() + joined.columns[(jc2+1):].tolist() ]
-
-        sampleCol = ["dateeow","portfolioid", "pakketcategorie", "activitystatus", "saldobetalen"]
-        joined = self.df_pat[sampleCol].copy()
-        joined["dateeow"] = pd.to_datetime(joined["dateeow"])
-        joined.loc[joined["dateeow"] == "2021-01-03 00:00:00","dateeow" ] = self.endDate
-
-        exp2 = df_exp.copy()
-        #SAMPLEFORTEST START
-        exp2 = exp2[(exp2["personid"].isin(persid_link_cr)) | (exp2["personid"].isin(persid_no_link_cr))]
-        #END SAMPLE
-
-        exp2["valid_to_dateeow"] = pd.to_datetime(exp2["valid_to_dateeow"])
-        exp2["valid_to_dateeow"].fillna(self.endDate, inplace = True)
-        exp2.sort_values(["valid_to_dateeow", "personid"], inplace=True)
-        exp2.dropna(axis = 0, subset = exp2.columns[3:].tolist(), how = "all", inplace = True)
-        index_only_buss_finergy = exp2["age_hh"].isna()
-        # exp_only_buss_finergy = exp2[index_only_buss_finergy].copy()
-        exp2 = exp2[~index_only_buss_finergy]
-
-        #TODO remove nan values (no val in experian) and see if they match something different.
-        #TODO do something with only business and finergy columns
-        #TODO corporate details erbij pakken en proberen te matchen aan de corporate ID's
-        #TODO splits business en retail om de juiste dingen te pakken
-
-        #Link joined and
-        exp_lpp_linked = pd.merge(exp2, df_lpp_linked[["personid", "portfolioid"]], on=["personid"])
+        ##LPP en EXP
+        pd.DataFrame(df_exp["personid"].unique()).isin(df_lpp_linked.loc[df_lpp_linked["iscorporatepersonyn"] == 0, "personid"])
+        exp_lpp_linked = pd.merge(df_exp, df_lpp_linked[["personid", "portfolioid"]], on=["personid"])
         exp_lpp_linked.sort_values(["valid_to_dateeow","personid","portfolioid"], inplace= True)
         exp_lpp_linked["portfolioid"].unique()
 
-        joined, exp_lpp_linked = utils.doConvertFromDict(joined), utils.doConvertFromDict(exp_lpp_linked)
-        joined.sort_values(["dateeow", "portfolioid"], inplace=True)
-        joined["portfolioid"] = joined["portfolioid"].astype("str")
-        exp_lpp_linked["portfolioid"] =  exp_lpp_linked["portfolioid"].astype("str")
-        #checked if this removes right observations.
-        joined_linked = pd.merge_asof(joined, exp_lpp_linked, by="portfolioid", left_on="dateeow", right_on="valid_to_dateeow",
-                                direction = "forward")
-        joined_linked.dropna(subset=["valid_to_dateeow"], inplace = True)
+        exp_lpp_groupby = exp_lpp_linked.groupby("personid")["valid_from_dateeow"].count()
+        print( exp_lpp_groupby.index.isin(exp_lpp_groupby[exp_lpp_groupby > 1].index).sum() )
+        temp_list = exp_lpp_groupby.index.isin(exp_lpp_groupby[exp_lpp_groupby > 1].index)
+        exp_lpp_groupby.reset_index()["personid"][temp_list]
+        pd.Series(exp_lpp_groupby.reset_index()["personid"][temp_list])
 
-
-        ##SAMPLESTART
-        df_bhk = df_bhk[df_bhk["portfolioid"].isin(pat_unique)]
-        ##SAMPLEEND
-
-        df_bhk["valid_to_dateeow"] = pd.to_datetime(df_bhk["valid_to_dateeow"])
-        df_bhk.loc[df_bhk["valid_to_dateeow"].isna(), "valid_to_dateeow"] = self.endDate
-        df_bhk.drop("valid_from_dateeow", axis = 1)
-        df_bhk.sort_values(["valid_to_dateeow", "personid", "portfolioid"], inplace=True)
-        joinedRetail = pd.merge_asof(joinedRetail, df_bhk, by=["personid", "portfolioid"], left_on="dateeow", right_on="valid_to_dateeow",
-                                direction="forward")
-
-
-
-        sample_columns = ["dateeow","personid","portfolioid","saldobetalen","age_hh","finergy_tp"]
-        joined3 = joinedRetail[sample_columns]
-
-        #Generator example
-        # j2_list = joined2["portfolioid"].unique().tolist()
-        # gen1, gen2 = dataInsight.checkAVL(j2_list), dataInsight.checkAVL(j2_list)
-        # tstr = "ex1, ex2 = dataInsight.checkV1(joined2,next(gen1), 'portfolioid'),dataInsight.checkV1(df_pst,next(gen2), 'portfolioid')"
-        # exec(tstr)
-        pass
-
-    ### DATA EXPLORATION METHODS
-    #TODO show PA explorer in here
-    def exploreSets(self, link_corp = False, link_pat = False):
-        expTime = pd.read_csv(f"{self.indir}/experian.csv")
-        df_lpp= pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
-        df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
-        df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
-        df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
-        df_bhk.groupby("personid")["portfolioid"].count()
-
-        #person id's per protfolio and vice versa
-        nOfPIDperPort = df_lpp.groupby("portfolioid")["personid"].count().sort_values(ascending = False)
-        nOfPortPerPID = df_lpp.groupby("personid")["portfolioid"].count().sort_values(
-            ascending=False)
-
-        col_list = ["personid", "portfolioid", "accountoverlayid", "accountid"]
-        dataInsight.uniqueValsList(df_bhk, col_list)
-        dataInsight.recurringValues(df_bhk, "portfolioid", "personid", threshold = 1)
-
-        lpp_col_to_test = ["personid"]
-        dataInsight.uniqueValsList(df_lpp, lpp_col_to_test)
-
-        #Link bhk en lpp
-        df_bhk_lpp = pd.merge(df_bhk, df_lpp[["personid", "portfolioid", "iscorporatepersonyn"]], on=["personid", "portfolioid"])
-        print("Number of corporate portfolios for overlay in lpp :", df_bhk_lpp["iscorporatepersonyn"].sum())
-
-        #LPP
-        df_lpp = utils.doConvertFromDict(df_lpp)
-        df_lpp_table_port_corp_retail = df_lpp.groupby("portfolioid")["iscorporatepersonyn"].mean()
-        df_lpp_table_port_corp_retail = df_lpp_table_port_corp_retail.reset_index()
-        df_lpp_table_port_corp_retail.loc[:,"indicator_corp_and_retail"] = 0
-        lpp_index_both = pd.eval(" (df_lpp_table_port_corp_retail['iscorporatepersonyn'] > 0) & "
-                                 "(df_lpp_table_port_corp_retail['iscorporatepersonyn'] < 1) ")
-        df_lpp_table_port_corp_retail.loc[lpp_index_both,"indicator_corp_and_retail"] = 1
-        df_lpp_table_port_corp_retail.drop("iscorporatepersonyn", axis=1, inplace=True)
-        df_lpp.drop(["validfromdate", "validfromyearweek", "validtodate"], axis=1, inplace=True)
-        df_lpp = pd.merge(df_lpp,df_lpp_table_port_corp_retail, on = "portfolioid")
-
-        index_link_cr = pd.eval("df_lpp['indicator_corp_and_retail'] == 1")
-        index_corp_pers = pd.eval("df_lpp['iscorporatepersonyn'] == 1")
-        id_link_cr = df_lpp.loc[index_link_cr, "personid"].unique()
-        id_no_link_cr = df_lpp.loc[~index_link_cr, "personid"].unique()
-        id_link_cr_corp = df_lpp.loc[(index_link_cr & index_corp_pers) , "personid"].unique()
-        id_link_cr_ret = df_lpp.loc[(index_link_cr & ~index_corp_pers), "personid"].unique()
-        id_no_link_cr_corp = df_lpp.loc[(~index_link_cr & index_corp_pers), "personid"].unique()
-        id_no_link_cr_ret = df_lpp.loc[(~index_link_cr & ~index_corp_pers), "personid"].unique()
-
-        df_bhk["personid"].isin(id_link_cr).sum()
+        ##BHK
+        df_bhk["personid"].isin(persid_link_cr).sum()
         df_bhk["personid"].isin(id_link_cr_corp).sum()
         df_bhk["personid"].isin(id_no_link_cr_corp).sum()
         df_bhk["personid"].isin(id_link_cr_ret).sum()
         df_bhk["personid"].isin(id_no_link_cr_ret).sum()
         id_link_cr_ret.isin(id_no_link_cr_ret)
+
+        n1 = df_bhk.groupby("personid")[["personid","portfolioid", "boekhoudkoppeling", "valid_from_dateeow", "valid_to_dateeow"]]. \
+            filter(lambda x: x["boekhoudkoppeling"].unique().shape[0] > 1)
+        n1.drop_duplicates(inplace=True)
+        n2 = df_bhk.groupby("personid")[["personid", "portfolioid","boekhoudkoppeling", "valid_from_dateeow", "valid_to_dateeow"]]. \
+            filter(lambda x: x["boekhoudkoppeling"].unique().shape[0] == 1)
+        n2.drop_duplicates(inplace=True)
+
+        n3 = df_bhk.groupby("portfolioid")[["personid","portfolioid", "boekhoudkoppeling", "valid_from_dateeow", "valid_to_dateeow"]]. \
+            filter(lambda x: x["boekhoudkoppeling"].unique().shape[0] > 1)
+        n3.drop_duplicates(inplace=True)
+        n4 = df_bhk.groupby("portfolioid")[["personid", "portfolioid","boekhoudkoppeling", "valid_from_dateeow", "valid_to_dateeow"]]. \
+            filter(lambda x: x["boekhoudkoppeling"].unique().shape[0] == 1)
+        n4.drop_duplicates(inplace=True)
+
 
 
 
