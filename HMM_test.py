@@ -221,4 +221,27 @@ class HMM:
 
     
 
-    def prediction(....)
+    def predict(alpha, Z, gamma_sr_0, gamma_sk_t, pi):
+    prediction = zeros(self.n_customers, self.n_categories)
+    T = self.T
+    nextstate = zeros(self.n_customers, self.n_categories)
+    for i in range(1:self.n_customers):
+        for s in range(1:self.n_segments)
+        probstate[s] = alpha[i,T,s] / sum(alpha[i,T,1:self.n_segments]) 
+        for a in  range(1:self.n_segments):
+            nextstate[i,s] += probstate[a]* prob_P_s_given_r(self, gamma_sr_0, gamma_sk_t, Z)
+        for j in range(1,self.n_categories)
+            prediction[i,j] += nextstate[i,s]*prob_P_y_given_s(self, j, pi)
+            
+    return prediction
+
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
