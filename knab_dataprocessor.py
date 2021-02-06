@@ -1225,7 +1225,7 @@ if __name__ == "__main__":
     indirec = "./data"
     outdirec = "./output"
     interdir = "./interdata"
-    datatest = data_linking(indirec,interdir,outdirec)
+    #datatest = data_linking(indirec,interdir,outdirec)
 
     #TODO We may want to do something with customer churn?
     # and make 'not a customer' a state that they can be in?       
