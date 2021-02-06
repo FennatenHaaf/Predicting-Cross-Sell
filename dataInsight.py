@@ -79,4 +79,19 @@ def mostCommonDict(data, nameList, numberOfValues=1):
 def recurringValues(data, indexCol, colToTest, threshold = 1):
     def filterMultiple(x):
         return x.count() > threshold
-    print(data.groupby(indexCol)[colToTest].filter(filterMultiple).count())
+    return (data.groupby(indexCol)[colToTest].filter(filterMultiple).count())
+
+def uniqueValsList(data, col_list):
+    for item in col_list:
+        print(f"Unique values in column {item} :",data[item].unique().shape[0])
+
+def checkV1(data, value, column="personid"):
+    return data[data[column] == value]
+
+def checkAVD(data, column):
+    for value in data[column].unique():
+        yield data[data[column] == value]
+
+def checkAVL(list):
+    for value in list:
+        yield value

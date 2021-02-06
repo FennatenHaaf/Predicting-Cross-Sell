@@ -49,3 +49,19 @@ if __name__ == "__main__":
     end = utils.get_time()
     diff = utils.get_time_diff(start,end)
     print(f"Data creation finished! Total time: {diff}")
+
+    """"
+    example of importing a variable and converting the datatypes and selecting columns to preserve memory:
+    
+    indirec = "./data"
+    outdirec = "./output"
+    interdir = "./interdata"
+    
+    readArgsPAT = {"usecols": declarationsFile.getPatColToParseTS()}
+    datatest = dataProcessor(indirec,interdir,outdirec)
+    datatest.importSets("cored")
+    datatest.importSets("patsmp",**readArgsPAT)
+    datatest.doConvertPAT()
+    datatest.linkTimeSets()
+
+    """
