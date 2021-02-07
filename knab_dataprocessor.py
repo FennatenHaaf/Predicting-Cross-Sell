@@ -37,6 +37,8 @@ class dataProcessor:
         self.df_expTS = pd.DataFrame()
         self.df_pat_sample = pd.DataFrame()
         
+        
+        
                
     def link_data(self, outname = "base_linkinfo"):
         """This function creates a dataset containing person IDs linked
@@ -76,8 +78,28 @@ class dataProcessor:
                                   how="left", left_on=["corporateid"],
                                   right_on=["corporateid"],)
         # TODO check if businesses appear multiple times!!
+    
         
-        #------------------------ SAVE & RETURN -------------------------
+        #------------------------ GET DATES INSIGHT -------------------------
+        
+        # pd.to_datetime does not work on a DF, only a series or list, so we use .astype()
+        self.df_experian.loc[:,['valid_to_dateeow']] = self.df_experian.loc[:,['valid_to_dateeow']].astype('datetime64[ns]')
+        self.df_experian.loc[:,['valid_from_dateeow']] = self.df_experian.loc[:,['valid_from_dateeow']].astype('datetime64[ns]')
+
+        # See what the most recent date is in the data 
+        # Find the latest and oldest dates where a customer was changed or added 
+        all_dates = pd.concat([self.df_experian['valid_to_dateeow'],self.df_experian['valid_from_dateeow']])
+        self.last_date = all_dates.max()
+        self.first_date = all_dates.min()
+        
+        # Print the results
+        time_string = self.last_date.strftime("%Y-%m-%d")
+        print(f"most recent data in Experian is from {time_string},")
+        time_string = self.first_date.strftime("%Y-%m-%d")
+        print(f"Oldest data in Experian is from {time_string}")
+        
+        
+        #------------------------ SAVE & RETURN  -------------------------
         if self.save_intermediate:
             utils.save_df_to_csv(self.df_link, self.interdir, 
                                   outname, add_time = False )      
@@ -87,56 +109,62 @@ class dataProcessor:
         
        
         
-    def select_ids(self, time_series = True, quarterly = True, subsample = True,
-                   sample_size = 500, start_date = "2018", end_date ="2021",
-                   outname = "Knab_ids"):
+    def select_ids(self, quarterly = True, subsample = True,
+                   sample_size = 500, start_date = "2018", end_date = None,
+                   outname = "base_experian"):
         """Selects a certain set of person IDs from the linking dataset, where:
             - information for ALL portfolios is present in the linking data
             - There is information for them in the Experian data for
             each time period (if time_series is TRUE) .
           We also take a subsample, if this is so specified."""
 
+        if (end_date==None):
+            end_date= self.last_date # Make this the end date period
+        
         #--------- make sure there is information in the portfolio info data ---------
         
         # we only want those ids for which the portfolio information is present, 
         # so dateinstroomweek should NOT be blank
         valid_ids_link = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
+        #TODO dit is nog niet alles, alleen nog maar AT LEAST one?
     
     
         #--------- make sure there is information in the Experian data ---------
         # we want there to be experian data in every time period for the IDs 
     
         # Get a variable representing the last date until which an ID is valid
-        maxending = self.df_experian[["valid_to_dateeow","portfolioid"]].fillna("31-12-9999")
-        maxending = maxending.groupby("portfolioid").max()
+        maxending = self.df_experian[["valid_to_dateeow","personid"]].copy()
+        maxending["valid_to_dateeow"] = maxending["valid_to_dateeow"].fillna(self.last_date).astype('datetime64[ns]')
+        maxending = maxending.groupby("personid").max()
         maxending = maxending.rename(columns={"valid_to_dateeow": "valid_to_max",})
-        
         # add to experian data        
-        self.df_experian = self.df_experian.merge(maxending, how="left", left_on=["portfolioid"],
-                               right_on=["portfolioid"])
+        self.df_experian = self.df_experian.merge(maxending, how="left", left_on=["personid"],
+                               right_on=["personid"])
         
         # Get a variable representing the first date from which an ID is valid
-        minstart = self.df_experian[["valid_from_dateeow","portfolioid"]]
-        minstart = minstart.groupby("portfolioid").min()
+        minstart = self.df_experian[["valid_from_dateeow","personid"]]
+        minstart = minstart.groupby("personid").min()
         minstart  = minstart.rename(columns={"valid_from_dateeow": "valid_from_min",})                                 
-        
         # add to experian data
-        self.df_experian = self.df_experian.merge(minstart, how="left", left_on=["portfolioid"],
-                               right_on=["portfolioid"])
-    
-        
+        self.df_experian = self.df_experian.merge(minstart, how="left", left_on=["personid"],
+                               right_on=["personid"])
+
         #-> The first validfrom date has to be BEFORE a certain starting date
         #-> The last validto date has to be AFTER a certain ending date    
         valid_ids_experian = self.df_experian["personid"][(self.df_experian["valid_to_max"]>= end_date) \
-                                            & (self.df_experian["valid_from_min"]<= start_date)]    
-        
+                                            & (self.df_experian["valid_from_min"]<= start_date)]        
         #TODO: zou het kunnen dat IDs in de tussentijd worden uitgeschreven en 
         # weer ingeschreven??
         
         # Get the intersection of both series
         valid_ids= valid_ids_experian[valid_ids_experian.isin(valid_ids_link)]
         
-        
+        # Make sure there are also the household size variables etc. present, 
+        # not just finergy
+        valid_ids_info = self.df_experian["personid"][~(self.df_experian["age_hh"].isnull())]
+        # Get the intersection
+        valid_ids= valid_ids[valid_ids.isin(valid_ids_info)]
+               
         #---------------- Take a subsample of the IDs -----------------------
         
         if subsample:
@@ -147,61 +175,25 @@ class dataProcessor:
                                          random_state = self.seed).reset_index(drop=True)
             # Make it a numpy array again with correct dimension so we can use
             # it to take a subset 
-            valid_ids = valid_ids.to_numpy()[:,0]
+            #valid_ids = valid_ids.to_numpy()[:,0]
             
             print(f"Done at {utils.get_time()}.")
             #TODO nu nog ergens valid IDs invullen 
         
-        
-        
-        
-    def create_experian_base(self, outname = "base_experian" ):   
-        """Creates a base dataset of all unique person IDs from
-        the Experian dataset, which the portfolio information will be merged
-        with later"""
-        
-        #---------------------FINAL DATASET BASE---------------------
-        
-        # We take all columns from experian data as a base, but we only want
-        # those ids for which AT LEAST SOME of the portfolio information is
-        # present, so dateinstroomweek should NOT be blank
-        # TODO: change to IDs where ALL portfolio information is present??
-        valid_ids = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
-        self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy() 
-
-        # Print number of unique IDs
-        dataInsight.unique_IDs(self.base_df,"base Experian dataset")       
-
-        #------------------------ GET DATES INSIGHT -------------------------
-        
-        # pd.to_datetime does not work on a DF, only a series or list, so we use .astype()
-        self.base_df.loc[:,['valid_to_dateeow']] = self.base_df.loc[:,['valid_to_dateeow']].astype('datetime64[ns]')
-        self.base_df.loc[:,['valid_from_dateeow']] = self.base_df.loc[:,['valid_from_dateeow']].astype('datetime64[ns]')
-
-        # See what the most recent date is in the data 
-        # Find the latest and oldest dates where a customer was changed or added 
-        all_dates = pd.concat([self.base_df['valid_to_dateeow'],self.base_df['valid_from_dateeow']])
-        self.last_date = all_dates.max()
-        self.first_date = all_dates.min()
-        
-        # Print the results
-        time_string = self.last_date.strftime("%Y-%m-%d")
-        print(f"most recent data in Experian is from {time_string},")
-        time_string = self.first_date.strftime("%Y-%m-%d")
-        print(f"Oldest data in Experian is from {time_string}")
+        # Now we can select the base data
+        self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy()
+        dataInsight.unique_IDs(self.base_df,"base Experian dataset") # show number of IDs
         
         #------------------------ SAVE & RETURN -------------------------
         if self.save_intermediate:
             utils.save_df_to_csv(self.base_df, self.interdir, 
                                  outname, add_time = False )      
-            print(f"Finished and output saved, at {utils.get_time()}")
-        
+            print(f"Finished and output saved, at {utils.get_time()}")        
         #return base_df
         
         print("-------------------------------------")
         
         
-
         
     def create_base_cross_section(self,
                                   subsample = False,
@@ -276,29 +268,29 @@ class dataProcessor:
         #print(f"There is data for {len(df_cross)} customers at the cross-section point")
         #print(f"{len(df_next)}")
         
-        #---------------------Taking subsample---------------------
+        # #---------------------Taking subsample---------------------
        
-        # Unique values of the person ids
-        id_subset = pd.DataFrame(df_cross["personid"].unique())
-        print(f"unique id values in this cross-section: {len(id_subset)}")
+        # # Unique values of the person ids
+        # id_subset = pd.DataFrame(df_cross["personid"].unique())
+        # print(f"unique id values in this cross-section: {len(id_subset)}")
         
-        if subsample: #TODO make this a method also?
-            print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
+        # if subsample: #TODO make this a method also?
+        #     print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
 
-            # Take a random subsample, seed is to get consistent results
-            id_subset = id_subset.sample(n = sample_size, 
-                                         random_state = seed).reset_index(drop=True)
-            # Make it a numpy array again with correct dimension so we can use
-            # it to take a subset 
-            #TODO improve efficiency
-            id_subset = id_subset.to_numpy()[:,0]
+        #     # Take a random subsample, seed is to get consistent results
+        #     id_subset = id_subset.sample(n = sample_size, 
+        #                                  random_state = seed).reset_index(drop=True)
+        #     # Make it a numpy array again with correct dimension so we can use
+        #     # it to take a subset 
+        #     #TODO improve efficiency
+        #     id_subset = id_subset.to_numpy()[:,0]
             
-            df_cross = df_cross.loc[df_cross["personid"].isin(id_subset)]
-            df_next = df_next.loc[df_next["personid"].isin(id_subset)]
-            #TODO what if people are not in the next set because they are
-            #not customers anymore? (doesn't happen with experian except for 1 customer)
+        #     df_cross = df_cross.loc[df_cross["personid"].isin(id_subset)]
+        #     df_next = df_next.loc[df_next["personid"].isin(id_subset)]
+        #     #TODO what if people are not in the next set because they are
+        #     #not customers anymore? (doesn't happen with experian except for 1 customer)
             
-            print(f"Done at {utils.get_time()}.")
+        #     print(f"Done at {utils.get_time()}.")
        
         
         #------------------------ SAVE & RETURN -------------------------
