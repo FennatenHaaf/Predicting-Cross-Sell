@@ -4,11 +4,8 @@ This code aims to create the data file that links portfolios to people
 
 @author: Fenna ten Haaf
 """
-# import os, sys
 import pandas as pd
 import numpy as np
-# import seaborn as sns
-# import matplotlib.pyplot as plt
 from datetime import datetime
 from datetime import timedelta
 import utils
@@ -19,7 +16,6 @@ import gc
 
 class dataProcessor:
 
-    # ToDo Randomize seed. Interdir toegevoegd om snel csv te importeren ipv hele set te runnen
     def __init__(self,indir,interdir,outdir, 
                  save_intermediate=False,
                  print_info=False,
@@ -42,153 +38,8 @@ class dataProcessor:
         self.df_pat_sample = pd.DataFrame()
         
         
-
-    #TODO: add comments to describe what this is doing        
-    def processCorporateData(self):
-        """Put function description here"""
         
-        #-------------READ IN CORPORATE DETAILS AND PROCESS------------
-        self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
-
-        if self.print_info: # Print NaNs and most common values
-            nameList = ["personid", "subtype", "name"]
-            nameList2 = ["personid", "birthday", "subtype", "code", "name"]
-            print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape) 
-            dataInsight.numberOfNaN(self.df_corporate_details, nameList2)
-            dataInsight.mostCommonDict(self.df_corporate_details, nameList, 10)
-
-        # Copy DataFrame for editing and drop code column and rows with NaN value
-        self.df_corporate_details = self.df_corporate_details.copy()
-        self.df_corporate_details.dropna(inplace=True)
-
-        # rename column personid to companyID,name to companySector and 
-        tempDict = {
-            "subtype": "businessType",
-            "name": "businessSector"}
-        self.df_corporate_details.rename(columns=tempDict, inplace=True)
-
-        if self.print_info: # show dimensions
-            print("shape of current data",self.df_corporate_details)
-
-        #---------- CREATE foundingDate, companyAgeInDays AND foundingYear--------
-
-        # use shorter var to refer to new columns
-        aid = "businessAgeInDays"
-        aim = "businessAgeInMonths"
-        aiy = "businessAgeInYears"
-        foundingDateString = "foundingDate"
-
-        # convert to datetime and to age in days of company
-        self.df_corporate_details[foundingDateString] = pd.to_datetime(self.df_corporate_details["birthday"])
-        currentTime = datetime(2021, 1, 1)
-        self.df_corporate_details["timeDelta"] = (currentTime - self.df_corporate_details[foundingDateString])
-        self.df_corporate_details[aid] = self.df_corporate_details["timeDelta"].dt.days
-        self.df_corporate_details[aim] = self.df_corporate_details["timeDelta"] / np.timedelta64(1, "M")
-        self.df_corporate_details[aiy] = self.df_corporate_details["timeDelta"] / np.timedelta64(1, "Y")
-        self.df_corporate_details.drop("timeDelta", inplace=True, axis=1)
-
-        # note founding year of company
-        self.df_corporate_details["foundingYear"] = self.df_corporate_details[foundingDateString].dt.year
-
-        # assumption that a company date beyond the end of 2020 is faulty
-        self.df_corporate_details = self.df_corporate_details[self.df_corporate_details[aid] > 0].copy()
-        
-        if self.print_info:
-            print(self.df_corporate_details["birthday"].describe())
-            
-            dataInsight.mostCommon(self.df_corporate_details, aid, 10)
-            print(self.df_corporate_details[aid].describe())
-            self.df_corporate_details.sample(5)
-    
-            dataInsight.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
-            self.df_corporate_details[aid].describe()
-
-        a = self.df_corporate_details.index[:10].to_list()
-        a.append(220682)
-        self.df_corporate_details[self.df_corporate_details.index.isin(a)]
-
-        #-------------PROCESS SBI CODES------------
-        SBI_2019Data = pd.read_excel("SBI_2019.xlsx")
-        #print(SBI_2019Data.head())
-
-        tempString = "SBIcode"
-        tempString2 = "SBIname"
-
-        SBI_2019DataEdited = SBI_2019Data.copy()
-        SBI_2019DataEdited.rename(columns={
-            "Unnamed: 0": tempString,
-            "Standaard Bedrijfsindeling 2008 - update 2019 ":
-                tempString2}, inplace=True)
-        codesList = SBI_2019DataEdited[tempString].unique().tolist()
-
-        sectorList = []
-        tempList = ["A", 0, 0]
-        tempList2 = ["A"]
-        for value in codesList[1:]:
-            try:
-                tempList[2] = int(value)
-            except:
-                pass
-            try:
-                text = str(value)
-                text = text.replace("\xa0", "")
-                text = text.replace(" ", "")
-                val = ord(text)
-                if 64 < val < 123:
-                    sectorList.append(tempList.copy())
-                    tempList2.append(text)
-                    tempList[0] = text
-                    tempList[1] = tempList[2]
-                else:
-                    pass
-            except:
-                pass
-        sectorList.append(tempList.copy())
-        sectorData = pd.DataFrame(tempList2)
-        sectorData.rename({
-                              0: tempString}, axis=1, inplace=True)
-        sectorData = pd.merge(SBI_2019DataEdited[[tempString, tempString2]], sectorData, how="inner", on=tempString)
-        sectorData.loc[13, [tempString, tempString2]] = "U", "Extraterritoriale organisaties en lichamen"
-        sectorData.rename({
-                              tempString: "SBIsector",
-                              tempString2: "SBIsectorName"}, axis=1, inplace=True)
-
-        SBI_2019DataEdited = SBI_2019DataEdited.loc[:, [tempString, tempString2]]
-        SBI_2019DataEdited.dropna(inplace=True)
-        SBI_2019DataEdited.reset_index(drop=True, inplace=True)
-        SBI_2019DataEdited.sample(5)
-
-        def cleanSBI(x):
-            try:
-                return int(x)
-            except:
-                return np.nan
-
-        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].apply(lambda x: cleanSBI(x))
-        SBI_2019DataEdited.dropna(inplace=True)
-        SBI_2019DataEdited[tempString2] = SBI_2019DataEdited[tempString2].astype("str")
-
-        SBI_2019DataEdited["SBIsector"] = np.nan
-        # chr, ord, < <=
-        for values in sectorList:
-            tempIndex = (values[1] < SBI_2019DataEdited[tempString]) & (SBI_2019DataEdited[tempString] <= values[2])
-            SBI_2019DataEdited.loc[tempIndex, "SBIsector"] = values[0]
-
-        SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="inner", on="SBIsector")
-        #SBI_2019DataEdited.sample(3)
-
-        tempString = "SBIcode"
-        self.df_corporate_details[tempString] = self.df_corporate_details["businessSector"].str[:2]
-        self.df_corporate_details[tempString] = pd.to_numeric(self.df_corporate_details[tempString],
-                                                                downcast="unsigned")
-        #self.df_corporate_details.sample(3)
-
-        self.df_corporate_details = pd.merge(self.df_corporate_details, SBI_2019DataEdited, how="inner",
-                                               on="SBIcode")
-        self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
-
-
-
+               
     def link_data(self, outname = "base_linkinfo"):
         """This function creates a dataset containing person IDs linked
         to their portfolio ids and the corresponding portfolio information.
@@ -201,9 +52,8 @@ class dataProcessor:
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")                     
         
         if self.df_corporate_details.empty:
-            self.processCorporateData()
+            self.processCorporateData() # create processed corporate dataset
 
-        
         # Do a left join to add portfolio information  
         self.df_link = pd.read_csv(f"{self.indir}/linkpersonportfolio.csv").merge(
             pd.read_csv(f"{self.indir}/portfolio_info.csv"), 
@@ -221,51 +71,24 @@ class dataProcessor:
                                   right_on=["portfolioid"],) 
         # TODO check if human person ids could be getting linked to multiple
         # corporate ids?
+        
+        # Merge the file with business information
         self.df_corporate_details = self.df_corporate_details.rename(columns={"personid": "corporateid"})
-
-        # Merge this with business information
         self.df_link = self.df_link.merge(self.df_corporate_details, 
                                   how="left", left_on=["corporateid"],
                                   right_on=["corporateid"],)
         # TODO check if businesses appear multiple times!!
+    
         
-        #------------------------ SAVE & RETURN -------------------------
-        if self.save_intermediate:
-            utils.save_df_to_csv(self.df_link, self.interdir, 
-                                  outname, add_time = False )      
-            print(f"Finished and output saved, at {utils.get_time()}")
-            
-        # TODO make the function return df_link and make it an input for the
-        # other functions rather than calling with self. ??
-        #return self.df_link 
-        
-        
-        
-    def create_experian_base(self, outname = "base_experian" ):   
-        """Creates a base dataset of all unique person IDs from
-        the Experian dataset, which the portfolio information will be merged
-        with later"""
-        
-        #---------------------FINAL DATASET BASE---------------------
-        
-        # We take all columns from experian data as a base, but we only want
-        # those ids for which AT LEAST SOME of the portfolio information is
-        # present, so dateinstroomweek should NOT be blank
-        valid_ids = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
-        self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy() 
-
-        # Print number of unique IDs
-        dataInsight.unique_IDs(self.base_df,"base Experian dataset")       
-
         #------------------------ GET DATES INSIGHT -------------------------
         
         # pd.to_datetime does not work on a DF, only a series or list, so we use .astype()
-        self.base_df.loc[:,['valid_to_dateeow']] = self.base_df.loc[:,['valid_to_dateeow']].astype('datetime64[ns]')
-        self.base_df.loc[:,['valid_from_dateeow']] = self.base_df.loc[:,['valid_from_dateeow']].astype('datetime64[ns]')
+        self.df_experian.loc[:,['valid_to_dateeow']] = self.df_experian.loc[:,['valid_to_dateeow']].astype('datetime64[ns]')
+        self.df_experian.loc[:,['valid_from_dateeow']] = self.df_experian.loc[:,['valid_from_dateeow']].astype('datetime64[ns]')
 
         # See what the most recent date is in the data 
         # Find the latest and oldest dates where a customer was changed or added 
-        all_dates = pd.concat([self.base_df['valid_to_dateeow'],self.base_df['valid_from_dateeow']])
+        all_dates = pd.concat([self.df_experian['valid_to_dateeow'],self.df_experian['valid_from_dateeow']])
         self.last_date = all_dates.max()
         self.first_date = all_dates.min()
         
@@ -275,21 +98,102 @@ class dataProcessor:
         time_string = self.first_date.strftime("%Y-%m-%d")
         print(f"Oldest data in Experian is from {time_string}")
         
+        
+        #------------------------ SAVE & RETURN  -------------------------
+        if self.save_intermediate:
+            utils.save_df_to_csv(self.df_link, self.interdir, 
+                                  outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
+        #return self.df_link 
+       
+        
+       
+        
+    def select_ids(self, quarterly = True, subsample = True,
+                   sample_size = 500, start_date = "2018", end_date = None,
+                   outname = "base_experian"):
+        """Selects a certain set of person IDs from the linking dataset, where:
+            - information for ALL portfolios is present in the linking data
+            - There is information for them in the Experian data for
+            each time period (if time_series is TRUE) .
+          We also take a subsample, if this is so specified."""
+
+        if (end_date==None):
+            end_date= self.last_date # Make this the end date period
+        
+        #--------- make sure there is information in the portfolio info data ---------
+        
+        # we only want those ids for which the portfolio information is present, 
+        # so dateinstroomweek should NOT be blank
+        valid_ids_link = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
+        #TODO dit is nog niet alles, alleen nog maar AT LEAST one?
+    
+    
+        #--------- make sure there is information in the Experian data ---------
+        # we want there to be experian data in every time period for the IDs 
+    
+        # Get a variable representing the last date until which an ID is valid
+        maxending = self.df_experian[["valid_to_dateeow","personid"]].copy()
+        maxending["valid_to_dateeow"] = maxending["valid_to_dateeow"].fillna(self.last_date).astype('datetime64[ns]')
+        maxending = maxending.groupby("personid").max()
+        maxending = maxending.rename(columns={"valid_to_dateeow": "valid_to_max",})
+        # add to experian data        
+        self.df_experian = self.df_experian.merge(maxending, how="left", left_on=["personid"],
+                               right_on=["personid"])
+        
+        # Get a variable representing the first date from which an ID is valid
+        minstart = self.df_experian[["valid_from_dateeow","personid"]]
+        minstart = minstart.groupby("personid").min()
+        minstart  = minstart.rename(columns={"valid_from_dateeow": "valid_from_min",})                                 
+        # add to experian data
+        self.df_experian = self.df_experian.merge(minstart, how="left", left_on=["personid"],
+                               right_on=["personid"])
+
+        #-> The first validfrom date has to be BEFORE a certain starting date
+        #-> The last validto date has to be AFTER a certain ending date    
+        valid_ids_experian = self.df_experian["personid"][(self.df_experian["valid_to_max"]>= end_date) \
+                                            & (self.df_experian["valid_from_min"]<= start_date)]        
+        #TODO: zou het kunnen dat IDs in de tussentijd worden uitgeschreven en 
+        # weer ingeschreven??
+        
+        # Get the intersection of both series
+        valid_ids= valid_ids_experian[valid_ids_experian.isin(valid_ids_link)]
+        
+        # Make sure there are also the household size variables etc. present, 
+        # not just finergy
+        valid_ids_info = self.df_experian["personid"][~(self.df_experian["age_hh"].isnull())]
+        # Get the intersection
+        valid_ids= valid_ids[valid_ids.isin(valid_ids_info)]
+               
+        #---------------- Take a subsample of the IDs -----------------------
+        
+        if subsample:
+            print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
+
+            # Take a random subsample, seed is to get consistent results
+            valid_ids = valid_ids.sample(n = sample_size, 
+                                         random_state = self.seed).reset_index(drop=True)
+            # Make it a numpy array again with correct dimension so we can use
+            # it to take a subset 
+            #valid_ids = valid_ids.to_numpy()[:,0]
+            
+            print(f"Done at {utils.get_time()}.")
+            #TODO nu nog ergens valid IDs invullen 
+        
+        # Now we can select the base data
+        self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy()
+        dataInsight.unique_IDs(self.base_df,"base Experian dataset") # show number of IDs
+        
         #------------------------ SAVE & RETURN -------------------------
         if self.save_intermediate:
             utils.save_df_to_csv(self.base_df, self.interdir, 
                                  outname, add_time = False )      
-            print(f"Finished and output saved, at {utils.get_time()}")
-        
-        # TODO make the function return base_df and make it an input for the
-        # other functions rather than calling with self. ??
-        # return base_df 
+            print(f"Finished and output saved, at {utils.get_time()}")        
         #return base_df
         
         print("-------------------------------------")
         
         
-
         
     def create_base_cross_section(self,
                                   subsample = False,
@@ -354,36 +258,39 @@ class dataProcessor:
         print(f"cross-date {cross_date.strftime(time_format)},")
         print(f"next date {next_date.strftime(time_format)}")
         
+        
+        #TODO: maak hier pas de base_df aan, en selecteer HIER dan de valid IDs!!
+        # Dan hoef ik hieronder ook niet meer de subsample te nemen!!
+        
         ## Now get the base dataset for this current period and the next 
         df_cross = self.get_time_slice(self.base_df,cross_date)
         df_next = self.get_time_slice(self.base_df,next_date)
         #print(f"There is data for {len(df_cross)} customers at the cross-section point")
         #print(f"{len(df_next)}")
         
-        #---------------------Taking subsample---------------------
+        # #---------------------Taking subsample---------------------
        
-        # Unique values of the person ids
-        id_subset = pd.DataFrame(df_cross["personid"].unique())
-        print(f"unique id values in this cross-section: {len(id_subset)}")
+        # # Unique values of the person ids
+        # id_subset = pd.DataFrame(df_cross["personid"].unique())
+        # print(f"unique id values in this cross-section: {len(id_subset)}")
         
-        if subsample: #TODO make this a method also?
-            print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
+        # if subsample: #TODO make this a method also?
+        #     print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
 
-            # Take a random subsample, seed is to get consistent results
-            id_subset = id_subset.sample(n = sample_size, 
-                                         random_state = seed).reset_index(drop=True)
-            # Make it a numpy array again with correct dimension so we can use
-            # it to take a subset 
-            #TODO improve efficiency
-            id_subset = id_subset.to_numpy()[:,0]
+        #     # Take a random subsample, seed is to get consistent results
+        #     id_subset = id_subset.sample(n = sample_size, 
+        #                                  random_state = seed).reset_index(drop=True)
+        #     # Make it a numpy array again with correct dimension so we can use
+        #     # it to take a subset 
+        #     #TODO improve efficiency
+        #     id_subset = id_subset.to_numpy()[:,0]
             
-            df_cross = df_cross.loc[df_cross["personid"].isin(id_subset)]
-            df_next = df_next.loc[df_next["personid"].isin(id_subset)]
-            #TODO what if people are not in the next set because they are
-            #not customers anymore? (doesn't happen with experian except for 1 customer)
+        #     df_cross = df_cross.loc[df_cross["personid"].isin(id_subset)]
+        #     df_next = df_next.loc[df_next["personid"].isin(id_subset)]
+        #     #TODO what if people are not in the next set because they are
+        #     #not customers anymore? (doesn't happen with experian except for 1 customer)
             
-            print(f"Done at {utils.get_time()}.")
-            print(f"length after: {len(df_cross)}.") 
+        #     print(f"Done at {utils.get_time()}.")
        
         
         #------------------------ SAVE & RETURN -------------------------
@@ -427,9 +334,6 @@ class dataProcessor:
 
     
         #----- Get only the ACTIVE portfolios (for which we have info) -----
-        
-        # Note: this will result in also the portfolios being dropped which we
-        # do not have information for - see if we want this!
         
         # get the unique portfolio ids which are still active at cross-section time
         df_portfolio_status = self.get_time_slice(pd.read_csv(f"{self.indir}/portfolio_status.csv"),
@@ -622,7 +526,8 @@ class dataProcessor:
                 
                 # TODO make some kind of summary for the business details
                 # -> voor bedrijf types pakken we de type OF we pakken ''meerdere''
-                indicator = df.loc[:,["personid", "birthday", "subtype", "code", "name"]]
+                #indicator = df.loc[:,["personid", "birthday", "subtype", "code", "name"]]
+                # Dit geeft een error!! birthday, subtype etc is missing??
                 
                 # doe een merge van de indicator met df_cross[name] oftewel 
                 # df_cross['business'] wat aangeeft of er meerdere 
@@ -640,7 +545,7 @@ class dataProcessor:
         #----------- Merge remaining things --------
         
         # TODO check if this is necessary? And if so, make it so that 
-        # frequencies is an input to the function
+        # frequencies is an input to the function since it is created in a different function
         # merge frequencies of ALL portfolios (including ones without any info)
         # which we made earlier 
         # df_cross= df_cross.merge(frequencies,
@@ -679,7 +584,7 @@ class dataProcessor:
         
 
 
-
+#some helper methods that are used to handle time =================================
 
 
     def get_last_day_period(self, date, next_period = False, quarterly =True):
@@ -715,6 +620,7 @@ class dataProcessor:
         return end_date
         
     
+    
     def get_time_slice(self, dataset, date, 
                        valid_to_string = 'valid_to_dateeow',
                        valid_from_string = 'valid_from_dateeow'):
@@ -731,7 +637,6 @@ class dataProcessor:
             & (dataset[valid_from_string]<= date) 
         dataset = dataset[select]
         return dataset
-        
     
     
     def select_period(self, dataset, last_day, quarterly_period):
@@ -754,15 +659,157 @@ class dataProcessor:
              
         return select
     
+
+    
+#methods to process corporate data ===================================================
+    
+    def processCorporateData(self):
+        """processes the corporate information data and creates some extra
+        variables"""
+        
+        #-------------READ IN CORPORATE DETAILS AND PROCESS------------
+        self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
+
+        if self.print_info: # Print NaNs and most common values
+            nameList = ["personid", "subtype", "name"]
+            nameList2 = ["personid", "birthday", "subtype", "code", "name"]
+            print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape) 
+            dataInsight.numberOfNaN(self.df_corporate_details, nameList2)
+            dataInsight.mostCommonDict(self.df_corporate_details, nameList, 10)
+
+        # Copy DataFrame for editing and drop code column and rows with NaN value
+        self.df_corporate_details = self.df_corporate_details.copy()
+        self.df_corporate_details.dropna(inplace=True)
+
+        # rename column personid to companyID,name to companySector and 
+        tempDict = {
+            "subtype": "businessType",
+            "name": "businessSector"}
+        self.df_corporate_details.rename(columns=tempDict, inplace=True)
+
+        if self.print_info: # show dimensions
+            print("shape of current data",self.df_corporate_details)
+
+        #---------- CREATE foundingDate, companyAgeInDays AND foundingYear--------
+
+        # use shorter var to refer to new columns
+        aid = "businessAgeInDays"
+        aim = "businessAgeInMonths"
+        aiy = "businessAgeInYears"
+        foundingDateString = "foundingDate"
+
+        # convert to datetime and to age in days of company
+        self.df_corporate_details[foundingDateString] = pd.to_datetime(self.df_corporate_details["birthday"])
+        currentTime = datetime(2021, 1, 1)
+        self.df_corporate_details["timeDelta"] = (currentTime - self.df_corporate_details[foundingDateString])
+        self.df_corporate_details[aid] = self.df_corporate_details["timeDelta"].dt.days
+        self.df_corporate_details[aim] = self.df_corporate_details["timeDelta"] / np.timedelta64(1, "M")
+        self.df_corporate_details[aiy] = self.df_corporate_details["timeDelta"] / np.timedelta64(1, "Y")
+        self.df_corporate_details.drop("timeDelta", inplace=True, axis=1)
+
+        # note founding year of company
+        self.df_corporate_details["foundingYear"] = self.df_corporate_details[foundingDateString].dt.year
+
+        # assumption that a company date beyond the end of 2020 is faulty
+        self.df_corporate_details = self.df_corporate_details[self.df_corporate_details[aid] > 0].copy()
+        
+        if self.print_info:
+            print(self.df_corporate_details["birthday"].describe())
+            
+            dataInsight.mostCommon(self.df_corporate_details, aid, 10)
+            print(self.df_corporate_details[aid].describe())
+            self.df_corporate_details.sample(5)
+    
+            dataInsight.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
+            self.df_corporate_details[aid].describe()
+
+        a = self.df_corporate_details.index[:10].to_list()
+        a.append(220682)
+        self.df_corporate_details[self.df_corporate_details.index.isin(a)]
+
+        #-------------PROCESS SBI CODES------------
+        #TODO: add comments to describe what is happening here
+        SBI_2019Data = pd.read_excel("SBI_2019.xlsx")
+
+        tempString = "SBIcode"
+        tempString2 = "SBIname"
+
+        SBI_2019DataEdited = SBI_2019Data.copy()
+        SBI_2019DataEdited.rename(columns={
+            "Unnamed: 0": tempString,
+            "Standaard Bedrijfsindeling 2008 - update 2019 ":
+                tempString2}, inplace=True)
+        codesList = SBI_2019DataEdited[tempString].unique().tolist()
+
+        sectorList = []
+        tempList = ["A", 0, 0]
+        tempList2 = ["A"]
+        for value in codesList[1:]:
+            try:
+                tempList[2] = int(value)
+            except:
+                pass
+            try:
+                text = str(value)
+                text = text.replace("\xa0", "")
+                text = text.replace(" ", "")
+                val = ord(text)
+                if 64 < val < 123:
+                    sectorList.append(tempList.copy())
+                    tempList2.append(text)
+                    tempList[0] = text
+                    tempList[1] = tempList[2]
+                else:
+                    pass
+            except:
+                pass
+        sectorList.append(tempList.copy())
+        sectorData = pd.DataFrame(tempList2)
+        sectorData.rename({
+                              0: tempString}, axis=1, inplace=True)
+        sectorData = pd.merge(SBI_2019DataEdited[[tempString, tempString2]], sectorData, how="inner", on=tempString)
+        sectorData.loc[13, [tempString, tempString2]] = "U", "Extraterritoriale organisaties en lichamen"
+        sectorData.rename({
+                              tempString: "SBIsector",
+                              tempString2: "SBIsectorName"}, axis=1, inplace=True)
+
+        SBI_2019DataEdited = SBI_2019DataEdited.loc[:, [tempString, tempString2]]
+        SBI_2019DataEdited.dropna(inplace=True)
+        SBI_2019DataEdited.reset_index(drop=True, inplace=True)
+
+        def cleanSBI(x):
+            try:
+                return int(x)
+            except:
+                return np.nan
+
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].apply(lambda x: cleanSBI(x))
+        SBI_2019DataEdited.dropna(inplace=True)
+        SBI_2019DataEdited[tempString2] = SBI_2019DataEdited[tempString2].astype("str")
+
+        SBI_2019DataEdited["SBIsector"] = np.nan
+        # chr, ord, < <=
+        for values in sectorList:
+            tempIndex = (values[1] < SBI_2019DataEdited[tempString]) & (SBI_2019DataEdited[tempString] <= values[2])
+            SBI_2019DataEdited.loc[tempIndex, "SBIsector"] = values[0]
+
+        SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="inner", on="SBIsector")
+
+        tempString = "SBIcode"
+        self.df_corporate_details[tempString] = self.df_corporate_details["businessSector"].str[:2]
+        self.df_corporate_details[tempString] = pd.to_numeric(self.df_corporate_details[tempString],
+                                                                downcast="unsigned")
+
+        self.df_corporate_details = pd.merge(self.df_corporate_details, SBI_2019DataEdited, how="inner",
+                                               on="SBIcode")
+        self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
     
     
+#methods to create transction & activity data ============================================
     def create_transaction_data_crosssection(self, date = None):
         """creates transaction data based on the cross-section for a specific date"""
-
-        # Todo waren deze variabelen altijd 0? ik zag ze namelijk wel een waarde hebben. Verder een dictionaire
-        #  toegevoegd die aangeeft wat we parsen. Dan hoeven we het ook niet in te lezen en kunnen we centraal op een
-        #  plek wijzigen wat we nodig hebben voor de cross sectie en dergelijke.
-        #Deze variabelen zijn altijd 0 dus gebruiken we niet
+        
+        #Deze variabelen zijn in sommige jaren altijd 0 dus gebruiken we niet
         # cols_to_drop = ["yearweek", "gemaksbeleggenyn", "saldogemaksbeleggen", "participatieyn",
         #               "saldoparticipatie","vermogensbeheeryn", "saldovermogensbeheer"]
         readArgs = {"usecols": declarationsFile.getPatColToParseCross(subset = "transactions")}
@@ -810,10 +857,10 @@ class dataProcessor:
     def create_activity_data_crosssection(self, date):
         """creates activity data based on the cross-section for a specific date"""
         
-        # We do not need the payment alert variables, can drop that already
-        # cols_to_drop = ["yearweek","aantalbetaalalertsontv", "aantalbetaalalertsubscr"]
+        # Get the columns that we use - we do not need the payment alert variables
         readArgs = {"usecols": declarationsFile.getPatColToParseCross(subset = "activity")}
         
+        # Read the necessary data
         if date.year >2019:
             dataset = pd.concat(
             [pd.read_csv(f"{self.indir}/portfolio_activity_retail.csv", **readArgs),
@@ -855,6 +902,7 @@ class dataProcessor:
                 
         return dataset
 
+
     def summarize_activity(self, dataset, date, quarterly_period):
         """We summarize the activity per period, taking for logins the sum of
         all values in that quarter and for the remaining variables we take 
@@ -866,28 +914,22 @@ class dataProcessor:
         logins = dataset[["portfolioid", "aantalloginsapp","aantalloginsweb" ]][select]
         logins = logins.groupby("portfolioid").sum()
     
-    
-        # For the remaining variables, we want the thing that is the closest
+        # For the remaining variables, we want the entry that is the closest
         # to the current date        
-        
         remain = dataset.drop(["aantalloginsapp","aantalloginsweb" ], 1)
         maxdates = remain[["dateeow","portfolioid"]].groupby("portfolioid").max()
-        
         # Do a left join on maxdates so that only the most recent entries are left
         remain = maxdates.merge(remain, how="left", left_on=["dateeow","portfolioid"],
                                right_on=["dateeow","portfolioid"])
-        #.asof(date) zou ook moeten werken voor een sorted dataset
+        # merge them again
+        dataset = logins.merge(remain, how="left", left_on=["portfolioid"],
+                               right_on=["portfolioid"],)
 
         #TODO grotere kans op missing values als er geen voorgaande data is??
         # Oplossing: sowieso alleen naar de afgelopen maand/ etc kijken, anders 
         # krijgt het eventueel iets als inactive ofzo?
-        
         #TODO: maak een variabele van aantal weken sinds laatste dateeow?
-            
-        # merge them again
-        dataset = logins.merge(remain, how="left", left_on=["portfolioid"],
-                               right_on=["portfolioid"],)
-        
+                
         dataset = dataset.rename(columns={"dateeow": "lastactivityeow",})
         return dataset
 
@@ -904,18 +946,14 @@ class dataProcessor:
                           "aantalfueltransacties" ]][select]
         transactions = transactions.groupby("portfolioid").sum()
     
-    
         # For the remaining variables, we want the record that is the closest
         # to the current date        
         remain = dataset.drop(["aantalbetaaltransacties","aantalatmtransacties",
                                "aantalpostransacties","aantalfueltransacties" ], 1)
         maxdates = remain[["dateeow","portfolioid"]].groupby("portfolioid").max()
-          
-        
         # Do a left join on maxdates so that only the most recent entries are left
         remain = maxdates.merge(remain, how="left", left_on=["dateeow","portfolioid"],
                                right_on=["dateeow","portfolioid"])
-     
         # merge them again
         dataset = transactions.merge(remain, how="left", left_on=["portfolioid"],
                                right_on=["portfolioid"],)
@@ -925,11 +963,8 @@ class dataProcessor:
         return dataset
 
 
-
-
-
-
-    def importPortfolioActivity(self, convertData=False, selectColumns=False, discardPat = False, **readArgs):
+    def importPortfolioActivity(self, convertData=False, selectColumns=False, 
+                                discardPat = False, **readArgs):
 
         mergeSet = ["dateeow", "yearweek", "portfolioid", "pakketcategorie"]
 
@@ -1034,6 +1069,7 @@ class dataProcessor:
         self.exportEdited("patsmp")
 
 
+#linkTimeSets=====================================================================
 
     def linkTimeSets(self, period = "Q"):
         # ToDo corrigeer voor al geimporteerde of bewerkte data
@@ -1237,162 +1273,9 @@ class dataProcessor:
         
         """
 
-    ### DATA EXPLORATION METHODS
-    #TODO show PA explorer in here
-    def exploreSets(self, link_corp = False, link_pat = False):
-        df_exp = pd.read_csv(f"{self.indir}/experian.csv")
-        df_lpp= pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")
-        df_bhk = pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv")
-        df_pin = pd.read_csv(f"{self.indir}/portfolio_info.csv")
-        df_pst = pd.read_csv(f"{self.indir}/portfolio_status.csv")
-        df_bhk.groupby("personid")["portfolioid"].count()
-
-        #person id's per protfolio and vice versa
-        nOfPIDperPort = df_lpp.groupby("portfolioid")["personid"].count().sort_values(ascending = False)
-        nOfPortPerPID = df_lpp.groupby("personid")["portfolioid"].count().sort_values(
-            ascending=False)
-
-        col_list = ["personid", "portfolioid", "accountoverlayid", "accountid"]
-        dataInsight.uniqueValsList(df_bhk, col_list)
-        dataInsight.recurringValues(df_bhk, "portfolioid", "personid", threshold = 1)
-
-        lpp_col_to_test = ["personid"]
-        dataInsight.uniqueValsList(df_lpp, lpp_col_to_test)
-
-        ##EXP
-        (df_exp.groupby("personid")["valid_from_dateeow"].count() > 1).sum()
-
-        #Link bhk en lpp
-        df_bhk_lpp = pd.merge(df_bhk, df_lpp[["personid", "portfolioid", "iscorporatepersonyn"]], on=["personid", "portfolioid"])
-        print("Number of corporate portfolios for overlay in lpp :", df_bhk_lpp["iscorporatepersonyn"].sum())
-
-        #LPP
-        df_lpp = utils.doConvertFromDict(df_lpp)
-        df_lpp_table_port_corp_retail = df_lpp.groupby("portfolioid")["iscorporatepersonyn"].mean()
-        df_lpp_table_port_corp_retail = df_lpp_table_port_corp_retail.reset_index()
-        df_lpp_table_port_corp_retail.loc[:,"indicator_corp_and_retail"] = 0
-        lpp_index_both = pd.eval(" (df_lpp_table_port_corp_retail['iscorporatepersonyn'] > 0) & "
-                                 "(df_lpp_table_port_corp_retail['iscorporatepersonyn'] < 1) ")
-        df_lpp_table_port_corp_retail.loc[lpp_index_both,"indicator_corp_and_retail"] = 1
-        df_lpp_table_port_corp_retail.drop("iscorporatepersonyn", axis=1, inplace=True)
-        df_lpp.drop(["validfromdate", "validfromyearweek", "validtodate"], axis=1, inplace=True)
-        df_lpp = pd.merge(df_lpp,df_lpp_table_port_corp_retail, on = "portfolioid")
-
-        index_link_cr = pd.eval("df_lpp['indicator_corp_and_retail'] == 1")
-        index_corp_pers = pd.eval("df_lpp['iscorporatepersonyn'] == 1")
-        portid_link_cr = df_lpp.loc[index_link_cr, "portfolioid"].unique()
-        persid_link_cr = df_lpp.loc[index_link_cr, "personid"].unique()
-        persid_no_link_cr = df_lpp.loc[~index_link_cr, "personid"].unique()
-        id_link_cr_corp = df_lpp.loc[(index_link_cr & index_corp_pers) , "personid"].unique()
-        id_link_cr_ret = df_lpp.loc[(index_link_cr & ~index_corp_pers), "personid"].unique()
-        id_no_link_cr_corp = df_lpp.loc[(~index_link_cr & index_corp_pers), "personid"].unique()
-        id_no_link_cr_ret = df_lpp.loc[(~index_link_cr & ~index_corp_pers), "personid"].unique()
-
-        df_lpp_linked = df_lpp[pd.eval("df_lpp['personid'].isin(persid_link_cr)")]
-        ##LPP en EXP
-        pd.DataFrame(df_exp["personid"].unique()).isin(df_lpp_linked.loc[df_lpp_linked["iscorporatepersonyn"] == 0, "personid"])
-        exp_lpp_linked = pd.merge(df_exp, df_lpp_linked[["personid", "portfolioid"]], on=["personid"])
-        exp_lpp_linked.sort_values(["valid_to_dateeow","personid","portfolioid"], inplace= True)
-        exp_lpp_linked["portfolioid"].unique()
-
-        exp_lpp_groupby = exp_lpp_linked.groupby("personid")["valid_from_dateeow"].count()
-        print( exp_lpp_groupby.index.isin(exp_lpp_groupby[exp_lpp_groupby > 1].index).sum() )
-        temp_list = exp_lpp_groupby.index.isin(exp_lpp_groupby[exp_lpp_groupby > 1].index)
-        exp_lpp_groupby.reset_index()["personid"][temp_list]
-        pd.Series(exp_lpp_groupby.reset_index()["personid"][temp_list])
-
-        ##BHK
-        df_bhk["personid"].isin(persid_link_cr).sum()
-        df_bhk["personid"].isin(id_link_cr_corp).sum()
-        df_bhk["personid"].isin(id_no_link_cr_corp).sum()
-        df_bhk["personid"].isin(id_link_cr_ret).sum()
-        df_bhk["personid"].isin(id_no_link_cr_ret).sum()
-        id_link_cr_ret.isin(id_no_link_cr_ret)
-
-        n1 = df_bhk.groupby("personid")[["personid","portfolioid", "boekhoudkoppeling", "valid_from_dateeow", "valid_to_dateeow"]]. \
-            filter(lambda x: x["boekhoudkoppeling"].unique().shape[0] > 1)
-        n1.drop_duplicates(inplace=True)
-        n2 = df_bhk.groupby("personid")[["personid", "portfolioid","boekhoudkoppeling", "valid_from_dateeow", "valid_to_dateeow"]]. \
-            filter(lambda x: x["boekhoudkoppeling"].unique().shape[0] == 1)
-        n2.drop_duplicates(inplace=True)
-
-        n3 = df_bhk.groupby("portfolioid")[["personid","portfolioid", "boekhoudkoppeling", "valid_from_dateeow", "valid_to_dateeow"]]. \
-            filter(lambda x: x["boekhoudkoppeling"].unique().shape[0] > 1)
-        n3.drop_duplicates(inplace=True)
-        n4 = df_bhk.groupby("portfolioid")[["personid", "portfolioid","boekhoudkoppeling", "valid_from_dateeow", "valid_to_dateeow"]]. \
-            filter(lambda x: x["boekhoudkoppeling"].unique().shape[0] == 1)
-        n4.drop_duplicates(inplace=True)
 
 
-
-
-
-        # bhk_to_corp_pivot = pd.pivot_table(df_bhk_lpp,vales = "","index = "boekhoudkoppeling", columns =  "iscorporatepersonyn", aggfunc= "count")
-        #Portfolio Status
-        df_pst[df_pst["outflow_date"] == "9999-12-31"] = self.endDate
-        df_pst["outflow_date"] = pd.to_datetime(df_pst["outflow_date"])
-
-        if link_corp:
-            if self.df_corporate_details.empty:
-                self.processCorporateData()
-            df_bhk[df_bhk["personid"].isin(self.df_corporate_details["personid"].unique())]
-
-        if link_pat:
-            columns_to_use = ["portfolioid"]
-            if self.df_pat.empty:
-                readArgs = {"usecols":columns_to_use}
-                self.importPortfolioActivity()
-
-
-
-    ##IMPORT AND CONVERT METHODS--------------------------------------------------------##
-    def explorePA(self):
-        pat = self.df_pat
-
-        patSubID = ["dateeow", "yearweek", "portfolioid"]
-        patSubID1 = patSubID + ['pakketcategorie',
-                                'overstapserviceyn', 'betaalalertsyn', 'aantalbetaalalertsubscr',
-                                'aantalbetaalalertsontv', 'roodstandyn', 'saldoregulatieyn', 'appyn',
-                                'aantalloginsapp', 'aantalloginsweb', 'activitystatus']
-
-        patSubID2 = patSubID + ['betalenyn',
-                                'saldobetalen', 'aantalbetaaltransacties', 'aantalatmtransacties',
-                                'aantalpostransacties', 'aantalfueltransacties', 'aantaltegenrekeningenlaatsteq']
-
-        patSubID3 = patSubID + ['betalenyn',
-                                'saldobetalen', 'depositoyn',
-                                'saldodeposito', 'flexibelsparenyn', 'saldoflexibelsparen',
-                                'kwartaalsparenyn', 'saldokwartaalsparen', 'gemaksbeleggenyn',
-                                'saldogemaksbeleggen', 'participatieyn', 'saldoparticipatie',
-                                'vermogensbeheeryn', 'saldovermogensbeheer', 'saldototaal',
-                                'saldolangetermijnsparen']
-
-        patSub1 = self.df_pat.loc[:, patSubID1].copy()
-        patSub2 = self.df_pat.loc[:, patSubID2].copy()
-        patSub3 = self.df_pat.loc[:, patSubID3].copy()
-
-        print(patSub1["pakketcategorie"].unique().tolist())
-        patSub1["indicatorZP"] = 0
-        patSub1["indicatorPB"] = 0
-        patSub1["indicatorKB"] = 0
-
-        patSub1.loc[patSub1["pakketcategorie"] == "Zakelijk pakket", "indicatorZP"] = 1
-        patSub1.loc[patSub1["pakketcategorie"] == "Particulier Betalend", "indicatorPB"] = 1
-        patSub1.loc[patSub1["pakketcategorie"] == "Knab Basis", "indicatorKB"] = 1
-
-        # Volgende stap: Indicator variabele voor deze pakketen maken en kijken hoeveel mensen van pakket wisselen
-        patS1gr = patSub1.groupby("portfolioid")[["indicatorZP", "indicatorPB", "indicatorKB"]].max()
-        patS1gr["multiple"] = patS1gr["indicatorZP"] + patS1gr["indicatorPB"] + patS1gr["indicatorKB"]
-        pats1Multi = patS1gr[patS1gr["multiple"] > 1]
-        text = "Van de {} mensen heeft {} meerdere portfolio's.".format(patS1gr.shape[0], pats1Multi.shape[0])
-        print(text)
-        res1 = pd.eval("(pats1Multi['indicatorZP'] == 1) & (pats1Multi['multiple'] > 1) ")
-        res2 = pd.eval("(pats1Multi['indicatorKB'] == 1) & (pats1Multi['indicatorPB'] == 1) ")
-        print("met Zakelijk en particulier: ", res1.sum(), "alleen particulier: ", res2.sum())
-
-        businessAndRetailList = pats1Multi[res1].index.to_list()
-        businessAndRetailObservations = pat[pat["portfolioid"].isin(businessAndRetailList)].copy()
-        businessAndRetailObservations.sort_values(["portfolioid", "dateeow"], inplace=True)
+ ##IMPORT AND CONVERT METHODS--------------------------------------------------------##
 
     def importSets(self, fileID, **readArgs):
         if fileID == "lpp" or fileID == "linkpersonportfolio.csv":

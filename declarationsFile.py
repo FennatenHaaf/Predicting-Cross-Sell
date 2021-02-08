@@ -1,15 +1,22 @@
 """"
-File to centrally declare which variables to use and not to use in the analysis in importing, exporting or Analysis.
+File to centrally declare which variables to use and not to use in the 
+analysis in importing, exporting or Analysis.
+
+Written for the Quantitative Marketing & Business Analytics seminar
+Erasmus School of Economics
 """
 
 def getPatColToParseCross(subset="total"):
+    """ Method to select which specific columns are imported from the Knab
+    transaction and activity datasets"""
+    
     columnsToParse1 = [
         "dateeow",
         # "yearweek",
         "portfolioid",
         "pakketcategorie"]
 
-    columnsToParse2 = [
+    columnsToParse2 = [ # activity
         'overstapserviceyn',
         'betaalalertsyn',
         # 'aantalbetaalalertsubscr',
@@ -22,7 +29,7 @@ def getPatColToParseCross(subset="total"):
         'activitystatus'
     ]
 
-    columnsToParse3 = [
+    columnsToParse3 = [  # transactions
         'betalenyn',
         'saldobetalen',
         'aantalbetaaltransacties',
@@ -35,7 +42,9 @@ def getPatColToParseCross(subset="total"):
         'saldoflexibelsparen',
         'kwartaalsparenyn',
         'saldokwartaalsparen',
-        # 'gemaksbeleggenyn',
+        # De onderstaande variabelen zijn in sommige jaren altjd 0 dus
+        # deze gebruiken we niet!
+        # 'gemaksbeleggenyn',  
         # 'saldogemaksbeleggen',
         # 'participatieyn',
         # 'saldoparticipatie',
@@ -59,6 +68,9 @@ def getPatColToParseCross(subset="total"):
 
 
 def getConvertDict():
+    """ Define datatypes to import variables as, in order to make it more
+    memory efficient"""
+    
     datatypeGeneralActivity = {
         'dateeow': "datetime64",
         'yearweek': "string",
@@ -135,11 +147,13 @@ def getConvertDict():
          'SBIsectorName':'category'
     }
 
-    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, **df_lpp_dict, **df_exp_dict, **df_cor_dict}
+    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, 
+            **df_lpp_dict, **df_exp_dict, **df_cor_dict}
 
 
 
 ###----TIME SERIES ---------------------------------------------------------
+
 def getPatColToParseTS(subset="total"):
     columnsToParse1 = [
         "dateeow",
