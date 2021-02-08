@@ -5,13 +5,12 @@ This code aims to execute a Baum-Welch/forward-backward algorithm to estimate a 
 
 @author: Matthijs van Heese
 """
-
+import extra_functions_HMM as ef
 import numpy as np 
-import scipy.stats as sci
+from scipy.optimize import minimize 
 import math
 
 class HMM:
-    
     
     def __init__(self, list_dataframes, list_dep_var, 
                    list_covariates = [], covariates = False):
@@ -22,11 +21,14 @@ class HMM:
            
         self.list_dataframes = list_dataframes
         self.list_dep_var = list_dep_var
-        self.n_dep_var = len(list_dep_var)
         self.list_covariates = list_covariates
+        
+        self.n_dep_var = len(list_dep_var)
         self.n_covariates = len(list_covariates)
-        self.T = len(list_dataframes)
         self.n_customers = self.list_dataframes[0].shape[0]
+        self.n_products = len(list_dep_var)
+        self.T = len(list_dataframes)
+        
         self.covariates = covariates
         
         """compute per dependent variable the number of categories"""
@@ -36,20 +38,20 @@ class HMM:
                 n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique();
                 if n_per_df > self.n_categories[j]:
                     self.n_categories[j] = n_per_df
-                    
+        self.n_categories = self.n_categories.astype(int)
                     
         """Compute lists consisting of Y and Z matrices per timeperiod"""
-        self.list_Y = np.array((self.T))
+        self.list_Y =[]
 
-        if covariates:
-            self.list_Z = np.array((self.T))       
+        if covariates == True:
+            self.list_Z = []
 
         for i in range(0,self.T):
-            if covariates:
-                Z = list.dataframes[i][list_covariates]
-                self.list_Z[i] = Z.to_numpy()
-            Y = list.dataframes[i][list_dep_var]
-            self.list_Y[i] = Y.to_numpy()
+            if covariates == True:
+                Z = list_dataframes[i][list_covariates]
+                self.list_Z.append(Z.to_numpy())
+            Y = list_dataframes[i][list_dep_var]
+            self.list_Y.append(Y.to_numpy())
         
         
           
@@ -60,46 +62,21 @@ class HMM:
             max_method: maximization method to use for the maximization step"""
 
 
-        """HMM with covariates"""
-        if self.covariates = True:
-        
-            """Construct parameters to estimate"""
-            #parameters of P(S_0 = s|Z)
-            gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
-                        
-            #parameters of P(S_t = s | S_t+1 = r)
-            gamma_sr_0 = np.ones( (n_segments-1,n_segments) )
-            gamma_sk_t = np.ones( (n_segments-1,self.n_covariates) )
-                        
-            #parameters of P(Y|s)
-            beta = np.ones((n_segments, self.n_products, max(self.n_categories)))
-        
-            """Initialise parameters to estimate"""
-            gamma_0_out = gamma_0
-            gamma_sr_0_out = gamma_sr_0
-            gamma_sk_t_out = gamma_sk_t
-            beta_out = beta
-            
-            shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t_out.shape, gamma_sk_t_out.size], [beta_out.shape, beta_out.size]])
-            param = param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta):
-
-            
-        """HMM without covariates"""
-        else:
-            
-            """Construct parameters to estimate"""
+        if self.covariates == True:
+            gamma_0 = 0.2 * np.ones( (n_segments-1, self.n_covariates+1) ) #parameters of P(S_0 = s|Z)
+            gamma_sr_0 = 0.3 * np.ones( (n_segments-1,n_segments) ) #parameters of P(S_t = s | S_t+1 = r)
+            gamma_sk_t = 0.4 * np.ones( (n_segments-1,self.n_covariates) )  #parameters of P(S_t = s | S_t+1 = r)
+            beta = 0.5 * np.ones((n_segments, self.n_products, max(self.n_categories))) #parameters of P(Y|s)
+            shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]])
+            param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  
+            param_out = param
+        else: 
             A = 1/n_segments * np.ones((n_segments,n_segments)) #P(Y_it | X_it = s)
             pi = 1/n_segments * np.ones((n_segments))  #P(X_i0 = s| Z_i0)
             b = np.ones((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y_it | X_it = s)
-            
-            """Initialise parameters to estimate"""
-            A_out = A
-            pi_out = pi
-            b_out = b
-            
             shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]])
-            param = param_matrices_to_list(self, A = A, pi = pi, b = b):
-
+            param = self.param_matrices_to_list(A = A, pi = pi, b = b)
+            param_out = param
 
         iteration = 0
         difference = True
@@ -109,15 +86,15 @@ class HMM:
                 
             param_in = param_out
                 
-            alpha,beta = self.forward_back_procedure(param_in, shapes, n_segments)
+            alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
                 
-            param_out = self.maximization_step(alpha, beta, param_in, shapes, n_segments)
+            param_out = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
                 
             iteration = iteration + 1
                             
             difference = (any(abs(param_in-param_out)) > tolerance) 
         
-        return param_list_to_matrices(self, param, shapes):
+        return self.param_list_to_matrices(param, shapes)
         
         
     #------------Function for the expectation step------------
@@ -125,55 +102,53 @@ class HMM:
     def forward_backward_procedure(self, param, shapes, n_segments):
         """function for the expectation step: compute alpha and beta with all parameters"""
 
-        p = self.prob_p_js(param, shapes)
+        p_js = ef.prob_p_js(self, param, shapes, n_segments)
         
-        alpha = np.zeros(n_segments, self.n_customers, self.T)
-        beta = np.zeros(n_segments, self.n_customers, self.T)
+        alpha = np.zeros((n_segments, self.n_customers, self.T))
+        beta = np.zeros((n_segments, self.n_customers, self.T))
     
         for i in range(0,self.n_customers):
             for t in range(0,self.T):
-                v = self.T - t
+                v = self.T - t - 1
                 
                 Y = self.list_Y[t][i,:]
-                if self.covariates = True:
+                if self.covariates == True:
                     Z = self.list_Z[t][i,:]
                 else:
-                    Z = np.array([])
+                    Z = []
                 
-                P_y_given_s = self.prob_P_y_given_s(self, Y, p_js)
+                P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
                 
                 if t == 0:
-                    P_s_given_Z = self.prob_P_s_given_Z(self, param, shapes, Z)
+                    P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
                     alpha[:,i,t] = np.multiply(P_y_given_s,P_s_given_Z)
-                    beta[:,i,v] = np.ones( (n_segments,1,1) )
+                    beta[:,i,v] = np.ones((n_segments))
                 else:
-                    P_s_given_r = self.prob_P_s_given_r(self, param, shapes, Z)
+                    P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
     
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
                         sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[:,r]), P_y_given_s)
                         sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[r,]), P_y_given_s)
-    
-                
-                alpha[:,i,t] = sum_alpha
-                beta[:,i,t]  = sum_beta
+                    alpha[:,i,t] = sum_alpha
+                    beta[:,i,v]  = sum_beta
                 
         return alpha, beta
     
       
-     def maximization_step_cov(self, alpha, beta, param_in, shapes, n_segments):
+    def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method):
         """function for the maximization step"""
         
         x0 = param_in
         
         """perform the maximization"""
-        param_out = self.sci.optimize.minimize(optimization_function_cov, x0, args=(alpha, beta, param_in, shapes, n_segments))
+        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments), method=max_method)
            
         return param_out
     
     
-    def optimization_function_cov(self, x, alpha, beta, param_in, shapes, n_segments):
+    def optimization_function(self, x, alpha, beta, param_in, shapes, n_segments):
         """function that has to be minimized"""
                 
         
@@ -183,57 +158,56 @@ class HMM:
         for i in range(0,self.n_customers):   
             
             Y = self.list_Y[0][i,:]
-            if self.covariates = True:
+            if self.covariates == True:
                 Z = self.list_Z[0][i,:]    
             else: 
                 Z = np.array([])
             
-            P_s_given_Z = self.prob_P_s_given_Z(x, shapes, Z) 
-            P_s_given_Y_Z = self.state_event(alpha,beta,i,0)
+            P_s_given_Z = ef.prob_P_s_given_Z(self, x, shapes, Z, n_segments) 
+            P_s_given_Y_Z = ef.state_event(self, alpha, beta, i, 0, n_segments)
             
-            sum = sum + np.sum(np.multiply(P_s_given_Y_Z, math.log(P_s_given_Z)))
+            sum = sum + np.sum(np.multiply(P_s_given_Y_Z, np.log(P_s_given_Z)))
             
             for t in range(1,self.T):
                 Y = self.list_Y[0][i,:]
-                if self.covariates = True:
+                if self.covariates == True:
                     Z = self.list_Z[0][i,:]    
                 else: 
                     Z = []
              
-                P_s_given_r = self.prob_P_s_given_r(x, shapes, Z)
+                P_s_given_r = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
     
                 for r in range(0,n_segments):
                     for s in range(0,n_segments):
-                        
-                        P_sr_given_Y_Z = self.joint_event(Y, Z, alpha, beta, param_in, shapes, i, t, s, r)
-                        P_s_given_r = P_s_given_r[s,r]
-                        
-                        sum = sum + P_sr_given_Y_Z * math.log(P_s_given_r)
+                        P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, i, t, s, r, n_segments)
+            
+                        sum = sum + P_sr_given_Y_Z * math.log(P_s_given_r[s,r])
     
             for t in range(0,self.T):
+                P_y_given_s = ef.prob_P_y_given_s(self, Y, ef.prob_p_js(self, x, shapes, n_segments), n_segments)
                 for s in range(0,n_segments):
-                    P_s_given_Y_Z = self.state_event(alpha,beta,i,t)
-                    P_y_given_s = self.prob_P_y_given_s(Y, self.prob_p_js(x, shapes))
+                    P_s_given_Y_Z = ef.state_event(self, alpha, beta, i, t, n_segments)
+                    
+                    sum = sum + P_s_given_Y_Z[s] * math.log(P_y_given_s[s])
     
-                    sum = sum + P_s_given_Y_Z*math.log(P_y_given_s)
-    
-        return sum    
+        return -sum    
 
     
 
-    def predict(alpha, Z, gamma_sr_0, gamma_sk_t, pi):
-    prediction = zeros(self.n_customers, self.n_categories)
-    T = self.T
-    nextstate = zeros(self.n_customers, self.n_categories)
-    for i in range(1:self.n_customers):
-        for s in range(1:self.n_segments)
-        probstate[s] = alpha[i,T,s] / sum(alpha[i,T,1:self.n_segments]) 
-        for a in  range(1:self.n_segments):
-            nextstate[i,s] += probstate[a]* prob_P_s_given_r(self, gamma_sr_0, gamma_sk_t, Z)
-        for j in range(1,self.n_categories)
-            prediction[i,j] += nextstate[i,s]*prob_P_y_given_s(self, j, pi)
-            
-    return prediction
+    def predict(self, alpha, Z, gamma_sr_0, gamma_sk_t, pi, n_segments):
+        prediction = np.zeros(self.n_customers, self.n_categories)
+        T = self.T
+        nextstate = np.zeros(self.n_customers, self.n_categories)
+        for i in range(0,self.n_customers):
+            probstate = []
+            for s in range(0,n_segments):
+                probstate[s] = alpha[i,T,s] / sum(alpha[i,T,1:n_segments]) 
+            for a in  range(1,n_segments):
+                nextstate[i,s] += probstate[a]* self.prob_P_s_given_r(gamma_sr_0, gamma_sk_t, Z)
+            for j in range(1,self.n_categories):
+                prediction[i,j] += nextstate[i,s]*self.prob_P_y_given_s(j, pi)
+                
+        return prediction
 
             
             
