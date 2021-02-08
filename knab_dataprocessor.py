@@ -173,10 +173,6 @@ class dataProcessor:
             # Take a random subsample, seed is to get consistent results
             valid_ids = valid_ids.sample(n = sample_size, 
                                          random_state = self.seed).reset_index(drop=True)
-            # Make it a numpy array again with correct dimension so we can use
-            # it to take a subset 
-            #valid_ids = valid_ids.to_numpy()[:,0]
-            
             print(f"Done at {utils.get_time()}.")
             #TODO nu nog ergens valid IDs invullen 
         
@@ -210,7 +206,7 @@ class dataProcessor:
         Result: two datasets, one that the model is made on and then the next
         quarter or month which can be used to test predictions"""
 
-
+        #TODO kan base_df een input van de functie maken
         print(f"****Creating cross-sectional data, at {utils.get_time()}****")
         
         #-------------Check that date is entered correctly--------------
@@ -259,39 +255,12 @@ class dataProcessor:
         print(f"next date {next_date.strftime(time_format)}")
         
         
-        #TODO: maak hier pas de base_df aan, en selecteer HIER dan de valid IDs!!
-        # Dan hoef ik hieronder ook niet meer de subsample te nemen!!
-        
         ## Now get the base dataset for this current period and the next 
         df_cross = self.get_time_slice(self.base_df,cross_date)
         df_next = self.get_time_slice(self.base_df,next_date)
-        #print(f"There is data for {len(df_cross)} customers at the cross-section point")
+        print(f"There is data for {len(df_cross)} customers at the cross-section point")
         #print(f"{len(df_next)}")
         
-        # #---------------------Taking subsample---------------------
-       
-        # # Unique values of the person ids
-        # id_subset = pd.DataFrame(df_cross["personid"].unique())
-        # print(f"unique id values in this cross-section: {len(id_subset)}")
-        
-        # if subsample: #TODO make this a method also?
-        #     print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
-
-        #     # Take a random subsample, seed is to get consistent results
-        #     id_subset = id_subset.sample(n = sample_size, 
-        #                                  random_state = seed).reset_index(drop=True)
-        #     # Make it a numpy array again with correct dimension so we can use
-        #     # it to take a subset 
-        #     #TODO improve efficiency
-        #     id_subset = id_subset.to_numpy()[:,0]
-            
-        #     df_cross = df_cross.loc[df_cross["personid"].isin(id_subset)]
-        #     df_next = df_next.loc[df_next["personid"].isin(id_subset)]
-        #     #TODO what if people are not in the next set because they are
-        #     #not customers anymore? (doesn't happen with experian except for 1 customer)
-            
-        #     print(f"Done at {utils.get_time()}.")
-       
         
         #------------------------ SAVE & RETURN -------------------------
         
