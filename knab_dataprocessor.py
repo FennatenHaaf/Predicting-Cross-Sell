@@ -39,8 +39,7 @@ class dataProcessor:
         
         # Declare time format variable
         self.time_format = "%Y-%m-%d"
-        
-        
+
                
     def link_data(self, outname = "base_linkinfo"):
         """This function creates a dataset containing person IDs linked
@@ -197,8 +196,7 @@ class dataProcessor:
         print("-------------------------------------")
         
         
-        
-        
+
 
     def time_series_from_cross(self, quarterly = True, subsample = True,
                    sample_size = 500, start_date = "2018", end_date = None):
@@ -833,14 +831,6 @@ class dataProcessor:
         tempList2 = ["A"]
         for value in codesList[1:]:
             try:
-                if value[0] == '0':
-                    edited_value = value[1]
-                else:
-                    edited_value = value
-                tempList[2] = int(edited_value[:2])
-            except:
-                pass
-            try:
                 text = str(value)
                 text = text.replace(" ", "")
                 val = ord(text)
@@ -853,16 +843,24 @@ class dataProcessor:
                     pass
             except:
                 pass
+
+            try:
+                if value[0] == '0':
+                    edited_value = value[1]
+                else:
+                    edited_value = value
+                tempList[2] = int(edited_value[:2])
+            except:
+                pass
+
         sectorList.append(tempList.copy())
         sectorData = pd.DataFrame(tempList2)
-        sectorData.rename({
-                              0: tempString}, axis=1, inplace=True)
-        sectorData = pd.merge(SBI_2019DataEdited[[tempString, tempString2]], sectorData, how="inner", on=tempString)
-        sectorData.loc[13, [tempString, tempString2]] = "U", "Extraterritoriale organisaties en lichamen"
-        sectorData.rename({
-                              tempString: "SBIsector",
-                              tempString2: "SBIsectorName"}, axis=1, inplace=True)
+        sectorData.rename({ 0: tempString}, axis=1, inplace=True)
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace(" ", "")
+        sectorData = pd.merge(sectorData,SBI_2019DataEdited[[tempString, tempString2]], how="inner", on=tempString)
+        sectorData.rename({tempString: "SBIsector", tempString2: "SBIsectorName"}, axis=1, inplace=True)
         SBI_2019DataEdited.dropna(inplace=True)
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace(" ","")
         SBI_2019DataEdited.reset_index(drop=True, inplace=True)
 
 
@@ -878,6 +876,7 @@ class dataProcessor:
 
         SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].apply(lambda x: cleanSBI(x))
         SBI_2019DataEdited = SBI_2019DataEdited[SBI_2019DataEdited[tempString] <= 99]
+        SBI_2019DataEdited.drop_duplicates(inplace = True)
         SBI_2019DataEdited[tempString2] = SBI_2019DataEdited[tempString2].astype("str")
 
         #TODO vanaf hier verbeteren
@@ -887,7 +886,11 @@ class dataProcessor:
             tempIndex = (values[1] < SBI_2019DataEdited[tempString]) & (SBI_2019DataEdited[tempString] <= values[2])
             SBI_2019DataEdited.loc[tempIndex, "SBIsector"] = values[0]
 
-        SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="inner", on="SBIsector")
+        SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="left", on="SBIsector")
+        SBI_2019DataEdited.drop_duplicates(inplace= True)
+        SBI_2019DataEdited.reset_index(inplace= True)
+        SBI_2019DataEdited = SBI_2019DataEdited.append({tempString: 0, tempString2: 'Onbekend', 'SBIsector': 'Z', 'SBIsectorName': 'Onbekend'},
+                                  ignore_index=True)
 
         tempString = "SBIcode"
         self.df_corporate_details[tempString] = self.df_corporate_details["businessSector"].str[:2]
