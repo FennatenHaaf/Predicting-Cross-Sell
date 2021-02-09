@@ -219,10 +219,10 @@ class dataProcessor:
             quarter = ((date.month-1)//3)+1
             
             print("=====================================================")
-            print(f"========== Getting cross-data for {year}Q{quarter} ===========")
+            print(f"========== Getting cross-data for {year}Q{quarter} ============")
             print("=====================================================")
             
-            # Make the cross-sectional dataset for this specific cross-date
+            #Make the cross-sectional dataset for this specific cross-date
             df_cross = self.get_time_slice(self.base_df, date)
             df_cross_link = self.create_cross_section_perportfolio(df_cross, date, 
                                           outname = f"portfoliolink_{year}Q{quarter}",
@@ -233,6 +233,7 @@ class dataProcessor:
             
             # Now get the date of the next period
             date = self.get_last_day_period(date,next_period=True,quarterly=True)
+            print(f"========== next date: {date} ===========")
     
         print("=========== DONE MAKING TIME SERIES =============")
         
@@ -651,12 +652,17 @@ class dataProcessor:
         
         if quarterly:
             quarter = ((date.month-1)//3)+1  #the quarter of our time slice            
-            if (quarter<4):
+            if (quarter<3):
                 if (next_period):
                     end_date = datetime(date.year, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
                 else:
+                    end_date = datetime(date.year, (3*quarter)%12 +1, 1) + timedelta(days=-1)      
+            elif (quarter==3): # for the next period we need the next year
+                if (next_period):
+                    end_date = datetime(date.year+1, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
+                else:
                     end_date = datetime(date.year, (3*quarter)%12 +1, 1) + timedelta(days=-1)
-            else: # next period crosses onto the next year
+            else: # quarter is 4, dates of the next period cross onto the next year
                 if (next_period):
                     end_date = datetime(date.year+1, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
                 else:
@@ -664,9 +670,14 @@ class dataProcessor:
         
         else: # We work in periods of months
             month = date.month
-            if (month<12):
+            if (month<11):
                 if (next_period):
                     end_date = datetime(date.year, (month+1)%12 +1, 1) + timedelta(days=-1)
+                else:
+                    end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
+            elif (month==11):
+                if (next_period):
+                    end_date = datetime(date.year+1, (month+1)%12 +1, 1) + timedelta(days=-1)
                 else:
                     end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
             else:

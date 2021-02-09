@@ -56,8 +56,7 @@ if __name__ == "__main__":
     if time_series:
         test.time_series_from_cross(quarterly = quarters,
                    sample_size = 500, start_date = "2018-01-01")
-        
-    
+
     #-----------------------------------------------------------------
     
     end = utils.get_time()
