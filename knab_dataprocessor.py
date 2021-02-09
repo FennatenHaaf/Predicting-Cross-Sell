@@ -37,6 +37,8 @@ class dataProcessor:
         self.df_expTS = pd.DataFrame()
         self.df_pat_sample = pd.DataFrame()
         
+        # Declare time format variable
+        self.time_format = "%Y-%m-%d"
         
         
                
@@ -79,7 +81,6 @@ class dataProcessor:
                                   right_on=["corporateid"],)
         # TODO check if businesses appear multiple times!!
     
-        
         #------------------------ GET DATES INSIGHT -------------------------
         
         # pd.to_datetime does not work on a DF, only a series or list, so we use .astype()
@@ -118,8 +119,15 @@ class dataProcessor:
             each time period (if time_series is TRUE) .
           We also take a subsample, if this is so specified."""
 
+        #TODO ook de optie geven om bijvoorbeeld mensen uit een specifieke 
+        # sector te selecteren?
+        #TODO make it so select ids and the time series take the same time period?
+        #TODO business information should also not be nan maybe?
+        
         if (end_date==None):
             end_date= self.last_date # Make this the end date period
+        else:
+            end_date= datetime.strptime(end_date,self.time_format)
         
         #--------- make sure there is information in the portfolio info data ---------
         
@@ -174,20 +182,60 @@ class dataProcessor:
             valid_ids = valid_ids.sample(n = sample_size, 
                                          random_state = self.seed).reset_index(drop=True)
             print(f"Done at {utils.get_time()}.")
-            #TODO nu nog ergens valid IDs invullen 
-        
+
         # Now we can select the base data
         self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy()
         dataInsight.unique_IDs(self.base_df,"base Experian dataset") # show number of IDs
         
         #------------------------ SAVE & RETURN -------------------------
+        
         if self.save_intermediate:
             utils.save_df_to_csv(self.base_df, self.interdir, 
                                  outname, add_time = False )      
             print(f"Finished and output saved, at {utils.get_time()}")        
-        #return base_df
         
         print("-------------------------------------")
+        
+        
+        
+        
+
+    def time_series_from_cross(self, quarterly = True, subsample = True,
+                   sample_size = 500, start_date = "2018", end_date = None):
+        """Run the cross-section function multiple times"""
+    
+        if (end_date==None):
+            end = self.last_date # Make this the end date period
+        else:
+            end = datetime.strptime(end_date,self.time_format)# Make this the end date period
+    
+        date = self.get_last_day_period(datetime.strptime(start_date,self.time_format),
+                                        next_period=False,quarterly=True)
+        end = self.get_last_day_period(end,next_period=False,quarterly=True)
+        
+        while (date <= end):        
+            # get year and quarter
+            year = date.year
+            quarter = ((date.month-1)//3)+1
+            
+            print("=====================================================")
+            print(f"========== Getting cross-data for {year}Q{quarter} ============")
+            print("=====================================================")
+            
+            #Make the cross-sectional dataset for this specific cross-date
+            df_cross = self.get_time_slice(self.base_df, date)
+            df_cross_link = self.create_cross_section_perportfolio(df_cross, date, 
+                                          outname = f"portfoliolink_{year}Q{quarter}",
+                                          quarterly= quarterly)
+            self.create_cross_section_perperson(df_cross, df_cross_link,
+                                        date, outname = f"final_df_{year}Q{quarter}",
+                                        quarterly= quarterly)
+            
+            # Now get the date of the next period
+            date = self.get_last_day_period(date,next_period=True,quarterly=True)
+            print(f"========== next date: {date} ===========")
+    
+        print("=========== DONE MAKING TIME SERIES =============")
         
         
         
@@ -196,6 +244,7 @@ class dataProcessor:
                                   sample_size = 1000, 
                                   date_string = None,
                                   quarterly = True,
+                                  next_period = False,
                                   outname = "cross_experian",
                                   seed = 1234):  
         """Method to create a cross-sectional dataset of the unique person ids.
@@ -241,7 +290,8 @@ class dataProcessor:
             print(f"quarter is Q{quarter}, we take the last date of the quarter")
   
             cross_date = self.get_last_day_period(date,next_period=False,quarterly=True)
-            next_date = self.get_last_day_period(date,next_period=True,quarterly=True)
+            if (next_period):
+                next_date = self.get_last_day_period(date,next_period=True,quarterly=True)
         
         else:
             print(f"Using monthly data, time-slice date is {time_string}")
@@ -249,18 +299,18 @@ class dataProcessor:
             print(f"month is {month}, we take the last date of the month")
 
             cross_date = self.get_last_day_period(date,next_period=False,quarterly=False)
-            next_date = self.get_last_day_period(date,next_period=True,quarterly=False)
+            if (next_period):
+                next_date = self.get_last_day_period(date,next_period=True,quarterly=False)
             
         print(f"cross-date {cross_date.strftime(time_format)},")
         print(f"next date {next_date.strftime(time_format)}")
-        
-        
+    
         ## Now get the base dataset for this current period and the next 
         df_cross = self.get_time_slice(self.base_df,cross_date)
-        df_next = self.get_time_slice(self.base_df,next_date)
+        if (next_period):
+            df_next = self.get_time_slice(self.base_df,next_date)
         print(f"There is data for {len(df_cross)} customers at the cross-section point")
         #print(f"{len(df_next)}")
-        
         
         #------------------------ SAVE & RETURN -------------------------
         
@@ -269,7 +319,10 @@ class dataProcessor:
                                  outname, add_time = False )      
             print(f"Finished and output saved, at {utils.get_time()}")
         
-        return df_cross, cross_date, df_next, next_date
+        if (next_period):
+            return df_cross, cross_date , df_next, next_date
+        else:
+            return df_cross, cross_date
            
         print("-------------------------------------")
 
@@ -299,6 +352,7 @@ class dataProcessor:
         
         # Get total portfolio ownership (including the ones we don't have info for)
         # Before we remove the portfolios without information
+        # TODO dit kan waarschijnlijk weg
         frequencies = df_cross_link["personid"].value_counts().rename_axis('personid').to_frame('portofliocountstotal').reset_index(level=0)
 
     
@@ -321,8 +375,6 @@ class dataProcessor:
         df_transactions = self.summarize_transactions(dataset = temp_dataset,
                                                       date = cross_date,
                                                       quarterly_period = quarterly)
-        # utils.save_df_to_csv(df_transactions, self.outdir, 
-        #                       "z_sumtransactions", add_time = False )    
         
         # Merge with the big linking dataset
         df_cross_link = df_cross_link.merge(df_transactions, 
@@ -335,9 +387,7 @@ class dataProcessor:
         temp_dataset = self.create_activity_data_crosssection(cross_date)
         df_activity = self.summarize_activity(dataset = temp_dataset,
                                                     date = cross_date,
-                                                    quarterly_period = quarterly)
-        # utils.save_df_to_csv(df_activity_retail, self.outdir, 
-        #                       "z_sumactivity", add_time = False )      
+                                                    quarterly_period = quarterly)     
         
         # Merge with the big linking dataset
         df_cross_link = df_cross_link.merge(df_activity, 
@@ -366,8 +416,6 @@ class dataProcessor:
         # Pak het aantal unieke overlay ids per combinatie van persoon en portfolio
         df_portfolio_boekhoudkoppeling.drop_duplicates(inplace=True)
         df_portfolio_boekhoudkoppeling = df_portfolio_boekhoudkoppeling.groupby(["personid","portfolioid"]).size().reset_index(name="accountoverlays")
-        # utils.save_df_to_csv(df_portfolio_boekhoudkoppeling, self.outdir, 
-        #                         "z_sumoverlays", add_time = False )  
         
         # merge with the portfolio link dataset
         df_cross_link = df_cross_link.merge(df_portfolio_boekhoudkoppeling,
@@ -396,6 +444,10 @@ class dataProcessor:
        
         print(f"****Summarizing all information per ID, at {utils.get_time()}****")
         
+        # TODO: fill in the blank spaces who are missing with 0??
+                # Need to differentiate between missing data and data that is
+                # not there?
+        
         #-------------------------------------------------------------------
         
         # Create a dictionary of the data separated by portfolio type
@@ -406,10 +458,8 @@ class dataProcessor:
         df_cross_link_dict['joint'] = df_cross_link[(df_cross_link["type"]=="Private Portfolio")\
                                              & (df_cross_link["enofyn"]==1)]
         
-            
-        # For activity information, we will take the average activity PER portfolio type
+        
         for name, df in df_cross_link_dict.items():
-            
             
             #---------- variables for portfolio types ------------
             # create a column of ones and the person id for each portfolio type
@@ -419,6 +469,9 @@ class dataProcessor:
             df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
+            
+            #TODO: put a max on the number of portfolios per type! e.g. if a 
+            # ndiccator is above a certain number, then replace
             
             #---------- Incoporate the activity variables ------------
             indicator = df.loc[:,["personid"]]
@@ -443,9 +496,8 @@ class dataProcessor:
             indicator[f"aantalpostransacties_{name}"] = df.loc[:,"aantalpostransacties"]
             indicator[f"aantalfueltransacties_{name}"] = df.loc[:,"aantalfueltransacties"]
             
-            # Take the variables indicating account ownership
-            # We pakken voor deze binaire variabelen (depositoyn,etc) ook de 
-            # MAXIMUM (dus dan is het 1 als 1 van de rekeningen het heeft)
+            # We pakken voor deze binaire account ownership variabelen (depositoyn,etc)
+            # ook de MAXIMUM (dus dan is het 1 als 1 van de rekeningen het heeft)
             indicator[f"betalenyn_{name}"] = df.loc[:,"betalenyn"]
             indicator[f"depositoyn_{name}"] = df.loc[:,"depositoyn"]
             indicator[f"flexibelsparenyn_{name}"] = df.loc[:,"flexibelsparenyn"]
@@ -457,7 +509,6 @@ class dataProcessor:
             df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
-            
             
             # Maar voor de saldos pakken we de SOM over alles 
             indicator = df.loc[:,["personid"]]
@@ -471,16 +522,16 @@ class dataProcessor:
             
             #------ Variables that are specific to portfoliotype -------
             if name == 'joint': 
-                # Add gender for the joint portfolio?
-                # Possibly do other things for the joint porfolio data to
-                # take into account that people are more active?
+                # Add gender for the joint portfolio
                 indicator = df.loc[:,["personid"]]
                 indicator[f"geslacht_{name}"] = df.loc[:,"geslacht"]
                 indicator = indicator.drop_duplicates(subset=["personid"])
                 df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
-            
+                
+                # TODO: Possibly we want to do other things for the joint porfolio 
+                # data to take into account that joint accounts may be more active?
             
             if name == 'business':
                 # See if they have a bookkeeping overlay
@@ -492,35 +543,72 @@ class dataProcessor:
                 df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
-                
-                # TODO make some kind of summary for the business details
-                # -> voor bedrijf types pakken we de type OF we pakken ''meerdere''
-                #indicator = df.loc[:,["personid", "birthday", "subtype", "code", "name"]]
-                # Dit geeft een error!! birthday, subtype etc is missing??
-                
-                # doe een merge van de indicator met df_cross[name] oftewel 
-                # df_cross['business'] wat aangeeft of er meerdere 
-                # bedrijfsportfolios zijn voor die persoon?
-                
-                
-                # We laten duplicates alvast vallen
-                indicator = indicator.drop_duplicates()
-                
-                # TODO: fill in the blank spaces who are missing with 0??
-                # Need to differentiate between missing data and data that is
-                # not there?
             
+                
+                # ------ Summary for the business details ------:
+                
+                # We take the MEAN age of the business in years
+                #(could also take the MAX, to get the oldest business)
+                indicator = df.loc[:,["personid", "businessAgeInYears"]]
+                indicator = indicator.groupby("personid").mean() 
+                df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
+                
+                
+                # ------ Now INCORPORATE THE SBI codes --------:
+                temp = df.loc[:,["personid", "SBIcode", "SBIname"]]
+                # We laten duplicates vallen (voor mensen die meerdere
+                # bedrijfsportfolios hebben maar van dezelfde type)
+                temp = temp.drop_duplicates()
+
+                # Pak nu de IDs en per ID hoe vaak hij voor komt in temp
+                indicator = temp["personid"].value_counts().rename_axis(\
+                            'personid').to_frame('aantal_SBI').reset_index(level=0)
+                
+                # Merge de data die maar 1 keer voorkomt en dus maar 1 type sector heeft
+                IDtemp = indicator["personid"][indicator["aantal_SBI"]==1]
+                temp = temp[temp["personid"].isin(IDtemp)]
+                temp= temp.fillna("missing")
+                indicator= indicator.merge(temp, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
+                  
+                # Vervolgens, voor mensen die nog wel meerdere keren voorkomen
+                # willen we type 'meerdere' geven 
+                indicator = indicator.fillna("meerdere SBI")
+                indicator = indicator.replace("missing", np.nan)
+                # TODO wat als voor de meerdere codes de data eigenlijk ook missing is?
+               
+                # merge nu weer met de uiteindelijke dataset
+                df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)    
+                
+                # -------- Doe precies hetzelfde met de sector -------
+                
+                temp = df.loc[:,["personid","SBIsector","SBIsectorName"]]
+                temp = temp.drop_duplicates()
+                
+                # Pak nu de IDs en per ID hoe vaak hij voor komt in temp
+                indicator = temp["personid"].value_counts().rename_axis(\
+                    'personid').to_frame('aantal_sector').reset_index(level=0)
+                  
+                # Merge de data die maar 1 keer voorkomt en dus maar 1 type sector heeft
+                IDtemp = indicator["personid"][indicator["aantal_sector"]==1]
+                temp = temp[temp["personid"].isin(IDtemp)]
+                temp= temp.fillna("missing")
+                indicator= indicator.merge(temp, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)
+                indicator = indicator.fillna("meerdere sectoren")
+                indicator = indicator.replace("missing", np.nan)
+                
+                df_cross= df_cross.merge(indicator, 
+                                  how="left", left_on=["personid"],
+                                  right_on=["personid"],)    
             
-        #----------- Merge remaining things --------
-        
-        # TODO check if this is necessary? And if so, make it so that 
-        # frequencies is an input to the function since it is created in a different function
-        # merge frequencies of ALL portfolios (including ones without any info)
-        # which we made earlier 
-        # df_cross= df_cross.merge(frequencies,
-        #                           how="left", left_on=["personid"],
-        #                           right_on=["personid"],)
-        
+        #----------- Merge remaining variables --------
         
         # Get the personid and birthyear which were stored in crosslink 
         # - first drop the duplicates
@@ -531,23 +619,25 @@ class dataProcessor:
         # then drop duplicates and keep the first entries that appear.
         characteristics = characteristics.sort_values("enofyn")
         characteristics = characteristics.drop_duplicates(subset=["personid"],
-                          keep='first', inplace=False)                               
-        df_cross= df_cross.merge(characteristics, 
+                          keep='first', inplace=False) 
+        # Now merge back with df_cross                              
+        df_cross= df_cross.merge(characteristics[["personid","birthyear","geslacht"]], 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],) 
-        
         
         #TODO: zorg dat de pakketcategorie en een paar 'algemene' variabelen
         # er nog in komen??
         
+        # TODO merge the original frequencies? -> Won't be necessary if we 
+        # take ONLY the person where we have info for ALL the portfolios
+        
         #------------------------ SAVE & RETURN -------------------------
         
-        #if self.save_intermediate:
         utils.save_df_to_csv(df_cross, self.interdir, 
                              outname, add_time = False )      
         print(f"Finished and output saved, at {utils.get_time()}")
 
-       #return df_cross
+        #return df_cross
            
         print("-------------------------------------")
         
@@ -562,12 +652,17 @@ class dataProcessor:
         
         if quarterly:
             quarter = ((date.month-1)//3)+1  #the quarter of our time slice            
-            if (quarter<4):
+            if (quarter<3):
                 if (next_period):
                     end_date = datetime(date.year, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
                 else:
+                    end_date = datetime(date.year, (3*quarter)%12 +1, 1) + timedelta(days=-1)      
+            elif (quarter==3): # for the next period we need the next year
+                if (next_period):
+                    end_date = datetime(date.year+1, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
+                else:
                     end_date = datetime(date.year, (3*quarter)%12 +1, 1) + timedelta(days=-1)
-            else: # next period crosses onto the next year
+            else: # quarter is 4, dates of the next period cross onto the next year
                 if (next_period):
                     end_date = datetime(date.year+1, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
                 else:
@@ -575,9 +670,14 @@ class dataProcessor:
         
         else: # We work in periods of months
             month = date.month
-            if (month<12):
+            if (month<11):
                 if (next_period):
                     end_date = datetime(date.year, (month+1)%12 +1, 1) + timedelta(days=-1)
+                else:
+                    end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
+            elif (month==11):
+                if (next_period):
+                    end_date = datetime(date.year+1, (month+1)%12 +1, 1) + timedelta(days=-1)
                 else:
                     end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
             else:
