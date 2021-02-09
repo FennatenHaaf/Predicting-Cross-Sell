@@ -147,6 +147,16 @@ def getConvertDict():
          'SBIsectorName':'category'
     }
 
+    df_pin_dict = {
+        'dateinstroomweek' : 'datetime64',
+        'instroomjaarweek' : 'datetime64',
+        'instroompakket' : 'category',
+        'birthyear': 'uint16',
+        'geslacht': 'category',
+        'type': 'category',
+        'enofyn': 'uint8'
+    }
+
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, 
             **df_lpp_dict, **df_exp_dict, **df_cor_dict}
 
