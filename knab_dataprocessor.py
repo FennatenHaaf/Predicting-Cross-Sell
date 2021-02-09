@@ -879,7 +879,6 @@ class dataProcessor:
         SBI_2019DataEdited.drop_duplicates(inplace = True)
         SBI_2019DataEdited[tempString2] = SBI_2019DataEdited[tempString2].astype("str")
 
-        #TODO vanaf hier verbeteren
         SBI_2019DataEdited["SBIsector"] = np.nan
         # chr, ord, < <=
         for values in sectorList:
@@ -888,7 +887,7 @@ class dataProcessor:
 
         SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="left", on="SBIsector")
         SBI_2019DataEdited.drop_duplicates(inplace= True)
-        SBI_2019DataEdited.reset_index(inplace= True)
+        SBI_2019DataEdited.reset_index(inplace= True, drop = True)
         SBI_2019DataEdited = SBI_2019DataEdited.append({tempString: 0, tempString2: 'Onbekend', 'SBIsector': 'Z', 'SBIsectorName': 'Onbekend'},
                                   ignore_index=True)
 
