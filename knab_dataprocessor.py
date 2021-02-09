@@ -1043,8 +1043,7 @@ class dataProcessor:
     def linkTimeSets(self, period = "Q"):
         # ToDo corrigeer voor al geimporteerde of bewerkte data
         # Todo zorg er voor dat valid to date wordt gepakt
-        # Todo itereer over rij en resample the observaties
-        #TODO koppel bhk
+        # TODO kleine sample nemen voor data
         #TODO koppel portfolioinfo
         #TODO koppel corporate
         print(f"****linking timeseries sets, starting at {utils.get_time()}****")
@@ -1146,6 +1145,7 @@ class dataProcessor:
         exp2 = exp2[(exp2['personid'].isin(persid_link_cr)) | (exp2['personid'].isin(persid_no_link_cr))]
         #END SAMPLE
 
+        #CHECK IF VALUES CAN BOTH HAVE INFO
         exp2['valid_to_dateeow'] = pd.to_datetime(exp2['valid_to_dateeow'])
         exp2['valid_to_dateeow'].fillna(self.endDate, inplace = True)
         exp2.sort_values(['valid_to_dateeow', 'personid'], inplace=True)
@@ -1199,8 +1199,12 @@ class dataProcessor:
         cor_lpp_linked = pd.merge(df_cor, df_lpp[temp_list], on="personid")
         print("Dimension of merged file :", cor_lpp_linked.shape)
 
+<<<<<<< Updated upstream
         cor_lpp_linked['business_id_with_corp_and_retail'] = 0
         cor_lpp_linked.loc[cor_lpp_linked['personid'].isin(persid_link_cr), 'business_id_with_corp_and_retail'] = 1
+=======
+        #Todo verander naar een left of right join
+>>>>>>> Stashed changes
         # Merge corp_lpp with large joined table
 
         cor_lpp_linked.rename({'personid':'businessid'},axis = 1)
@@ -1273,8 +1277,7 @@ class dataProcessor:
         gc.collect()
 
         tempindex = pd.eval("joined_linked['boekhoudkoppeling'].isna()")
-        joined_linked['has_account_overlay'] = np.nan
-        joined_linked.loc[tempindex, 'has_account_overlay'] = 0
+        joined_linked['has_account_overlay'] = 0
         joined_linked.loc[~tempindex, 'has_account_overlay'] = 1
 
         #TODO convert to other period: Use oen variable to aggregate and merge all values that cant be found
