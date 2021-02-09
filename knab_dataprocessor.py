@@ -798,6 +798,9 @@ class dataProcessor:
 
         #-------------PROCESS SBI CODES------------
         #TODO: add comments to describe what is happening here
+        ztestc11 = "corcop = pd.Series(self.df_corporate_details['businessSector'].unique()).sort_values()"
+        ztestc12 = ""
+
         SBI_2019Data = pd.read_excel("SBI_2019.xlsx")
 
         tempString = "SBIcode"
@@ -808,19 +811,37 @@ class dataProcessor:
             "Unnamed: 0": tempString,
             "Standaard Bedrijfsindeling 2008 - update 2019 ":
                 tempString2}, inplace=True)
-        codesList = SBI_2019DataEdited[tempString].unique().tolist()
+
+        SBI_2019DataEdited = SBI_2019DataEdited[[tempString, tempString2]]
+        ztestc21 = "SBI_2019New = SBI_2019DataEdited.copy()"
+        ztestc22 = "SBI_2019DataEdited = SBI_2019New.copy()"
+        ztestc23 = "examp2 = pd.DataFrame([SBI_2019DataEdited.loc[78,tempString]])"
+
+        SBI_2019DataEdited.dropna(subset=[tempString], inplace=True)
+        SBI_2019DataEdited.reset_index(drop=True, inplace=True)
+
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].astype('string') + "a"
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace(u"\xa0", u".0", regex=True)
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace("a", "", regex=True)
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace("\.0", "", regex=True)
+        SBI_2019DataEdited.dropna(subset=[tempString], inplace=True)
+        SBI_2019DataEdited = SBI_2019DataEdited.loc[:, [tempString, tempString2]]
+        codesList = list(SBI_2019DataEdited[tempString].unique())
 
         sectorList = []
         tempList = ["A", 0, 0]
         tempList2 = ["A"]
         for value in codesList[1:]:
             try:
-                tempList[2] = int(value)
+                if value[0] == '0':
+                    edited_value = value[1]
+                else:
+                    edited_value = value
+                tempList[2] = int(edited_value[:2])
             except:
                 pass
             try:
                 text = str(value)
-                text = text.replace("\xa0", "")
                 text = text.replace(" ", "")
                 val = ord(text)
                 if 64 < val < 123:
@@ -841,21 +862,25 @@ class dataProcessor:
         sectorData.rename({
                               tempString: "SBIsector",
                               tempString2: "SBIsectorName"}, axis=1, inplace=True)
-
-        SBI_2019DataEdited = SBI_2019DataEdited.loc[:, [tempString, tempString2]]
         SBI_2019DataEdited.dropna(inplace=True)
         SBI_2019DataEdited.reset_index(drop=True, inplace=True)
 
+
         def cleanSBI(x):
             try:
+                if x[0] == '0':
+                    x = x[1:]
+                else:
+                    pass
                 return int(x)
             except:
                 return np.nan
 
         SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].apply(lambda x: cleanSBI(x))
-        SBI_2019DataEdited.dropna(inplace=True)
+        SBI_2019DataEdited = SBI_2019DataEdited[SBI_2019DataEdited[tempString] <= 99]
         SBI_2019DataEdited[tempString2] = SBI_2019DataEdited[tempString2].astype("str")
 
+        #TODO vanaf hier verbeteren
         SBI_2019DataEdited["SBIsector"] = np.nan
         # chr, ord, < <=
         for values in sectorList:
