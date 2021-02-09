@@ -29,16 +29,17 @@ class dataProcessor:
         self.save_intermediate = save_intermediate # location of linked output files
         self.print_info = print_info #Determines how verbose it is
         self.seed = seed
-        self.endDate = datetime(2020, 12, 31) #Initalizes a last date for NaN values
-
+        
         #Declare data variables to check if data has been printed
         self.df_corporate_details = pd.DataFrame()
         self.df_pat = pd.DataFrame()
         self.df_expTS = pd.DataFrame()
         self.df_pat_sample = pd.DataFrame()
         
-        # Declare time format variable
+        # Declare other variables
         self.time_format = "%Y-%m-%d"
+        self.endDate = datetime(2020, 12, 31) #Initalizes a last date for NaN values
+
         
         
                
@@ -62,7 +63,7 @@ class dataProcessor:
                                   how="left", left_on=["portfolioid"],
                                   right_on=["portfolioid"],) 
 
-        #Split the corporate persons off and rename
+        #Split the corporate persons off and rename to corporate id
         df_corporatelink = self.df_link[self.df_link["iscorporatepersonyn"]==1]
         df_corporatelink = df_corporatelink.loc[:,["personid","portfolioid"]]
         df_corporatelink = df_corporatelink.rename(columns={"personid": "corporateid",})
@@ -71,15 +72,13 @@ class dataProcessor:
         self.df_link = self.df_link.merge(df_corporatelink, 
                                   how="left", left_on=["portfolioid"],
                                   right_on=["portfolioid"],) 
-        # TODO check if human person ids could be getting linked to multiple
-        # corporate ids?
         
-        # Merge the file with business information
+        # Merge the file with business information on the corporate ids
         self.df_corporate_details = self.df_corporate_details.rename(columns={"personid": "corporateid"})
         self.df_link = self.df_link.merge(self.df_corporate_details, 
                                   how="left", left_on=["corporateid"],
                                   right_on=["corporateid"],)
-        # TODO check if businesses appear multiple times!!
+        # TODO businesses don't seem to appear multiple times, is that correct?
     
         #------------------------ GET DATES INSIGHT -------------------------
         
@@ -105,8 +104,7 @@ class dataProcessor:
             utils.save_df_to_csv(self.df_link, self.interdir, 
                                   outname, add_time = False )      
             print(f"Finished and output saved, at {utils.get_time()}")
-        #return self.df_link 
-       
+
         
        
         
@@ -185,8 +183,10 @@ class dataProcessor:
 
         # Now we can select the base data
         self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy()
-        dataInsight.unique_IDs(self.base_df,"base Experian dataset") # show number of IDs
+        self.base_df.drop(["business"], axis=1, inplace=True) # don't need this variable
         
+        dataInsight.unique_IDs(self.base_df,"base Experian dataset") # show number of IDs
+    
         #------------------------ SAVE & RETURN -------------------------
         
         if self.save_intermediate:
@@ -200,19 +200,23 @@ class dataProcessor:
         
         
 
-    def time_series_from_cross(self, quarterly = True, subsample = True,
-                   sample_size = 500, start_date = "2018", end_date = None):
+    def time_series_from_cross(self, quarterly = True, start_date = "2018",
+                               end_date = None):
         """Run the cross-section function multiple times"""
     
+        # make our start date and the end date as the last day of their period
         if (end_date==None):
-            end = self.last_date # Make this the end date period
+            end = self.last_date 
         else:
-            end = datetime.strptime(end_date,self.time_format)# Make this the end date period
+            end = datetime.strptime(end_date,self.time_format)
+            assert end <= self.last_date, \
+            "This is later than the most recent available data"
     
         date = self.get_last_day_period(datetime.strptime(start_date,self.time_format),
                                         next_period=False,quarterly=True)
         end = self.get_last_day_period(end,next_period=False,quarterly=True)
         
+        # Now, until we have gone through all of the periods make a cross-section
         while (date <= end):        
             # get year and quarter
             year = date.year
@@ -231,7 +235,7 @@ class dataProcessor:
                                         date, outname = f"final_df_{year}Q{quarter}",
                                         quarterly= quarterly)
             
-            # Now get the date of the next period
+            # Now get the last day of the next period for our next cross-date
             date = self.get_last_day_period(date,next_period=True,quarterly=True)
             print(f"========== next date: {date} ===========")
     
@@ -239,78 +243,59 @@ class dataProcessor:
         
         
         
+        
     def create_base_cross_section(self,
-                                  subsample = False,
-                                  sample_size = 1000, 
                                   date_string = None,
                                   quarterly = True,
                                   next_period = False,
-                                  outname = "cross_experian",
-                                  seed = 1234):  
+                                  outname = "cross_experian"):  
         """Method to create a cross-sectional dataset of the unique person ids.
         For this cross-sectional dataset we use only the information of the 
         customers who are a customer of Knab at the specified date. 
         We use their activity histories until the specified time and their
-        characteristics at the specified time.
-        Result: two datasets, one that the model is made on and then the next
-        quarter or month which can be used to test predictions"""
+        characteristics at the specified time."""
 
-        #TODO kan base_df een input van de functie maken
         print(f"****Creating cross-sectional data, at {utils.get_time()}****")
         
         #-------------Check that date is entered correctly--------------
-
-        # First validate that the entered date is in the correct format
-        time_check = "%Y-%m"
-       
+        
         if (date_string!=None): # If we take a date in the past for our cross-section
-            try:
-                date = datetime.strptime(date_string, time_check)
-            except ValueError:
-                print("This is the incorrect date string format. It should be YYYY-MM")
-            
-            # Also validate that it is not later than the most recent date in 
-            # the data
+            date = datetime.strptime(date_string, self.time_format)
             assert date <= self.last_date, \
             "This is later than the most recent available data"
-        else:
+        else: # else we take the last day in the dataset as a standard
             date = self.last_date
 
-        time_format = "%Y-%m-%d"
-        time_string = date.strftime(time_format)
-       
+        time_string = date.strftime(self.time_format)
+        print(f"time-slice date is {time_string}")
         
         #-----------Taking a time-slice of Experian data for base dataframe-----------
         
         ## We want to work in either quarterly or monthly data. So for the
         ## specific date we want to take the last day of the month or the quarter
         if quarterly:
-            print(f"Using quarterly data, time-slice date is {time_string}")
             quarter = ((date.month-1)//3)+1  #the quarter of our time slice
-            print(f"quarter is Q{quarter}, we take the last date of the quarter")
-  
-            cross_date = self.get_last_day_period(date,next_period=False,quarterly=True)
-            if (next_period):
-                next_date = self.get_last_day_period(date,next_period=True,quarterly=True)
-        
-        else:
-            print(f"Using monthly data, time-slice date is {time_string}")
-            month = date.month
-            print(f"month is {month}, we take the last date of the month")
-
-            cross_date = self.get_last_day_period(date,next_period=False,quarterly=False)
-            if (next_period):
-                next_date = self.get_last_day_period(date,next_period=True,quarterly=False)
             
-        print(f"cross-date {cross_date.strftime(time_format)},")
-        print(f"next date {next_date.strftime(time_format)}")
+            if (next_period):
+                print(f"quarter is {date.year}Q{quarter}, we take the last date of the quarter")
+                cross_date = self.get_last_day_period(date,next_period=True,quarterly=True)
+            else:
+                print("We take the last date of the NEXT quarter")
+                cross_date = self.get_last_day_period(date,next_period=False,quarterly=True)
+        else: # working with monthly data
+            
+            if (next_period):
+                print(f"month is {date.year}M{date.month}, we take the last date of the month")
+                cross_date = self.get_last_day_period(date,next_period=True,quarterly=False)
+            else:
+                print("We take the last date of the NEXT month")
+                cross_date = self.get_last_day_period(date,next_period=False,quarterly=False)
+            
+        print(f"cross-date {cross_date.strftime(self.time_format)},")
     
         ## Now get the base dataset for this current period and the next 
         df_cross = self.get_time_slice(self.base_df,cross_date)
-        if (next_period):
-            df_next = self.get_time_slice(self.base_df,next_date)
-        print(f"There is data for {len(df_cross)} customers at the cross-section point")
-        #print(f"{len(df_next)}")
+        print(f"Using data for {len(df_cross)} customers at this cross-section point")
         
         #------------------------ SAVE & RETURN -------------------------
         
@@ -319,10 +304,7 @@ class dataProcessor:
                                  outname, add_time = False )      
             print(f"Finished and output saved, at {utils.get_time()}")
         
-        if (next_period):
-            return df_cross, cross_date , df_next, next_date
-        else:
-            return df_cross, cross_date
+        return df_cross, cross_date
            
         print("-------------------------------------")
 
@@ -333,9 +315,6 @@ class dataProcessor:
                                           quarterly=True): 
         """Creates a dataset of information for a set of people at a 
         specific time"""
-        
-
-        #--------------------- CREATE CROSS-SECTIONAL DATASET ---------------------
         
         #----------- Portfolio + business information (per portfolio) --------
         print(f"****Getting time-sliced linking data, at {utils.get_time()}****")
@@ -350,11 +329,6 @@ class dataProcessor:
         df_cross_link = df_cross_link.loc[df_cross_link["personid"].isin(
             df_cross["personid"].unique())]
         
-        # Get total portfolio ownership (including the ones we don't have info for)
-        # Before we remove the portfolios without information
-        # TODO dit kan waarschijnlijk weg
-        frequencies = df_cross_link["personid"].value_counts().rename_axis('personid').to_frame('portofliocountstotal').reset_index(level=0)
-
     
         #----- Get only the ACTIVE portfolios (for which we have info) -----
         
@@ -415,7 +389,8 @@ class dataProcessor:
         
         # Pak het aantal unieke overlay ids per combinatie van persoon en portfolio
         df_portfolio_boekhoudkoppeling.drop_duplicates(inplace=True)
-        df_portfolio_boekhoudkoppeling = df_portfolio_boekhoudkoppeling.groupby(["personid","portfolioid"]).size().reset_index(name="accountoverlays")
+        df_portfolio_boekhoudkoppeling = df_portfolio_boekhoudkoppeling.groupby(["personid",
+                                  "portfolioid"]).size().reset_index(name="accountoverlays")
         
         # merge with the portfolio link dataset
         df_cross_link = df_cross_link.merge(df_portfolio_boekhoudkoppeling,
@@ -444,10 +419,6 @@ class dataProcessor:
        
         print(f"****Summarizing all information per ID, at {utils.get_time()}****")
         
-        # TODO: fill in the blank spaces who are missing with 0??
-                # Need to differentiate between missing data and data that is
-                # not there?
-        
         #-------------------------------------------------------------------
         
         # Create a dictionary of the data separated by portfolio type
@@ -469,9 +440,6 @@ class dataProcessor:
             df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
-            
-            #TODO: put a max on the number of portfolios per type! e.g. if a 
-            # ndiccator is above a certain number, then replace
             
             #---------- Incoporate the activity variables ------------
             indicator = df.loc[:,["personid"]]
@@ -625,11 +593,12 @@ class dataProcessor:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],) 
         
-        #TODO: zorg dat de pakketcategorie en een paar 'algemene' variabelen
-        # er nog in komen??
+        # TODO: eventueel nog duration variables toevoegen, zoals de tijd sinds
+        # de meest recente transaction, tijd sinds klant worden
         
-        # TODO merge the original frequencies? -> Won't be necessary if we 
-        # take ONLY the person where we have info for ALL the portfolios
+        # TODO merge the original frequencies to see how many portfolios they 
+        # actually have? -> Won't be necessary if we take ONLY the personIDs 
+        # where we have info for ALL the portfolios
         
         #------------------------ SAVE & RETURN -------------------------
         
@@ -637,8 +606,6 @@ class dataProcessor:
                              outname, add_time = False )      
         print(f"Finished and output saved, at {utils.get_time()}")
 
-        #return df_cross
-           
         print("-------------------------------------")
         
 

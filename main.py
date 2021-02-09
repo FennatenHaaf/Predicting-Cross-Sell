@@ -1,17 +1,24 @@
 import knab_dataprocessor as KD
 import utils
 
-# Todo Aparte main gecrëerd zodat knabprocessor ook apart te runnen is.
 if __name__ == "__main__":
 
+    # Define where our input, output and intermediate data is stored
     indirec = "./data"
     outdirec = "./output"
     interdir = "./interdata"
+    
     save_intermediate_results = False # Save the intermediate outputs
     print_information = False # Print things like frequency tables or not
     quarters = True # In which period do we want to aggregate the data?
-    cross_sec = False
-    time_series = True
+    
+    cross_sec = False # Do we want to run the code for getting a single cross-sec
+    time_series = True # Do we want to run the code for getting time series data
+    
+    subsample = True # Do we want to take a subsample 
+    sample_size = 500 # The sample size
+    start_date = "2018-01-01" # From which moment onwards do we want to use
+    # the information in the dataset
     
     # TODO zou ook quarterly een .self variabele kunnnen maken in dataprocessor,
     # alleen dan kan het niet verschillen per dataset maar dat is misschien niet erg
@@ -29,34 +36,29 @@ if __name__ == "__main__":
     test.link_data() 
     #Create base experian information and select the ids used -> choose to
     # make subsample here! 
-    test.select_ids(quarterly = quarters, subsample = True,
-                   sample_size = 500, start_date = "2018", 
+    test.select_ids(quarterly = quarters, subsample = subsample,
+                   sample_size = sample_size, start_date = start_date, 
                    outname = "base_experian")
-    
-    #TODO: make subsample variable at the top, also remove subsample
-    # from create_base_crosssection function
-    
+        
     #----------------MAKE CROSS-SECTIONAL DATASETS-------------------
     if cross_sec:
+        # Make the base cross-section
         df_cross, cross_date = test.create_base_cross_section(date_string="2020-12", 
-                            subsample=False, sample_size = 1000,next_period = False, 
-                            quarterly=quarters)
-        
-        
+                            next_period = False, quarterly=quarters, 
+                            outname = "cross_experian")
+        # Now aggregate all of the information per portfolio
         df_cross_link = test.create_cross_section_perportfolio(df_cross, cross_date, 
                                               outname = "df_cross_portfoliolink",
                                               quarterly= quarters)
-        
+        # Aggregate all of the portfolio information per person ID
         test.create_cross_section_perperson(df_cross, df_cross_link,
                                             cross_date, outname = "final_df_quarterly",
                                             quarterly= quarters)
     
     #----------------MAKE TIME SERIES DATASETS-------------------
-   
     if time_series:
-        test.time_series_from_cross(quarterly = quarters,
-                   sample_size = 500, start_date = "2018-01-01")
 
+        test.time_series_from_cross(quarterly = quarters, start_date = start_date)
     #-----------------------------------------------------------------
     
     end = utils.get_time()
@@ -64,18 +66,4 @@ if __name__ == "__main__":
     print(f"Data creation finished! Total time: {diff}")
 
     
-    """"
-    example of importing a variable and converting the datatypes and selecting columns to preserve memory:
     
-    indirec = "./data"
-    outdirec = "./output"
-    interdir = "./interdata"
-    
-    readArgsPAT = {"usecols": declarationsFile.getPatColToParseTS()}
-    datatest = dataProcessor(indirec,interdir,outdirec)
-    datatest.importSets("cored")
-    datatest.importSets("patsmp",**readArgsPAT)
-    datatest.doConvertPAT()
-    datatest.linkTimeSets()
-
-    """
