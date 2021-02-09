@@ -698,18 +698,18 @@ class dataProcessor:
 
     
 #methods to process corporate data ===================================================
-    
+
     def processCorporateData(self):
         """processes the corporate information data and creates some extra
         variables"""
-        
-        #-------------READ IN CORPORATE DETAILS AND PROCESS------------
+
+        # -------------READ IN CORPORATE DETAILS AND PROCESS------------
         self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
 
-        if self.print_info: # Print NaNs and most common values
+        if self.print_info:  # Print NaNs and most common values
             nameList = ["personid", "subtype", "name"]
             nameList2 = ["personid", "birthday", "subtype", "code", "name"]
-            print("unique number of businessID's in corporate data :",self.df_corporate_details["subtype"].unique().shape) 
+            print("unique number of businessID's in corporate data :", self.df_corporate_details["subtype"].unique().shape)
             dataInsight.numberOfNaN(self.df_corporate_details, nameList2)
             dataInsight.mostCommonDict(self.df_corporate_details, nameList, 10)
 
@@ -717,16 +717,16 @@ class dataProcessor:
         self.df_corporate_details = self.df_corporate_details.copy()
         self.df_corporate_details.dropna(inplace=True)
 
-        # rename column personid to companyID,name to companySector and 
+        # rename column personid to companyID,name to companySector and
         tempDict = {
             "subtype": "businessType",
             "name": "businessSector"}
         self.df_corporate_details.rename(columns=tempDict, inplace=True)
 
-        if self.print_info: # show dimensions
-            print("shape of current data",self.df_corporate_details)
+        if self.print_info:  # show dimensions
+            print("shape of current data", self.df_corporate_details)
 
-        #---------- CREATE foundingDate, companyAgeInDays AND foundingYear--------
+        # ---------- CREATE foundingDate, companyAgeInDays AND foundingYear--------
 
         # use shorter var to refer to new columns
         aid = "businessAgeInDays"
@@ -748,14 +748,14 @@ class dataProcessor:
 
         # assumption that a company date beyond the end of 2020 is faulty
         self.df_corporate_details = self.df_corporate_details[self.df_corporate_details[aid] > 0].copy()
-        
+
         if self.print_info:
             print(self.df_corporate_details["birthday"].describe())
-            
+
             dataInsight.mostCommon(self.df_corporate_details, aid, 10)
             print(self.df_corporate_details[aid].describe())
             self.df_corporate_details.sample(5)
-    
+
             dataInsight.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
             self.df_corporate_details[aid].describe()
 
@@ -763,8 +763,8 @@ class dataProcessor:
         a.append(220682)
         self.df_corporate_details[self.df_corporate_details.index.isin(a)]
 
-        #-------------PROCESS SBI CODES------------
-        #TODO: add comments to describe what is happening here
+        # -------------PROCESS SBI CODES------------
+        # TODO: add comments to describe what is happening here
         ztestc11 = "corcop = pd.Series(self.df_corporate_details['businessSector'].unique()).sort_values()"
         ztestc12 = ""
 
@@ -800,14 +800,6 @@ class dataProcessor:
         tempList2 = ["A"]
         for value in codesList[1:]:
             try:
-                if value[0] == '0':
-                    edited_value = value[1]
-                else:
-                    edited_value = value
-                tempList[2] = int(edited_value[:2])
-            except:
-                pass
-            try:
                 text = str(value)
                 text = text.replace(" ", "")
                 val = ord(text)
@@ -820,18 +812,25 @@ class dataProcessor:
                     pass
             except:
                 pass
+
+            try:
+                if value[0] == '0':
+                    edited_value = value[1]
+                else:
+                    edited_value = value
+                tempList[2] = int(edited_value[:2])
+            except:
+                pass
+
         sectorList.append(tempList.copy())
         sectorData = pd.DataFrame(tempList2)
-        sectorData.rename({
-                              0: tempString}, axis=1, inplace=True)
-        sectorData = pd.merge(SBI_2019DataEdited[[tempString, tempString2]], sectorData, how="inner", on=tempString)
-        sectorData.loc[13, [tempString, tempString2]] = "U", "Extraterritoriale organisaties en lichamen"
-        sectorData.rename({
-                              tempString: "SBIsector",
-                              tempString2: "SBIsectorName"}, axis=1, inplace=True)
+        sectorData.rename({0: tempString}, axis=1, inplace=True)
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace(" ", "")
+        sectorData = pd.merge(sectorData, SBI_2019DataEdited[[tempString, tempString2]], how="inner", on=tempString)
+        sectorData.rename({tempString: "SBIsector", tempString2: "SBIsectorName"}, axis=1, inplace=True)
         SBI_2019DataEdited.dropna(inplace=True)
+        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace(" ", "")
         SBI_2019DataEdited.reset_index(drop=True, inplace=True)
-
 
         def cleanSBI(x):
             try:
@@ -845,28 +844,32 @@ class dataProcessor:
 
         SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].apply(lambda x: cleanSBI(x))
         SBI_2019DataEdited = SBI_2019DataEdited[SBI_2019DataEdited[tempString] <= 99]
+        SBI_2019DataEdited.drop_duplicates(inplace=True)
         SBI_2019DataEdited[tempString2] = SBI_2019DataEdited[tempString2].astype("str")
 
-        #TODO vanaf hier verbeteren
         SBI_2019DataEdited["SBIsector"] = np.nan
         # chr, ord, < <=
         for values in sectorList:
             tempIndex = (values[1] < SBI_2019DataEdited[tempString]) & (SBI_2019DataEdited[tempString] <= values[2])
             SBI_2019DataEdited.loc[tempIndex, "SBIsector"] = values[0]
 
-        SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="inner", on="SBIsector")
+        SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="left", on="SBIsector")
+        SBI_2019DataEdited.drop_duplicates(inplace=True)
+        SBI_2019DataEdited.reset_index(inplace=True, drop=True)
+        SBI_2019DataEdited = SBI_2019DataEdited.append(
+            {tempString: 0, tempString2: 'Onbekend', 'SBIsector': 'Z', 'SBIsectorName': 'Onbekend'},
+            ignore_index=True)
 
         tempString = "SBIcode"
         self.df_corporate_details[tempString] = self.df_corporate_details["businessSector"].str[:2]
         self.df_corporate_details[tempString] = pd.to_numeric(self.df_corporate_details[tempString],
-                                                                downcast="unsigned")
+                                                              downcast="unsigned")
 
         self.df_corporate_details = pd.merge(self.df_corporate_details, SBI_2019DataEdited, how="inner",
-                                               on="SBIcode")
+                                             on="SBIcode")
         self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
-    
-    
-#methods to create transction & activity data ============================================
+
+    #methods to create transction & activity data ============================================
     def create_transaction_data_crosssection(self, date = None):
         """creates transaction data based on the cross-section for a specific date"""
         
