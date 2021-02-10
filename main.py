@@ -24,6 +24,7 @@ if __name__ == "__main__":
     
     #----------------INITIALISE DATASET CREATION-------------------
     start = utils.get_time()
+    print(f"****Processing data, at {start}****")
     
     #initialise dataprocessor
     test = KD.dataProcessor(indirec, interdir, outdirec,
