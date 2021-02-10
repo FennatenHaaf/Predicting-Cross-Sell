@@ -11,6 +11,7 @@ from scipy.optimize import minimize
 import math
 import eff_HMM as eh
 import utils
+from pyswarm import pso
 
 class HMM:
     
@@ -93,7 +94,8 @@ class HMM:
             start = utils.get_time()
 
             param_out = eh.maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method)
-                
+            
+            
             end = utils.get_time()
             diff = utils.get_time_diff(start,end)
             iteration = iteration + 1
@@ -146,11 +148,13 @@ class HMM:
     def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method):
         """function for the maximization step"""
         
-        x0 = param_in
+        #x0 = param_in
         
         """perform the maximization"""
-        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments), method=max_method)
-           
+        #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments), method=max_method)
+        
+        param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))  
+        
         return param_out
     
     

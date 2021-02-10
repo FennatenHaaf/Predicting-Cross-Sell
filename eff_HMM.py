@@ -10,6 +10,8 @@ import math
 import utils
 from tqdm import tqdm
 from scipy.optimize import minimize 
+from pyswarm import pso
+
 
 
 def param_list_to_matrices(self,param,shapes):
@@ -222,6 +224,8 @@ def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_metho
     """perform the maximization"""
     param_out = minimize(optimization_function, x0, args=(self, alpha, beta, param_in, shapes, n_segments), method=max_method)
            
+    param_out,  = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))  
+
     return param_out
     
 
