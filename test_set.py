@@ -23,14 +23,16 @@ for t in range(0,3):
     df_per_time.append(df)
     
 
-name_dep_var = ['p1','p2','p3']
-name_covariates = ['var1','var2','var3d1', 'var3d2','var4d1','var4d2']
+name_dep_var = ['p1','p2']
+#name_covariates = ['var1','var2','var3d1', 'var3d2','var4d1','var4d2']
+name_covariates = ['var1','var2']
+
 covariates = True
 
 test = ht.HMM(df_per_time, name_dep_var, name_covariates, covariates)
-n_segments = 4  
+n_segments = 2 
 
 
-gamma_0, gamma_sr_0, gamma_sk_t, beta = test.EM(n_segments)
+gamma_0, gamma_sr_0, gamma_sk_t, beta = test.EM(n_segments, max_method = 'Nelder-Mead')
 
 

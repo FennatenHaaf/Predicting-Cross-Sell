@@ -17,6 +17,9 @@ import gc
 class dataProcessor:
 
     def __init__(self,indir,interdir,outdir, 
+                 quarterly = True,
+                 start_date = "2018",
+                 end_date = None,
                  save_intermediate=False,
                  print_info=False,
                  seed = 978391):
@@ -26,6 +29,11 @@ class dataProcessor:
         self.indir= indir # location of input files
         self.interdir = interdir #location of intermediate files
         self.outdir = outdir # location of linked output files
+        
+        self.quarterly = quarterly # Quarterly periods if true, monthly otherwise
+        self.start_date = start_date # when we start the time period
+        self.end_date = end_date # when we end the time period
+        
         self.save_intermediate = save_intermediate # location of linked output files
         self.print_info = print_info #Determines how verbose it is
         self.seed = seed
@@ -40,21 +48,22 @@ class dataProcessor:
         # Declare other variables
         self.time_format = "%Y-%m-%d"
         self.endDate = datetime(2020, 12, 31) #Initalizes a last date for NaN values
+        #TODO check if this is necessary, could also coerce errors or set it to
+        # self.last_date later like I did in select_ids function?
 
-        
+       
         
                
     def link_data(self, outname = "base_linkinfo"):
-        """This function creates a dataset containing person IDs linked
-        to their portfolio ids and the corresponding portfolio information.
-        It also links the person IDs to business IDs and corresponding 
-        business information based on the corporate portfolio IDs"""
+        """Creates a dataset containing person IDs linked to their portfolio 
+        ids and the corresponding portfolio information, as well as linking 
+        them to corporate ids sharing the same portfolios and the corresponding 
+        business details."""
         
-        print(f"****Processing data, at {utils.get_time()}****")
+        print("Linking portfolio information and business information to human IDs")
     
         #---------------------READING AND MERGING RAW DATA---------------------
-        self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")                     
-        
+                      
         if self.df_corporate_details.empty:
             self.processCorporateData() # create processed corporate dataset
 
@@ -69,7 +78,7 @@ class dataProcessor:
         df_corporatelink = df_corporatelink.loc[:,["personid","portfolioid"]]
         df_corporatelink = df_corporatelink.rename(columns={"personid": "corporateid",})
         
-        # Merge to find which human personids are linked to which corporate ids
+        # left join to find which human personids are linked to which corporate ids
         self.df_link = self.df_link.merge(df_corporatelink, 
                                   how="left", left_on=["portfolioid"],
                                   right_on=["portfolioid"],) 
@@ -78,28 +87,11 @@ class dataProcessor:
         self.df_corporate_details = self.df_corporate_details.rename(columns={"personid": "corporateid"})
         self.df_link = self.df_link.merge(self.df_corporate_details, 
                                   how="left", left_on=["corporateid"],
-                                  right_on=["corporateid"],)
-        # TODO businesses don't seem to appear multiple times, is that correct?
+                                  right_on=["corporateid"],) 
+        if self.print_info:
+            print("printing most common corporate ids:")
+            dataInsight.mostCommon(self.df_link, "corporateid", 10)
     
-        #------------------------ GET DATES INSIGHT -------------------------
-        
-        # pd.to_datetime does not work on a DF, only a series or list, so we use .astype()
-        self.df_experian.loc[:,['valid_to_dateeow']] = self.df_experian.loc[:,['valid_to_dateeow']].astype('datetime64[ns]')
-        self.df_experian.loc[:,['valid_from_dateeow']] = self.df_experian.loc[:,['valid_from_dateeow']].astype('datetime64[ns]')
-
-        # See what the most recent date is in the data 
-        # Find the latest and oldest dates where a customer was changed or added 
-        all_dates = pd.concat([self.df_experian['valid_to_dateeow'],self.df_experian['valid_from_dateeow']])
-        self.last_date = all_dates.max()
-        self.first_date = all_dates.min()
-        
-        # Print the results
-        time_string = self.last_date.strftime("%Y-%m-%d")
-        print(f"most recent data in Experian is from {time_string},")
-        time_string = self.first_date.strftime("%Y-%m-%d")
-        print(f"Oldest data in Experian is from {time_string}")
-        
-        
         #------------------------ SAVE & RETURN  -------------------------
         if self.save_intermediate:
             utils.save_df_to_csv(self.df_link, self.interdir, 
@@ -109,8 +101,7 @@ class dataProcessor:
         
        
         
-    def select_ids(self, quarterly = True, subsample = True,
-                   sample_size = 500, start_date = "2018", end_date = None,
+    def select_ids(self, subsample = True, sample_size = 500, 
                    outname = "base_experian"):
         """Selects a certain set of person IDs from the linking dataset, where:
             - information for ALL portfolios is present in the linking data
@@ -118,25 +109,64 @@ class dataProcessor:
             each time period (if time_series is TRUE) .
           We also take a subsample, if this is so specified."""
 
+        print("Getting valid ids from the experian and the linking data")
         #TODO ook de optie geven om bijvoorbeeld mensen uit een specifieke 
         # sector te selecteren?
-        #TODO make it so select ids and the time series take the same time period?
-        #TODO business information should also not be nan maybe?
         
-        if (end_date==None):
-            end_date= self.last_date # Make this the end date period
+        # read in the experian data, which will be used as a base for everything
+        self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")
+        # don't need this variable
+        self.df_experian.drop(["business"], axis=1, inplace=True)
+        
+        #------------------------ GET DATES INSIGHT -------------------------
+    
+        # See what the most recent date is in the data 
+        # Find the latest and oldest dates where a customer was changed or added 
+        self.df_experian['valid_to_dateeow'] = pd.to_datetime(self.df_experian['valid_to_dateeow'])
+        self.df_experian['valid_from_dateeow'] = pd.to_datetime(self.df_experian['valid_from_dateeow'])
+        all_dates = pd.concat([self.df_experian['valid_to_dateeow'],
+                               self.df_experian['valid_from_dateeow']])
+        self.last_date = all_dates.max()
+        self.first_date = all_dates.min()
+                
+        if self.print_info:
+            print(f"Most recent data in Experian is from "\
+                  f"{self.last_date.strftime(self.time_format)},")
+            
+            print(f"Oldest data in Experian is from "\
+                  f"{self.first_date.strftime(self.time_format)}")
+            
+        # Also process end date and start date for the time period that was 
+        # initialised
+        if (self.end_date==None):
+            self.end_date = self.last_date 
         else:
-            end_date= datetime.strptime(end_date,self.time_format)
+            self.end_date = datetime.strptime(self.end_date,self.time_format)
+            assert self.end_date <= self.last_date, \
+            "This is later than the most recent available data"
         
-        #--------- make sure there is information in the portfolio info data ---------
+        self.start_date = datetime.strptime(self.start_date,self.time_format)
+
+        #------------------ ENSURE INFORMATION IN LINK DATA ------------------
+        all_ids = pd.DataFrame(self.df_experian["personid"].unique())
         
         # we only want those ids for which the portfolio information is present, 
-        # so dateinstroomweek should NOT be blank
-        valid_ids_link = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
-        #TODO dit is nog niet alles, alleen nog maar AT LEAST one?
+        # so dateinstroomweek should NOT be blank for ALL portfolios
+        missing_info_ids= self.df_link["personid"][self.df_link["dateinstroomweek"].isnull()]
+        valid_ids = all_ids[~(all_ids.isin(missing_info_ids))] # remove ids from the set
+        
+        # For the ones with corporate portfolio, we also want AT LEAST one of the
+        # corporate IDs to have business information
+        temp = self.df_link[["personid","businessType"]][~(self.df_link["corporateid"].isnull())].copy()
+        temp["info"] = 1
+        temp["info"][(temp["businessType"].isnull())] = 0
+        temp = temp[["personid", "info"]].groupby("personid").max().reset_index(level=0)
+        
+        # If the max is 0, then all of these values are missing, therefore we want to remove
+        missing_info_ids = temp["personid"][temp["info"]==0]
+        valid_ids = valid_ids[~(valid_ids.isin(missing_info_ids))] # remove ids from the set
     
-    
-        #--------- make sure there is information in the Experian data ---------
+        #----------------- ENSURE INFORMATION IN EXPERIAN DATA ---------------
         # we want there to be experian data in every time period for the IDs 
     
         # Get a variable representing the last date until which an ID is valid
@@ -158,34 +188,30 @@ class dataProcessor:
 
         #-> The first validfrom date has to be BEFORE a certain starting date
         #-> The last validto date has to be AFTER a certain ending date    
-        valid_ids_experian = self.df_experian["personid"][(self.df_experian["valid_to_max"]>= end_date) \
-                                            & (self.df_experian["valid_from_min"]<= start_date)]        
+        valid_ids_experian = self.df_experian["personid"][(self.df_experian["valid_to_max"]>= self.end_date) \
+                                            & (self.df_experian["valid_from_min"]<= self.start_date)]        
         #TODO: zou het kunnen dat IDs in de tussentijd worden uitgeschreven en 
         # weer ingeschreven??
         
-        # Get the intersection of both series
-        valid_ids= valid_ids_experian[valid_ids_experian.isin(valid_ids_link)]
-        
+        # Get the intersection with the previous set
+        valid_ids = valid_ids[valid_ids.isin(valid_ids_experian)]
+  
         # Make sure there are also the household size variables etc. present, 
         # not just finergy
-        valid_ids_info = self.df_experian["personid"][~(self.df_experian["age_hh"].isnull())]
-        # Get the intersection
-        valid_ids= valid_ids[valid_ids.isin(valid_ids_info)]
+        experian_missing = self.df_experian["personid"][self.df_experian["age_hh"].isnull()]
+        # Remove the ids where any of the entries has a null for age_hh
+        valid_ids = valid_ids[~(valid_ids.isin(experian_missing))]
                
         #---------------- Take a subsample of the IDs -----------------------
         
         if subsample:
             print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
-
-            # Take a random subsample, seed is to get consistent results
             valid_ids = valid_ids.sample(n = sample_size, 
                                          random_state = self.seed).reset_index(drop=True)
             print(f"Done at {utils.get_time()}.")
 
         # Now we can select the base data
         self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy()
-        self.base_df.drop(["business"], axis=1, inplace=True) # don't need this variable
-        
         dataInsight.unique_IDs(self.base_df,"base Experian dataset") # show number of IDs
     
         #------------------------ SAVE & RETURN -------------------------
@@ -198,28 +224,18 @@ class dataProcessor:
         print("-------------------------------------")
         
         
-        
-        
 
-    def time_series_from_cross(self, quarterly = True, start_date = "2018",
-                               end_date = None):
-        """Run the cross-section function multiple times"""
+    def time_series_from_cross(self, outname = "final_df"):
+        """Run the cross-section dataset creation multiple times"""
     
-        # make our start date and the end date as the last day of their period
-        if (end_date==None):
-            end = self.last_date 
-        else:
-            end = datetime.strptime(end_date,self.time_format)
-            assert end <= self.last_date, \
-            "This is later than the most recent available data"
-    
-        date = self.get_last_day_period(datetime.strptime(start_date,self.time_format),
-                                        next_period=False,quarterly=True)
-        end = self.get_last_day_period(end,next_period=False,quarterly=True)
+        print("Starting date for the time series dataset:")
+        date = self.get_last_day_period(self.start_date, next_period=False)
+        print("Ending date for the time series dataset:")
+        end = self.get_last_day_period(self.end_date, next_period=False)
         
         # Now, until we have gone through all of the periods make a cross-section
         while (date <= end):        
-            # get year and quarter
+            # get year and quarter for printing and naming files
             year = date.year
             quarter = ((date.month-1)//3)+1
             
@@ -229,16 +245,16 @@ class dataProcessor:
             
             #Make the cross-sectional dataset for this specific cross-date
             df_cross = self.get_time_slice(self.base_df, date)
+            
             df_cross_link = self.create_cross_section_perportfolio(df_cross, date, 
-                                          outname = f"portfoliolink_{year}Q{quarter}",
-                                          quarterly= quarterly)
-            self.create_cross_section_perperson(df_cross, df_cross_link,
-                                        date, outname = f"final_df_{year}Q{quarter}",
-                                        quarterly= quarterly)
+                                      outname = f"portfoliolink_{year}Q{quarter}")
+            
+            self.create_cross_section_perperson(df_cross, df_cross_link, date,
+                                      outname = f"{outname}_{year}Q{quarter}")
             
             # Now get the last day of the next period for our next cross-date
-            date = self.get_last_day_period(date,next_period=True,quarterly=True)
-            print(f"========== next date: {date} ===========")
+            date = self.get_last_day_period(date,next_period=True)
+            print(f"next date: {date}")
     
         print("=========== DONE MAKING TIME SERIES =============")
         
@@ -247,7 +263,6 @@ class dataProcessor:
         
     def create_base_cross_section(self,
                                   date_string = None,
-                                  quarterly = True,
                                   next_period = False,
                                   outname = "cross_experian"):  
         """Method to create a cross-sectional dataset of the unique person ids.
@@ -272,25 +287,10 @@ class dataProcessor:
         
         #-----------Taking a time-slice of Experian data for base dataframe-----------
         
-        ## We want to work in either quarterly or monthly data. So for the
-        ## specific date we want to take the last day of the month or the quarter
-        if quarterly:
-            quarter = ((date.month-1)//3)+1  #the quarter of our time slice
-            
-            if (next_period):
-                print(f"quarter is {date.year}Q{quarter}, we take the last date of the quarter")
-                cross_date = self.get_last_day_period(date,next_period=True,quarterly=True)
-            else:
-                print("We take the last date of the NEXT quarter")
-                cross_date = self.get_last_day_period(date,next_period=False,quarterly=True)
-        else: # working with monthly data
-            
-            if (next_period):
-                print(f"month is {date.year}M{date.month}, we take the last date of the month")
-                cross_date = self.get_last_day_period(date,next_period=True,quarterly=False)
-            else:
-                print("We take the last date of the NEXT month")
-                cross_date = self.get_last_day_period(date,next_period=False,quarterly=False)
+        if (next_period):
+            cross_date = self.get_last_day_period(date,next_period=True)
+        else:
+            cross_date = self.get_last_day_period(date,next_period=False)
             
         print(f"cross-date {cross_date.strftime(self.time_format)},")
     
@@ -312,8 +312,7 @@ class dataProcessor:
 
 
     def create_cross_section_perportfolio(self, df_cross, cross_date, 
-                                          outname = "df_cross_portfoliolink",
-                                          quarterly=True): 
+                                          outname = "df_cross_portfoliolink"): 
         """Creates a dataset of information for a set of people at a 
         specific time"""
         
@@ -322,7 +321,7 @@ class dataProcessor:
         
         # Start by taking a cross-section of the dataset linking 
         # portfolio ids to person ids and to business+portfolio information
-        df_cross_link = self.get_time_slice(self.df_link,cross_date,
+        df_cross_link = self.get_time_slice(self.df_link, cross_date,
                                             valid_to_string = 'validtodate',
                                             valid_from_string = 'validfromdate')
         
@@ -349,7 +348,7 @@ class dataProcessor:
         temp_dataset = self.create_transaction_data_crosssection(cross_date)
         df_transactions = self.summarize_transactions(dataset = temp_dataset,
                                                       date = cross_date,
-                                                      quarterly_period = quarterly)
+                                                      quarterly_period = self.quarterly)
         
         # Merge with the big linking dataset
         df_cross_link = df_cross_link.merge(df_transactions, 
@@ -362,7 +361,7 @@ class dataProcessor:
         temp_dataset = self.create_activity_data_crosssection(cross_date)
         df_activity = self.summarize_activity(dataset = temp_dataset,
                                                     date = cross_date,
-                                                    quarterly_period = quarterly)     
+                                                    quarterly_period = self.quarterly)     
         
         # Merge with the big linking dataset
         df_cross_link = df_cross_link.merge(df_activity, 
@@ -412,8 +411,7 @@ class dataProcessor:
         
         
     def create_cross_section_perperson(self, df_cross, df_cross_link,
-                                       cross_date, outname = "final_df",
-                                       quarterly=True):  
+                                       cross_date, outname = "final_df"):  
         """This function takes a dataset linking each person ID to
         information for each portfolio separately, and returns a dataset
         where all the portfolio information is aggregated per person ID"""
@@ -429,7 +427,6 @@ class dataProcessor:
                                              & (df_cross_link["enofyn"]==0)]
         df_cross_link_dict['joint'] = df_cross_link[(df_cross_link["type"]=="Private Portfolio")\
                                              & (df_cross_link["enofyn"]==1)]
-        
         
         for name, df in df_cross_link_dict.items():
             
@@ -506,16 +503,15 @@ class dataProcessor:
                 # See if they have a bookkeeping overlay
                 indicator = df.loc[:,["personid"]][df["accountoverlays"]>0] 
                 indicator["accountoverlay"]=1 # make all of the columns one and give it the name
-                # now sum to find for how many business portfolios there is an 
+                # Sum to find for how many business portfolios there is an 
                 # account overlay
                 indicator = indicator.groupby("personid").sum() 
                 df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
-            
-                
-                # ------ Summary for the business details ------:
-                
+                            
+                # ------ Now INCORPORATE the business characteristics --------:
+                    
                 # We take the MEAN age of the business in years
                 #(could also take the MAX, to get the oldest business)
                 indicator = df.loc[:,["personid", "businessAgeInYears"]]
@@ -524,55 +520,29 @@ class dataProcessor:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
                 
+                # We process the SBI codes and types by taking the type itself
+                # if the person is linked to one type of business, but we take
+                # type "meerdere" otherwise
                 
-                # ------ Now INCORPORATE THE SBI codes --------:
                 temp = df.loc[:,["personid", "SBIcode", "SBIname"]]
-                # We laten duplicates vallen (voor mensen die meerdere
-                # bedrijfsportfolios hebben maar van dezelfde type)
-                temp = temp.drop_duplicates()
-
-                # Pak nu de IDs en per ID hoe vaak hij voor komt in temp
-                indicator = temp["personid"].value_counts().rename_axis(\
-                            'personid').to_frame('aantal_SBI').reset_index(level=0)
-                
-                # Merge de data die maar 1 keer voorkomt en dus maar 1 type sector heeft
-                IDtemp = indicator["personid"][indicator["aantal_SBI"]==1]
-                temp = temp[temp["personid"].isin(IDtemp)]
-                temp= temp.fillna("missing")
-                indicator= indicator.merge(temp, 
-                                  how="left", left_on=["personid"],
-                                  right_on=["personid"],)
-                  
-                # Vervolgens, voor mensen die nog wel meerdere keren voorkomen
-                # willen we type 'meerdere' geven 
-                indicator = indicator.fillna("meerdere SBI")
-                indicator = indicator.replace("missing", np.nan)
-                # TODO wat als voor de meerdere codes de data eigenlijk ook missing is?
-               
-                # merge nu weer met de uiteindelijke dataset
+                indicator = self.aggregateBusinessPerPerson(temp, 
+                                        count_name = "aantal_SBI")
                 df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)    
                 
-                # -------- Doe precies hetzelfde met de sector -------
-                
+                #Doe precies hetzelfde met de sector 
                 temp = df.loc[:,["personid","SBIsector","SBIsectorName"]]
-                temp = temp.drop_duplicates()
-                
-                # Pak nu de IDs en per ID hoe vaak hij voor komt in temp
-                indicator = temp["personid"].value_counts().rename_axis(\
-                    'personid').to_frame('aantal_sector').reset_index(level=0)
-                  
-                # Merge de data die maar 1 keer voorkomt en dus maar 1 type sector heeft
-                IDtemp = indicator["personid"][indicator["aantal_sector"]==1]
-                temp = temp[temp["personid"].isin(IDtemp)]
-                temp= temp.fillna("missing")
-                indicator= indicator.merge(temp, 
+                indicator = self.aggregateBusinessPerPerson(temp, 
+                                        count_name = "aantal_sector")
+                df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
-                                  right_on=["personid"],)
-                indicator = indicator.fillna("meerdere sectoren")
-                indicator = indicator.replace("missing", np.nan)
+                                  right_on=["personid"],)    
                 
+                #Doe hetzelfde met de Business Type 
+                temp = df.loc[:,["personid", "businessType"]]
+                indicator =  self.aggregateBusinessPerPerson(temp, 
+                                        count_name = "aantal_types")
                 df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)    
@@ -611,46 +581,66 @@ class dataProcessor:
         
 
 
+    def aggregateBusinessPerPerson(self, temp, count_name):
+        
+        temp = temp.drop_duplicates()
+
+        # Pak nu de IDs en per ID hoe vaak hij voor komt in temp
+        indicator = temp["personid"].value_counts().rename_axis(\
+                    'personid').to_frame(count_name).reset_index(level=0)
+        
+        # Merge de data die maar 1 keer voorkomt en dus maar 1 type sector heeft
+        IDtemp = indicator["personid"][indicator[count_name]==1]
+        temp = temp[temp["personid"].isin(IDtemp)]
+        temp= temp.fillna("missing")
+        indicator= indicator.merge(temp, 
+                          how="left", left_on=["personid"],
+                          right_on=["personid"],)
+          
+        # Vervolgens, voor mensen die nog wel meerdere keren voorkomen
+        # willen we type 'meerdere' geven 
+        indicator = indicator.fillna("meerdere")
+        indicator = indicator.replace("missing", np.nan)
+        # TODO wat als voor de meerdere codes de data eigenlijk ook missing is?
+        
+        return indicator
+
 #some helper methods that are used to handle time =================================
 
 
-    def get_last_day_period(self, date, next_period = False, quarterly =True):
+
+    def get_last_day_period(self, date, next_period = False):
         """Returns the last day of the period that contains our date, by getting 
         the day BEFORE the FIRST day of the next period """
         
-        if quarterly:
-            quarter = ((date.month-1)//3)+1  #the quarter of our time slice            
-            if (quarter<3):
-                if (next_period):
+        if self.quarterly:
+            quarter = ((date.month-1)//3)+1  #the quarter of our time slice 
+   
+            if (next_period):
+                print(f"quarter is {date.year}Q{quarter}, we take the last date of the NEXT quarter")
+                if (quarter<3):
                     end_date = datetime(date.year, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
-                else:
-                    end_date = datetime(date.year, (3*quarter)%12 +1, 1) + timedelta(days=-1)      
-            elif (quarter==3): # for the next period we need the next year
-                if (next_period):
+                else: # dates of the next period cross onto the next year
                     end_date = datetime(date.year+1, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
-                else:
+            else:
+                print(f"quarter is {date.year}Q{quarter}, we take the last date of the quarter")
+                if(quarter<4):
                     end_date = datetime(date.year, (3*quarter)%12 +1, 1) + timedelta(days=-1)
-            else: # quarter is 4, dates of the next period cross onto the next year
-                if (next_period):
-                    end_date = datetime(date.year+1, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
-                else:
+                else: #dates of the next period cross onto the next year
                     end_date = datetime(date.year+1, (3*quarter)%12 +1, 1) + timedelta(days=-1)
-        
+            
         else: # We work in periods of months
             month = date.month
-            if (month<11):
-                if (next_period):
+            if (next_period):
+                print(f"month is {date.year}M{date.month}, we take the last date of the NEXT month")
+                if (month<11):# dates of the next period cross onto the next year
                     end_date = datetime(date.year, (month+1)%12 +1, 1) + timedelta(days=-1)
                 else:
-                    end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
-            elif (month==11):
-                if (next_period):
                     end_date = datetime(date.year+1, (month+1)%12 +1, 1) + timedelta(days=-1)
-                else:
-                    end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
             else:
-                if (next_period):
-                    end_date = datetime(date.year+1, (month+1)%12 +1, 1) + timedelta(days=-1)
+                print(f"month is {date.year}M{date.month}, we take the last date of the month")
+                if (month<12):# dates of the next period cross onto the next year
+                    end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
                 else:
                     end_date = datetime(date.year+1, (month)%12 +1, 1) + timedelta(days=-1)
                     
@@ -696,6 +686,10 @@ class dataProcessor:
              
         return select
     
+
+
+    
+
 
     
 #methods to process corporate data ===================================================
@@ -868,7 +862,8 @@ class dataProcessor:
                                              on="SBIcode")
         self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
 
-    #methods to create transction & activity data ============================================
+#methods to create transction & activity data ============================================
+    
     def create_transaction_data_crosssection(self, date = None):
         """creates transaction data based on the cross-section for a specific date"""
         
