@@ -14,6 +14,7 @@ from datetime import datetime
 from datetime import timedelta 
 from csv import writer
 from tqdm import tqdm
+import re
 
 import declarationsFile
 """
@@ -41,6 +42,23 @@ def get_time_diff(start, end, time_format= '%H:%M:%S'):
         end += timedelta(1) # +day
         assert end > start
         return end - start
+
+def select_time_in_data(data, date_column, period_to_use, start, end =""):
+    allowed_period_set = {"Q":(r'20[1-2][0,3-9]-?Q[0-4]', '2019Q2'),
+                          "M": (r'20[1-2][0,3-9]-?[0-1][0-9]', '201903 or 2019-03'),
+                          "D": (r'20[1-2][0,3-9]-?[0-1][0-9]-?[0-3][0-9]', '20190331 or 2019-03-31'),
+                         "Y":(r'20[1-2][0,3-9]','2019') }
+    assert period_to_use in allowed_period_set, print(f"choose a value from the following set of values {list(allowed_period_set.keys())}")
+    assert re.match(allowed_period_set[period_to_use][0], start), print('Wrong format for start period, should be in format '
+                                                                     f'{allowed_period_set[period_to_use][1]}')
+    if end == "":
+        data = data.query(f"{date_column}.dt.to_period('{period_to_use}') >= @start")
+    else:
+        assert re.match(allowed_period_set[period_to_use][0], end), print('Wrong format for end period')
+        data = data.query(f"{date_column}.dt.to_period('{period_to_use}') >= @start &"
+                          f" {date_column}.dt.to_period('{period_to_use}') <= @end")
+    return data
+
     
     
 """
@@ -140,13 +158,13 @@ def selectChunk(data, numberOfChunks=4):
 
     return pd.concat(chunkList, ignore_index=True)
 
-def doConvertFromDict(data, ignore_errors = False, exclusion_list = []):
+def doConvertFromDict(data, ignore_errors = True, exclusion_list = []):
     if ignore_errors == True:
         error_handling = 'ignore'
     else:
         error_handling = 'raise'
     fullDict = declarationsFile.getConvertDict()
-    endDict = doDictIntersect(small_dict=data.columns, full_dict=fullDict, exclusion_list = exclusion_list)
+    endDict = doDictIntersect(small_set=data.columns, full_dict=fullDict, exclusion_list = exclusion_list)
     return data.astype(endDict, errors = error_handling)
 
 def doConvertNumeric(self, data):
@@ -156,9 +174,9 @@ def doConvertNumeric(self, data):
             data.loc[:, item] = pd.to_numeric(data.loc[:, item], downcast="integer")
     return data
 
-def doDictIntersect(small_dict, full_dict : dict, exclusion_list = []):
+def doDictIntersect(small_set, full_dict : dict, exclusion_list = []):
     end_dict = {}
-    resulting_set = (set(small_dict) & set(full_dict)) - set(exclusion_list)
+    resulting_set = (set(small_set) & set(full_dict)) - set(exclusion_list)
     for value in resulting_set:
         end_dict[value] = full_dict[value]
     return end_dict

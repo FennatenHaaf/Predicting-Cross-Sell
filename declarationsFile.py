@@ -236,93 +236,7 @@ def getPatColToParseTS(subset="total"):
     else:
         print("error getting list")
 
-def getPivotColumns():
-    columnsPivot = [
-        # "dateeow",
-        # "yearweek",
-        # "portfolioid",
-        # "pakketcategorie",
-        # 'overstapserviceyn',
-        # 'betaalalertsyn',
-        # 'aantalbetaalalertsubscr',
-        # 'aantalbetaalalertsontv',
-        'roodstandyn',
-        'saldoregulatieyn',
-        'appyn',
-        'aantalloginsapp',
-        'aantalloginsweb',
-        'activitystatus',
-        'betalenyn',
-        'saldobetalen',
-        'aantalbetaaltransacties',
-        'aantalatmtransacties',
-        'aantalpostransacties',
-        'aantalfueltransacties',
-        'depositoyn',
-        'saldodeposito',
-        'flexibelsparenyn',
-        'saldoflexibelsparen',
-        'kwartaalsparenyn',
-        'saldokwartaalsparen',
-        'gemaksbeleggenyn',
-        'saldogemaksbeleggen',
-        'participatieyn',
-        'saldoparticipatie',
-        'vermogensbeheeryn',
-        'saldovermogensbeheer',
-        'saldototaal',
-        'saldolangetermijnsparen',
-        'aantaltegenrekeningenlaatsteq'
-    ]
-    return columnsPivot
-
-def getAggFdduncDict():
-    aggFuncDictP1 = {
-    'dateeow': min}
-
-    aggFuncDictP2 = {
-        **aggFuncDictP1,
-        'overstapserviceyn': "mean",
-        # 'betaalalertsyn': "mean",
-        # 'aantalbetaalalertsubscr': "uint16",
-        # 'aantalbetaalalertsontv': "uint16",
-        'roodstandyn': "mean",
-        'saldoregulatieyn': "mean",
-        'appyn': "mean",
-        'aantalloginsapp': sum,
-        'aantalloginsweb': sum
-        # 'activitystatus': "category",
-        }
-
-    aggFuncDictP3 = {
-        **aggFuncDictP1,
-        'betalenyn': "uint8",
-        'saldobetalen': "int32",
-        'aantalbetaaltransacties': "uint16",
-        'aantalatmtransacties': "uint16",
-        'aantalpostransacties': "uint16",
-        'aantalfueltransacties': "uint16",
-        'depositoyn': "uint8",
-        'saldodeposito': "uint32",
-        'flexibelsparenyn': "uint8",
-        'saldoflexibelsparen': "uint32",
-        'kwartaalsparenyn': "uint8",
-        'saldokwartaalsparen': "uint32",
-        'gemaksbeleggenyn': "uint8",
-        'saldogemaksbeleggen': "uint32",
-        'participatieyn': "uint8",
-        'saldoparticipatie': "uint32",
-        'vermogensbeheeryn': "uint8",
-        'saldovermogensbeheer': "uint32",
-        'saldototaal': "int32",
-        'saldolangetermijnsparen': "uint32",
-        'aantaltegenrekeningenlaatsteq': "uint16"}
-
-    aggfuncDict = {**aggFuncDictP2, **aggFuncDictP3}
-    return aggfuncDict
-
-
-def getAggFuncDict():
+def getTimeConvertDict():
     """ Define datatypes to import variables as, in order to make it more
     memory efficient"""
 
@@ -345,7 +259,7 @@ def getAggFuncDict():
         'activitystatus': (lambda x: x.mode())}
 
     datatypeTrans = {
-        'betalenyn': "uint8",
+        'betalenyn': "last",
         'saldobetalen': "int32",
         'aantalbetaaltransacties': "uint16",
         'aantalatmtransacties': "uint16",
@@ -430,3 +344,75 @@ def getAggFuncDict():
 
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans,
             **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **df_bhk_dict, **time_sets_new}
+
+def getColToParseLTSunc():
+    ts_list = [
+        'dateeow',
+     # 'yearweek',
+     'portfolioid',
+     'pakketcategorie',
+     'overstapserviceyn',
+     # 'betaalalertsyn',
+     # 'aantalbetaalalertsubscr',
+     # 'aantalbetaalalertsontv',
+     'roodstandyn',
+     'saldoregulatieyn',
+     'appyn',
+     'aantalloginsapp',
+     'aantalloginsweb',
+     'activitystatus',
+     'betalenyn',
+     'saldobetalen',
+     'aantalbetaaltransacties',
+     'aantalatmtransacties',
+     'aantalpostransacties',
+     'aantalfueltransacties',
+     'depositoyn',
+     'saldodeposito',
+     'flexibelsparenyn',
+     'saldoflexibelsparen',
+     'kwartaalsparenyn',
+     'saldokwartaalsparen',
+     'gemaksbeleggenyn',
+     'saldogemaksbeleggen',
+     'participatieyn',
+     'saldoparticipatie',
+     'vermogensbeheeryn',
+     'saldovermogensbeheer',
+     'saldototaal',
+     'saldolangetermijnsparen',
+     'aantaltegenrekeningenlaatsteq',
+     'valid_from_dateeow',
+     'valid_to_dateeow',
+     'personid',
+     'age_hh',
+     'hh_child',
+     'hh_size',
+     'income',
+     'educat4',
+     'housetype',
+     'finergy_tp',
+     'lfase',
+     'business',
+     'huidigewaarde_klasse',
+     'retail_id_with_corp_and_retail',
+     'iscorporatepersonyn',
+     'validfromdate_lpp',
+     'indicator_corp_and_retail',
+     'businessid',
+     'businessType',
+     'businessAgeInDays',
+     'foundingYear',
+     'SBIcode',
+     'SBIname',
+     'SBIsector',
+     'SBIsectorName',
+     'indicator_corp_and_retail_business',
+     'iscorporatepersonyn_business',
+     'business_id_with_corp_and_retail',
+     'boekhoudkoppeling',
+     'has_account_overlay',
+     'has_business_id',
+     'has_experian_data'
+    ]
+    return ts_list
