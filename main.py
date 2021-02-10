@@ -8,7 +8,7 @@ if __name__ == "__main__":
     outdirec = "./output"
     interdir = "./interdata"
     
-    save_intermediate_results = False # Save the intermediate outputs
+    save_intermediate_results = True # Save the intermediate outputs
     print_information = False # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     
     #----------------MAKE TIME SERIES DATASETS-------------------
     if time_series:
-        test.time_series_from_cross()
+        test.time_series_from_cross(outname = "final_df")
     #-----------------------------------------------------------------
     
     end = utils.get_time()

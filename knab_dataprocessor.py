@@ -115,7 +115,7 @@ class dataProcessor:
         # read in the experian data, which will be used as a base for everything
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")
         # don't need this variable
-        self.df_experian = self.df_experian.drop(["business"], axis=1, inplace=True)
+        self.df_experian.drop(["business"], axis=1, inplace=True)
         
         #------------------------ GET DATES INSIGHT -------------------------
     
@@ -147,7 +147,7 @@ class dataProcessor:
         self.start_date = datetime.strptime(self.start_date,self.time_format)
 
         #------------------ ENSURE INFORMATION IN LINK DATA ------------------
-        all_ids = self.df_experian["personid"].unique()
+        all_ids = pd.DataFrame(self.df_experian["personid"].unique())
         
         # we only want those ids for which the portfolio information is present, 
         # so dateinstroomweek should NOT be blank for ALL portfolios
@@ -156,10 +156,10 @@ class dataProcessor:
         
         # For the ones with corporate portfolio, we also want AT LEAST one of the
         # corporate IDs to have business information
-        temp = self.df_link["personid","businessType"][~(self.df_link["corporateid"].isnull())]
-        temp["info"][~(temp["businessType"].isnull())] = 1
+        temp = self.df_link[["personid","businessType"]][~(self.df_link["corporateid"].isnull())].copy()
+        temp["info"] = 1
         temp["info"][(temp["businessType"].isnull())] = 0
-        temp = temp["personid", "info"].groupby("personid").max()
+        temp = temp[["personid", "info"]].groupby("personid").max().reset_index(level=0)
         
         # If the max is 0, then all of these values are missing, therefore we want to remove
         missing_info_ids = temp["personid"][temp["info"]==0]
@@ -211,8 +211,6 @@ class dataProcessor:
 
         # Now we can select the base data
         self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy()
-        self.base_df.drop(["business"], axis=1, inplace=True) # don't need this variable
-        
         dataInsight.unique_IDs(self.base_df,"base Experian dataset") # show number of IDs
     
         #------------------------ SAVE & RETURN -------------------------
@@ -226,7 +224,7 @@ class dataProcessor:
         
         
 
-    def time_series_from_cross(self):
+    def time_series_from_cross(self, outname = "final_df"):
         """Run the cross-section dataset creation multiple times"""
     
         print("Starting date for the time series dataset:")
@@ -251,7 +249,7 @@ class dataProcessor:
                                       outname = f"portfoliolink_{year}Q{quarter}")
             
             self.create_cross_section_perperson(df_cross, df_cross_link, date,
-                                      outname = f"final_df_{year}Q{quarter}")
+                                      outname = f"{outname}_{year}Q{quarter}")
             
             # Now get the last day of the next period for our next cross-date
             date = self.get_last_day_period(date,next_period=True)
