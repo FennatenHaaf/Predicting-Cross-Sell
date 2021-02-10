@@ -4,9 +4,10 @@ Created on Mon Feb  8 11:06:29 2021
 
 @author: matth
 """
-import HMM_test 
+import HMM_test as ht
 import numpy as np 
 import pandas as pd
+import eff_HMM as eh
 
 df_per_time = [] 
 
@@ -21,14 +22,14 @@ for t in range(0,3):
     df = pd.DataFrame(data = matrix, columns = name_columns)
     df_per_time.append(df)
     
-    
+
 name_dep_var = ['p1','p2','p3']
 name_covariates = ['var1','var2','var3d1', 'var3d2','var4d1','var4d2']
 covariates = True
 
-test = HMM_test.HMM(df_per_time, name_dep_var, name_covariates, covariates)
+test = ht.HMM(df_per_time, name_dep_var, name_covariates, covariates)
+n_segments = 4  
 
-n_segments = 4
 
 gamma_0, gamma_sr_0, gamma_sk_t, beta = test.EM(n_segments)
 

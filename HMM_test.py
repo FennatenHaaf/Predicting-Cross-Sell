@@ -9,6 +9,8 @@ import extra_functions_HMM as ef
 import numpy as np 
 from scipy.optimize import minimize 
 import math
+import eff_HMM as eh
+import utils
 
 class HMM:
     
@@ -67,14 +69,14 @@ class HMM:
             gamma_sr_0 = 0.3 * np.ones( (n_segments-1,n_segments) ) #parameters of P(S_t = s | S_t+1 = r)
             gamma_sk_t = 0.4 * np.ones( (n_segments-1,self.n_covariates) )  #parameters of P(S_t = s | S_t+1 = r)
             beta = 0.5 * np.ones((n_segments, self.n_products, max(self.n_categories))) #parameters of P(Y|s)
-            shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]])
+            shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  
             param_out = param
         else: 
             A = 1/n_segments * np.ones((n_segments,n_segments)) #P(Y_it | X_it = s)
             pi = 1/n_segments * np.ones((n_segments))  #P(X_i0 = s| Z_i0)
             b = np.ones((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y_it | X_it = s)
-            shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]])
+            shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
             param = self.param_matrices_to_list(A = A, pi = pi, b = b)
             param_out = param
 
@@ -87,9 +89,13 @@ class HMM:
             param_in = param_out
                 
             alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
+              
+            start = utils.get_time()
+
+            param_out = eh.maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method)
                 
-            param_out = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
-                
+            end = utils.get_time()
+            diff = utils.get_time_diff(start,end)
             iteration = iteration + 1
                             
             difference = (any(abs(param_in-param_out)) > tolerance) 
@@ -111,9 +117,9 @@ class HMM:
             for t in range(0,self.T):
                 v = self.T - t - 1
                 
-                Y = self.list_Y[t][i,:]
+                Y = np.array([self.list_Y[t][i,:]])
                 if self.covariates == True:
-                    Z = self.list_Z[t][i,:]
+                    Z = np.array([self.list_Z[t][i,:]])
                 else:
                     Z = []
                 
@@ -121,7 +127,7 @@ class HMM:
                 
                 if t == 0:
                     P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
-                    alpha[:,i,t] = np.multiply(P_y_given_s,P_s_given_Z)
+                    alpha[:,i,t] = np.multiply(P_y_given_s, P_s_given_Z).flatten()
                     beta[:,i,v] = np.ones((n_segments))
                 else:
                     P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
@@ -129,8 +135,8 @@ class HMM:
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
-                        sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[:,r]), P_y_given_s)
-                        sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[r,]), P_y_given_s)
+                        sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[:,r]), P_y_given_s.flatten())
+                        sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[r,:]), P_y_given_s.flatten())
                     alpha[:,i,t] = sum_alpha
                     beta[:,i,v]  = sum_beta
                 
@@ -169,9 +175,9 @@ class HMM:
             sum = sum + np.sum(np.multiply(P_s_given_Y_Z, np.log(P_s_given_Z)))
             
             for t in range(1,self.T):
-                Y = self.list_Y[0][i,:]
+                Y = self.list_Y[t][i,:]
                 if self.covariates == True:
-                    Z = self.list_Z[0][i,:]    
+                    Z = self.list_Z[t][i,:]    
                 else: 
                     Z = []
              

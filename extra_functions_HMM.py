@@ -90,8 +90,9 @@ def prob_P_y_given_s(self, y, p_js, n_segments):
         
     for p in range(0,self.n_products):
         for c in range(0,self.n_categories[p]):
-            P_y_given_s = np.multiply(P_y_given_s, np.power(p_js[:,p,c], y[p] == c))   
-    return P_y_given_s 
+            power = np.power(p_js[:,p,c], y[0,p] == c)
+            P_y_given_s = np.multiply(P_y_given_s, power)   
+    return np.transpose(np.array([P_y_given_s]))
     
     
 def prob_P_s_given_Z(self, param, shapes, Z, n_segments):  
@@ -100,8 +101,8 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
     """case with covariates"""
     if self.covariates == True:
         gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self,param,shapes)
-        P_s_given_Z = np.exp( gamma_0[:,0] + np.matmul(gamma_0[:,1:self.n_covariates+1] , Z) )
-        P_s_given_Z = np.hstack( (P_s_given_Z, np.ones((1,))) ) #for the base case
+        P_s_given_Z = np.exp(np.transpose(np.array([gamma_0[:,0]])) + np.matmul(gamma_0[:,1:self.n_covariates+1], np.transpose(Z)) )
+        P_s_given_Z = np.vstack( (P_s_given_Z, np.ones((1,))) ) #for the base case
         P_s_given_Z = P_s_given_Z / np.sum(P_s_given_Z)      
     else:
         A, pi, b = param_list_to_matrices(self,param,shapes)
@@ -116,12 +117,12 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
     """case with covariates"""
     if self.covariates == True:
         gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self,param,shapes)
-        P_s_given_r = np.exp(gamma_sr_0 + np.transpose([np.matmul(gamma_sk_t, Z)] * n_segments) )
-        P_s_given_r = np.vstack(( P_s_given_r,np.ones((1,n_segments)) )) #for the base case
+        P_s_given_r = np.exp(gamma_sr_0 + np.tile(np.matmul(gamma_sk_t, np.transpose(Z)),n_segments) )
+        P_s_given_r = np.vstack(( P_s_given_r, np.ones((1,n_segments)) )) #for the base case
         P_s_given_r = np.divide(P_s_given_r, np.sum(P_s_given_r,0))
     else:  
-            A, pi, b = self.param_list_to_matrices(param,shapes)
-            P_s_given_r = A
+        A, pi, b = self.param_list_to_matrices(param,shapes)
+        P_s_given_r = A
         
     return P_s_given_r
         
