@@ -8,6 +8,7 @@ import extra_functions_HMM as ef
 import numpy as np 
 import math
 import utils
+from tqdm import tqdm
 from scipy.optimize import minimize 
 
 
@@ -66,7 +67,7 @@ def prob_p_js(self, param, shapes, n_segments):
         A, pi, b = param_list_to_matrices(self,param,shapes)
         beta = b
     
-    for s in range(0,n_segments):
+    for s in tqdm(range(0,n_segments)):
         for p in range(0,self.n_products):
             denominator = 0
             for c in range(0,self.n_categories[p]):
@@ -131,13 +132,13 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         
         mat = np.matmul(gamma_sk_t, np.transpose(Z))
         mat = np.vstack((mat, np.zeros((1,row_Z))))
-        mat = np.repeat(mat, 4, axis = 1)
+        mat = np.repeat(mat, n_segments, axis = 1)
         mat = np.array_split(mat, row_Z, axis = 1)
         mat = np.array(mat)
         
         P_s_given_r = np.exp(P_s_given_r + mat)
 
-        P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,4)))
+        P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
         
     else:  
             A, pi, b = self.param_list_to_matrices(param,shapes)
@@ -154,7 +155,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, r, n_segments):#for all person
     """function to compute P(X_it-1 = s_t-1, X_it = s_t|Y_i, Z_i)"""
     
-    P_s_given_Y_Z = state_event(self, alpha, beta, n_segments)
+    P_s_given_Y_Z = np.multiply(alpha, beta)
     
     P_s_given_r = prob_P_s_given_r(self, param, shapes, Z, n_segments)
     P_y_given_s = prob_P_y_given_s(self, Y, prob_p_js(self, param, shapes, n_segments), n_segments)
@@ -164,7 +165,7 @@ def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, r, n_segments):#fo
     P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, beta[s,:,t])
     P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.sum(P_s_given_Y_Z[:,:,t], axis = 0))
     
-    return P_sr_given_Y_Z
+    return P_sr_given_Y_Z 
 
 def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
     """function to compute P(X_it = s|Y_i, Z_i)"""
@@ -245,7 +246,7 @@ def optimization_function(x, self, alpha, beta, param_in, shapes, n_segments):
     
     P_s_given_r = prob_P_s_given_r(self, x, shapes, Z, n_segments)
 
-    for t in range(1,self.T):
+    for t in tqdm(range(1,self.T)):
         Y = self.list_Y[t]
         if self.covariates == True:
             Z = self.list_Z[t]   
@@ -258,7 +259,7 @@ def optimization_function(x, self, alpha, beta, param_in, shapes, n_segments):
                 
                 sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
     
-    for t in range(0,self.T):
+    for t in tqdm(range(0,self.T)):
         Y = self.list_Y[t]        
         P_y_given_s = prob_P_y_given_s(self, Y, prob_p_js(self, x, shapes, n_segments), n_segments)
         P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t])
