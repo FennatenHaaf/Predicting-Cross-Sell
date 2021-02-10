@@ -17,6 +17,9 @@ import gc
 class dataProcessor:
 
     def __init__(self,indir,interdir,outdir, 
+                 quarterly = True,
+                 start_date = "2018",
+                 end_date = None,
                  save_intermediate=False,
                  print_info=False,
                  seed = 978391):
@@ -26,6 +29,11 @@ class dataProcessor:
         self.indir= indir # location of input files
         self.interdir = interdir #location of intermediate files
         self.outdir = outdir # location of linked output files
+        
+        self.quarterly = quarterly # Quarterly periods if true, monthly otherwise
+        self.start_date = start_date # when we start the time period
+        self.end_date = end_date # when we end the time period
+        
         self.save_intermediate = save_intermediate # location of linked output files
         self.print_info = print_info #Determines how verbose it is
         self.seed = seed
@@ -39,7 +47,10 @@ class dataProcessor:
         # Declare other variables
         self.time_format = "%Y-%m-%d"
         self.endDate = datetime(2020, 12, 31) #Initalizes a last date for NaN values
+        #TODO check if this is necessary, could also coerce errors or set it to
+        # self.last_date later like I did in select_ids function?
 
+       
         
         
                
@@ -98,6 +109,17 @@ class dataProcessor:
         time_string = self.first_date.strftime("%Y-%m-%d")
         print(f"Oldest data in Experian is from {time_string}")
         
+        # Also process end date and start date for the time period, before we 
+        # do selectIDs
+        if (self.end_date==None):
+            self.end_date = self.last_date 
+        else:
+            self.end_date = datetime.strptime(self.end_date,self.time_format)
+            assert self.end_date <= self.last_date, \
+            "This is later than the most recent available data"
+        
+        self.start_date = datetime.strptime(self.start_date,self.time_format)
+        
         
         #------------------------ SAVE & RETURN  -------------------------
         if self.save_intermediate:
@@ -108,8 +130,7 @@ class dataProcessor:
         
        
         
-    def select_ids(self, quarterly = True, subsample = True,
-                   sample_size = 500, start_date = "2018", end_date = None,
+    def select_ids(self, subsample = True, sample_size = 500, 
                    outname = "base_experian"):
         """Selects a certain set of person IDs from the linking dataset, where:
             - information for ALL portfolios is present in the linking data
@@ -120,12 +141,8 @@ class dataProcessor:
         #TODO ook de optie geven om bijvoorbeeld mensen uit een specifieke 
         # sector te selecteren?
         #TODO make it so select ids and the time series take the same time period?
+        # (make it a .self variable)
         #TODO business information should also not be nan maybe?
-        
-        if (end_date==None):
-            end_date= self.last_date # Make this the end date period
-        else:
-            end_date= datetime.strptime(end_date,self.time_format)
         
         #--------- make sure there is information in the portfolio info data ---------
         
@@ -133,7 +150,6 @@ class dataProcessor:
         # so dateinstroomweek should NOT be blank
         valid_ids_link = self.df_link["personid"][~(self.df_link["dateinstroomweek"].isnull())]
         #TODO dit is nog niet alles, alleen nog maar AT LEAST one?
-    
     
         #--------- make sure there is information in the Experian data ---------
         # we want there to be experian data in every time period for the IDs 
@@ -157,8 +173,8 @@ class dataProcessor:
 
         #-> The first validfrom date has to be BEFORE a certain starting date
         #-> The last validto date has to be AFTER a certain ending date    
-        valid_ids_experian = self.df_experian["personid"][(self.df_experian["valid_to_max"]>= end_date) \
-                                            & (self.df_experian["valid_from_min"]<= start_date)]        
+        valid_ids_experian = self.df_experian["personid"][(self.df_experian["valid_to_max"]>= self.end_date) \
+                                            & (self.df_experian["valid_from_min"]<= self.start_date)]        
         #TODO: zou het kunnen dat IDs in de tussentijd worden uitgeschreven en 
         # weer ingeschreven??
         
@@ -197,28 +213,18 @@ class dataProcessor:
         print("-------------------------------------")
         
         
-        
-        
 
-    def time_series_from_cross(self, quarterly = True, start_date = "2018",
-                               end_date = None):
-        """Run the cross-section function multiple times"""
+    def time_series_from_cross(self):
+        """Run the cross-section dataset creation multiple times"""
     
-        # make our start date and the end date as the last day of their period
-        if (end_date==None):
-            end = self.last_date 
-        else:
-            end = datetime.strptime(end_date,self.time_format)
-            assert end <= self.last_date, \
-            "This is later than the most recent available data"
-    
-        date = self.get_last_day_period(datetime.strptime(start_date,self.time_format),
-                                        next_period=False,quarterly=True)
-        end = self.get_last_day_period(end,next_period=False,quarterly=True)
+        print("Starting date for the time series dataset:")
+        date = self.get_last_day_period(self.start_date, next_period=False)
+        print("Ending date for the time series dataset:")
+        end = self.get_last_day_period(self.end_date, next_period=False)
         
         # Now, until we have gone through all of the periods make a cross-section
         while (date <= end):        
-            # get year and quarter
+            # get year and quarter for printing and naming files
             year = date.year
             quarter = ((date.month-1)//3)+1
             
@@ -228,16 +234,16 @@ class dataProcessor:
             
             #Make the cross-sectional dataset for this specific cross-date
             df_cross = self.get_time_slice(self.base_df, date)
+            
             df_cross_link = self.create_cross_section_perportfolio(df_cross, date, 
-                                          outname = f"portfoliolink_{year}Q{quarter}",
-                                          quarterly= quarterly)
-            self.create_cross_section_perperson(df_cross, df_cross_link,
-                                        date, outname = f"final_df_{year}Q{quarter}",
-                                        quarterly= quarterly)
+                                      outname = f"portfoliolink_{year}Q{quarter}")
+            
+            self.create_cross_section_perperson(df_cross, df_cross_link, date,
+                                      outname = f"final_df_{year}Q{quarter}")
             
             # Now get the last day of the next period for our next cross-date
-            date = self.get_last_day_period(date,next_period=True,quarterly=True)
-            print(f"========== next date: {date} ===========")
+            date = self.get_last_day_period(date,next_period=True)
+            print(f"next date: {date}")
     
         print("=========== DONE MAKING TIME SERIES =============")
         
@@ -246,7 +252,6 @@ class dataProcessor:
         
     def create_base_cross_section(self,
                                   date_string = None,
-                                  quarterly = True,
                                   next_period = False,
                                   outname = "cross_experian"):  
         """Method to create a cross-sectional dataset of the unique person ids.
@@ -271,25 +276,10 @@ class dataProcessor:
         
         #-----------Taking a time-slice of Experian data for base dataframe-----------
         
-        ## We want to work in either quarterly or monthly data. So for the
-        ## specific date we want to take the last day of the month or the quarter
-        if quarterly:
-            quarter = ((date.month-1)//3)+1  #the quarter of our time slice
-            
-            if (next_period):
-                print(f"quarter is {date.year}Q{quarter}, we take the last date of the quarter")
-                cross_date = self.get_last_day_period(date,next_period=True,quarterly=True)
-            else:
-                print("We take the last date of the NEXT quarter")
-                cross_date = self.get_last_day_period(date,next_period=False,quarterly=True)
-        else: # working with monthly data
-            
-            if (next_period):
-                print(f"month is {date.year}M{date.month}, we take the last date of the month")
-                cross_date = self.get_last_day_period(date,next_period=True,quarterly=False)
-            else:
-                print("We take the last date of the NEXT month")
-                cross_date = self.get_last_day_period(date,next_period=False,quarterly=False)
+        if (next_period):
+            cross_date = self.get_last_day_period(date,next_period=True)
+        else:
+            cross_date = self.get_last_day_period(date,next_period=False)
             
         print(f"cross-date {cross_date.strftime(self.time_format)},")
     
@@ -311,8 +301,7 @@ class dataProcessor:
 
 
     def create_cross_section_perportfolio(self, df_cross, cross_date, 
-                                          outname = "df_cross_portfoliolink",
-                                          quarterly=True): 
+                                          outname = "df_cross_portfoliolink"): 
         """Creates a dataset of information for a set of people at a 
         specific time"""
         
@@ -321,7 +310,7 @@ class dataProcessor:
         
         # Start by taking a cross-section of the dataset linking 
         # portfolio ids to person ids and to business+portfolio information
-        df_cross_link = self.get_time_slice(self.df_link,cross_date,
+        df_cross_link = self.get_time_slice(self.df_link, cross_date,
                                             valid_to_string = 'validtodate',
                                             valid_from_string = 'validfromdate')
         
@@ -348,7 +337,7 @@ class dataProcessor:
         temp_dataset = self.create_transaction_data_crosssection(cross_date)
         df_transactions = self.summarize_transactions(dataset = temp_dataset,
                                                       date = cross_date,
-                                                      quarterly_period = quarterly)
+                                                      quarterly_period = self.quarterly)
         
         # Merge with the big linking dataset
         df_cross_link = df_cross_link.merge(df_transactions, 
@@ -361,7 +350,7 @@ class dataProcessor:
         temp_dataset = self.create_activity_data_crosssection(cross_date)
         df_activity = self.summarize_activity(dataset = temp_dataset,
                                                     date = cross_date,
-                                                    quarterly_period = quarterly)     
+                                                    quarterly_period = self.quarterly)     
         
         # Merge with the big linking dataset
         df_cross_link = df_cross_link.merge(df_activity, 
@@ -411,8 +400,7 @@ class dataProcessor:
         
         
     def create_cross_section_perperson(self, df_cross, df_cross_link,
-                                       cross_date, outname = "final_df",
-                                       quarterly=True):  
+                                       cross_date, outname = "final_df"):  
         """This function takes a dataset linking each person ID to
         information for each portfolio separately, and returns a dataset
         where all the portfolio information is aggregated per person ID"""
@@ -428,7 +416,6 @@ class dataProcessor:
                                              & (df_cross_link["enofyn"]==0)]
         df_cross_link_dict['joint'] = df_cross_link[(df_cross_link["type"]=="Private Portfolio")\
                                              & (df_cross_link["enofyn"]==1)]
-        
         
         for name, df in df_cross_link_dict.items():
             
@@ -610,46 +597,43 @@ class dataProcessor:
         
 
 
+
 #some helper methods that are used to handle time =================================
 
 
-    def get_last_day_period(self, date, next_period = False, quarterly =True):
+
+    def get_last_day_period(self, date, next_period = False):
         """Returns the last day of the period that contains our date, by getting 
         the day BEFORE the FIRST day of the next period """
         
-        if quarterly:
-            quarter = ((date.month-1)//3)+1  #the quarter of our time slice            
-            if (quarter<3):
-                if (next_period):
+        if self.quarterly:
+            quarter = ((date.month-1)//3)+1  #the quarter of our time slice 
+   
+            if (next_period):
+                print(f"quarter is {date.year}Q{quarter}, we take the last date of the NEXT quarter")
+                if (quarter<3):
                     end_date = datetime(date.year, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
-                else:
-                    end_date = datetime(date.year, (3*quarter)%12 +1, 1) + timedelta(days=-1)      
-            elif (quarter==3): # for the next period we need the next year
-                if (next_period):
+                else: # dates of the next period cross onto the next year
                     end_date = datetime(date.year+1, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
-                else:
+            else:
+                print(f"quarter is {date.year}Q{quarter}, we take the last date of the quarter")
+                if(quarter<4):
                     end_date = datetime(date.year, (3*quarter)%12 +1, 1) + timedelta(days=-1)
-            else: # quarter is 4, dates of the next period cross onto the next year
-                if (next_period):
-                    end_date = datetime(date.year+1, (3*(quarter+1))%12 +1, 1) + timedelta(days=-1)
-                else:
+                else: #dates of the next period cross onto the next year
                     end_date = datetime(date.year+1, (3*quarter)%12 +1, 1) + timedelta(days=-1)
-        
+            
         else: # We work in periods of months
             month = date.month
-            if (month<11):
-                if (next_period):
+            if (next_period):
+                print(f"month is {date.year}M{date.month}, we take the last date of the NEXT month")
+                if (month<11):# dates of the next period cross onto the next year
                     end_date = datetime(date.year, (month+1)%12 +1, 1) + timedelta(days=-1)
                 else:
-                    end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
-            elif (month==11):
-                if (next_period):
                     end_date = datetime(date.year+1, (month+1)%12 +1, 1) + timedelta(days=-1)
-                else:
-                    end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
             else:
-                if (next_period):
-                    end_date = datetime(date.year+1, (month+1)%12 +1, 1) + timedelta(days=-1)
+                print(f"month is {date.year}M{date.month}, we take the last date of the month")
+                if (month<12):# dates of the next period cross onto the next year
+                    end_date= datetime(date.year, (month)%12 +1, 1) + timedelta(days=-1)
                 else:
                     end_date = datetime(date.year+1, (month)%12 +1, 1) + timedelta(days=-1)
                     
