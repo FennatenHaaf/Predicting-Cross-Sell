@@ -140,16 +140,14 @@ def selectChunk(data, numberOfChunks=4):
 
     return pd.concat(chunkList, ignore_index=True)
 
-def doConvertFromDict(data, exclusion_list = []):
+def doConvertFromDict(data, ignore_errors = False, exclusion_list = []):
+    if ignore_errors == True:
+        error_handling = 'ignore'
+    else:
+        error_handling = 'raise'
     fullDict = declarationsFile.getConvertDict()
-    endDict = {}
-    data_excluded_col = data.columns
-    for item in exclusion_list:
-        data_excluded_col = data_excluded_col.drop(item)
-    for colName in data_excluded_col:
-        if colName in fullDict:
-            endDict[colName] = fullDict[colName]
-    return data.astype(endDict)
+    endDict = doDictIntersect(small_dict=data.columns, full_dict=fullDict, exclusion_list = exclusion_list)
+    return data.astype(endDict, errors = error_handling)
 
 def doConvertNumeric(self, data):
     for item in data.dtypes.index:
@@ -157,3 +155,14 @@ def doConvertNumeric(self, data):
         if "float" in currentDtype or "int" in currentDtype:
             data.loc[:, item] = pd.to_numeric(data.loc[:, item], downcast="integer")
     return data
+
+def doDictIntersect(small_dict, full_dict : dict, exclusion_list = []):
+    end_dict = {}
+    resulting_set = (set(small_dict) & set(full_dict)) - set(exclusion_list)
+    for value in resulting_set:
+        end_dict[value] = full_dict[value]
+    return end_dict
+
+def doListIntersect(columns, full_list : list, exclusion_list = []):
+    result = ( set(columns) & set(full_list) ) - set(exclusion_list)
+    return list(result)
