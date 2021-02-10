@@ -135,6 +135,7 @@ def getConvertDict():
 
     df_cor_dict = {
          'personid':"category",
+        'businessid': 'category',
          'businessType': "category",
           'foundingDate':'datetime64',
          'businessAgeInDays':'uint16',
@@ -148,8 +149,8 @@ def getConvertDict():
     }
 
     df_pin_dict = {
-        'dateinstroomweek' : 'datetime64',
-        'instroomjaarweek' : 'datetime64',
+        'dateinstroomweek' : 'datetime64[ns]',
+        'instroomjaarweek' : 'datetime64[ns]',
         'instroompakket' : 'category',
         'birthyear': 'uint16',
         'geslacht': 'category',
@@ -157,8 +158,23 @@ def getConvertDict():
         'enofyn': 'uint8'
     }
 
+    df_bhk_dict = {
+        'boekhoudkoppeling' : 'category'
+    }
+
+    time_sets_new = {
+        'has_experian_data' : 'uint8',
+        'has_business_id': 'uint8',
+        'has_account_overlay': 'uint8',
+        'indicator_corp_and_retail' : 'uint8',
+        'indicator_corp_and_retail_business': 'uint8',
+        'iscorporatepersonyn_business': 'uint8',
+        'business_id_with_corp_and_retail': 'uint8',
+        'retail_id_with_corp_and_retail' : 'uint8'
+    }
+
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, 
-            **df_lpp_dict, **df_exp_dict, **df_cor_dict}
+            **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **time_sets_new}
 
 
 
@@ -260,7 +276,7 @@ def getPivotColumns():
     ]
     return columnsPivot
 
-def getAggFuncDict():
+def getAggFdduncDict():
     aggFuncDictP1 = {
     'dateeow': min}
 
@@ -304,3 +320,113 @@ def getAggFuncDict():
 
     aggfuncDict = {**aggFuncDictP2, **aggFuncDictP3}
     return aggfuncDict
+
+
+def getAggFuncDict():
+    """ Define datatypes to import variables as, in order to make it more
+    memory efficient"""
+
+    datatypeGeneralActivity = {
+        'dateeow': 'last',
+        'yearweek': "max",
+        'portfolioid': "nunique",
+        'pakketcategorie': "first"}
+
+    datatypeActivity = {
+        'overstapserviceyn': "first",
+        'betaalalertsyn': "first",
+        'aantalbetaalalertsubscr': "max",
+        'aantalbetaalalertsontv': "mean",
+        'roodstandyn': "last",
+        'saldoregulatieyn': "last",
+        'appyn': "last",
+        'aantalloginsapp': "mean",
+        'aantalloginsweb': "mean",
+        'activitystatus': (lambda x: x.mode())}
+
+    datatypeTrans = {
+        'betalenyn': "uint8",
+        'saldobetalen': "int32",
+        'aantalbetaaltransacties': "uint16",
+        'aantalatmtransacties': "uint16",
+        'aantalpostransacties': "uint16",
+        'aantalfueltransacties': "uint16",
+        'depositoyn': "uint8",
+        'saldodeposito': "uint32",
+        'flexibelsparenyn': "uint8",
+        'saldoflexibelsparen': "uint32",
+        'kwartaalsparenyn': "uint8",
+        'saldokwartaalsparen': "uint32",
+        'gemaksbeleggenyn': "uint8",
+        'saldogemaksbeleggen': "uint32",
+        'participatieyn': "uint8",
+        'saldoparticipatie': "uint32",
+        'vermogensbeheeryn': "uint8",
+        'saldovermogensbeheer': "uint32",
+        'saldototaal': "int32",
+        'saldolangetermijnsparen': "uint32",
+        'aantaltegenrekeningenlaatsteq': "uint16"}
+
+    df_lpp_dict = {
+        "validfromdate": "datetime64",
+        "validfromyearweek": "int32",
+        "personid": "category",
+        "iscorporatepersonyn": "uint8",
+        'validfromdate_lpp': "datetime64"
+    }
+
+    df_exp_dict = {
+        'valid_from_dateeow': "datetime64",
+        'valid_to_dateeow': "datetime64",
+        'age_hh': "uint8",
+        'hh_child': "uint8",
+        'hh_size': "uint8",
+        'income': "uint8",
+        'educat4': "uint8",
+        'housetype': "uint8",
+        'finergy_tp': "category",
+        'lfase': "uint8",
+        'business': "uint8",
+        'huidigewaarde_klasse': "uint8"}
+
+    df_cor_dict = {
+        'businessid': 'category',
+        'businessType': "category",
+        'foundingDate': 'datetime64',
+        'businessAgeInDays': 'uint16',
+        'businessAgeInMonths': 'uint16',
+        'businessAgeInYears': 'float16',
+        'foundingYear': 'uint16',
+        'SBIcode': 'category',
+        'SBIname': 'category',
+        'SBIsector': 'category',
+        'SBIsectorName': 'category'
+    }
+
+    df_pin_dict = {
+        'dateinstroomweek': 'datetime64[ns]',
+        'instroomjaarweek': 'datetime64[ns]',
+        'instroompakket': 'category',
+        'birthyear': 'uint16',
+        'geslacht': 'category',
+        'type': 'category',
+        'enofyn': 'uint8'
+    }
+
+    df_bhk_dict = {
+        'boekhoudkoppeling' : 'category'
+    }
+
+    time_sets_new = {
+        'has_experian_data': 'uint8',
+        'has_business_id': 'uint8',
+        'has_account_overlay': 'uint8',
+        'indicator_corp_and_retail': 'uint8',
+        'indicator_corp_and_retail_business': 'uint8',
+        'iscorporatepersonyn_business': 'uint8',
+        'business_id_with_corp_and_retail': 'uint8',
+        'retail_id_with_corp_and_retail': 'uint8'
+    }
+
+    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans,
+            **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **df_bhk_dict, **time_sets_new}
