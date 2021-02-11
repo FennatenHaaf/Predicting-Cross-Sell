@@ -17,7 +17,7 @@ import numpy as np
 from scipy.optimize import minimize 
 import utils
 from tqdm import tqdm
-from pyswarm import pso
+#from pyswarm import pso
 
 class HMM_eff:
     

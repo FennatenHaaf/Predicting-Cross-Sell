@@ -10,7 +10,7 @@ import numpy as np
 from scipy.optimize import minimize 
 import math
 import utils
-from pyswarm import pso
+#from pyswarm import pso
 
 class HMM:
     

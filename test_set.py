@@ -4,10 +4,9 @@ Created on Mon Feb  8 11:06:29 2021
 
 @author: matth
 """
-import HMM_test as ht
+import HMM_eff as ht
 import numpy as np 
 import pandas as pd
-import eff_HMM as eh
 
 df_per_time = [] 
 
@@ -16,6 +15,7 @@ name_columns = ['p1','p2','p3','var1','var2','var3d1', 'var3d2','var4d1','var4d2
 for t in range(0,3):
     integers1 = np.random.randint(3, size=(100, 2))
     integers2 = np.random.randint(4, size=(100, 1))
+    
     continu = np.random.uniform(low=0, high=10, size=(100,2))
     binary = np.random.randint(2, size=(100, 4))
     matrix = np.concatenate((integers1, integers2, continu, binary), axis = 1)
@@ -23,13 +23,13 @@ for t in range(0,3):
     df_per_time.append(df)
     
 
-name_dep_var = ['p1','p2']
+name_dep_var = ['p1','p2','p3']
 #name_covariates = ['var1','var2','var3d1', 'var3d2','var4d1','var4d2']
 name_covariates = ['var1','var2']
 
-covariates = True
+covariates = False
 
-test = ht.HMM(df_per_time, name_dep_var, name_covariates, covariates)
+test = ht.HMM_eff(df_per_time, name_dep_var, name_covariates, covariates)
 n_segments = 2 
 
 

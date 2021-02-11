@@ -106,8 +106,8 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
         P_s_given_Z = P_s_given_Z / np.sum(P_s_given_Z)      
     else:
         A, pi, b = param_list_to_matrices(self,param,shapes)
-        P_s_given_Z = pi[] / np.sum(pi)
-        
+        pi = np.append(pi, np.array([1]))
+        P_s_given_Z = np.exp(pi) / np.sum(np.exp(pi)) 
    
     return P_s_given_Z
         
@@ -123,7 +123,9 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         P_s_given_r = np.divide(P_s_given_r, np.sum(P_s_given_r,0))
     else:  
         A, pi, b = self.param_list_to_matrices(param,shapes)
-        P_s_given_r = A
+        A = np.vstack(A, np.ones((n_segments, 1)))
+        P_s_given_r = np.divide(np.exp(A), np.sum(np.exp(A), axis = 0))
+            
         
     return P_s_given_r
         
