@@ -111,13 +111,15 @@ def exportChunk(data, chunkSize, exportString, check_if_exists = True ,**writeAr
     nRows = data.shape[0]
     startIndex = 0
     endIndex = min(startIndex + chunkSize,nRows)
+    headerBool = True
 
     while startIndex < nRows:
-        data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a",header=False,
+        data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a",header=headerBool,
                                                  **writeArgs)
         startIndex = endIndex
         endIndex += chunkSize
         endIndex = min(endIndex, nRows)
+        headerBool = False
 
     print("Export of {} completed".format(exportString))
 
