@@ -38,7 +38,8 @@ if __name__ == "__main__":
     #Create base experian information and select the ids used -> choose to
     # make subsample here! 
     test.select_ids(subsample = subsample, sample_size = sample_size, 
-                    outname = "base_experian")
+                    outname = "base_experian", filename = "valid_ids.csv",
+                    use_file = True)
         
     #----------------MAKE CROSS-SECTIONAL DATASETS-------------------
     if cross_sec:
