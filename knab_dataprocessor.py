@@ -52,9 +52,7 @@ class dataProcessor:
         #TODO check if this is necessary, could also coerce errors or set it to
         # self.last_date later like I did in select_ids function?
 
-       
-        
-               
+      
     def link_data(self, outname = "base_linkinfo"):
         """Creates a dataset containing person IDs linked to their portfolio 
         ids and the corresponding portfolio information, as well as linking 
@@ -148,24 +146,34 @@ class dataProcessor:
         
         self.start_date = datetime.strptime(self.start_date,self.time_format)
 
+
         #------------------ ENSURE INFORMATION IN LINK DATA ------------------
-        all_ids = pd.DataFrame(self.df_experian["personid"].unique())
+        
+        all_ids = pd.Series(self.df_experian["personid"].unique())
+        len1 = len(all_ids)
+        print(f"there are {len1} IDs in Experian dataset, dropping invalid ones")
         
         # we only want those ids for which the portfolio information is present, 
         # so dateinstroomweek should NOT be blank for ALL portfolios
-        missing_info_ids= self.df_link["personid"][self.df_link["dateinstroomweek"].isnull()]
+        missing_info_ids= self.df_link["personid"][self.df_link["dateinstroomweek"].isnull()]        
         valid_ids = all_ids[~(all_ids.isin(missing_info_ids))] # remove ids from the set
+        len2= len(valid_ids)
+        print(f"{len1-len2} IDs dropped for not having information on all of their portfolios")
+        # Note: there are no things where this applies! all experian IDs already have info
         
         # For the ones with corporate portfolio, we also want AT LEAST one of the
         # corporate IDs to have business information
-        temp = self.df_link[["personid","businessType"]][~(self.df_link["corporateid"].isnull())].copy()
+        temp = self.df_link.loc[:,["personid","businessType","corporateid"]]
+        temp = temp[~(temp["corporateid"].isnull())]
         temp["info"] = 1
         temp["info"][(temp["businessType"].isnull())] = 0
-        temp = temp[["personid", "info"]].groupby("personid").max().reset_index(level=0)
+        temp2 = temp[["personid", "info"]].groupby("personid").max().reset_index(level=0)
         
         # If the max is 0, then all of these values are missing, therefore we want to remove
-        missing_info_ids = temp["personid"][temp["info"]==0]
-        valid_ids = valid_ids[~(valid_ids.isin(missing_info_ids))] # remove ids from the set
+        missing_info_ids2 = temp2["personid"][temp2["info"]==0]
+        valid_ids = valid_ids[~(valid_ids.isin(missing_info_ids2))] # remove ids from the set
+        len3= len(valid_ids)
+        print(f"{len2-len3} IDs dropped for not having info on at least 1 of their businesses")
     
         #----------------- ENSURE INFORMATION IN EXPERIAN DATA ---------------
         # we want there to be experian data in every time period for the IDs 
@@ -176,16 +184,16 @@ class dataProcessor:
         maxending = maxending.groupby("personid").max()
         maxending = maxending.rename(columns={"valid_to_dateeow": "valid_to_max",})
         # add to experian data        
-        self.df_experian = self.df_experian.merge(maxending, how="left", left_on=["personid"],
-                               right_on=["personid"])
+        self.df_experian = self.df_experian.merge(maxending, how="left", 
+                                left_on=["personid"], right_on=["personid"])
         
         # Get a variable representing the first date from which an ID is valid
         minstart = self.df_experian[["valid_from_dateeow","personid"]]
         minstart = minstart.groupby("personid").min()
         minstart  = minstart.rename(columns={"valid_from_dateeow": "valid_from_min",})                                 
         # add to experian data
-        self.df_experian = self.df_experian.merge(minstart, how="left", left_on=["personid"],
-                               right_on=["personid"])
+        self.df_experian = self.df_experian.merge(minstart, how="left", 
+                                left_on=["personid"], right_on=["personid"])
 
         #-> The first validfrom date has to be BEFORE a certain starting date
         #-> The last validto date has to be AFTER a certain ending date    
@@ -193,15 +201,21 @@ class dataProcessor:
                                             & (self.df_experian["valid_from_min"]<= self.start_date)]        
         #TODO: zou het kunnen dat IDs in de tussentijd worden uitgeschreven en 
         # weer ingeschreven??
-        
+        valid_ids_experian = valid_ids_experian.reset_index(level=0,drop=True)
+
         # Get the intersection with the previous set
         valid_ids = valid_ids[valid_ids.isin(valid_ids_experian)]
+        len4= len(valid_ids)
+        print(f"{len3-len4} IDs dropped for not being there for the full timeperiod")
   
         # Make sure there are also the household size variables etc. present, 
         # not just finergy
         experian_missing = self.df_experian["personid"][self.df_experian["age_hh"].isnull()]
         # Remove the ids where any of the entries has a null for age_hh
         valid_ids = valid_ids[~(valid_ids.isin(experian_missing))]
+        len5= len(valid_ids)
+        print(f"{len4-len5} IDs dropped for not having full experian info at all moments in time")
+  
                
         #---------------- Take a subsample of the IDs -----------------------
         
