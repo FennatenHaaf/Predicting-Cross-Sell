@@ -175,7 +175,7 @@ def getConvertDict():
         'retail_id_with_corp_and_retail' : 'uint8'
     }
     time_set_new2 = {
-        'new_period': 'datetime64',
+        'converted_period': 'datetime64',
         'indicator_1_inactief': 'uint8',
         'indicator_2_SparenOnlyYN': 'uint8',
         'indicator_3_actief': 'uint8',
@@ -545,7 +545,7 @@ def getPersonAggregateDict():
     }
 
     time_set_new2 = {
-        # 'new_period' : 'max',
+        # 'converted_period' : 'max',
         'indicator_1_inactief' : ['max','sum'],
         'indicator_2_SparenOnlyYN': ['max','sum'],
         'indicator_3_actief': ['max','sum'],
