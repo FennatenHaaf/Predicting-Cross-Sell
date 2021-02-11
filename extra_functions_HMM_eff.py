@@ -4,14 +4,9 @@ Created on Fri Feb  5 14:39:33 2021
 
 @author: Matthijs van Heese
 """
-import extra_functions_HMM as ef
 import numpy as np 
 import math
-import utils
 from tqdm import tqdm
-from scipy.optimize import minimize 
-from pyswarm import pso
-
 
 
 def param_list_to_matrices(self,param,shapes):
@@ -51,7 +46,6 @@ def param_matrices_to_list(self, A = [], pi = [], b = [], gamma_0 = [], gamma_sr
         parameters = np.concatenate((A.flatten(), pi.flatten(), b.flatten()))
     
     return parameters
-
 
 
 
@@ -101,6 +95,7 @@ def prob_P_y_given_s(self, Y, p_js, n_segments):
             P_y_given_s = np.multiply(P_y_given_s, prob_p_c)   
     return P_y_given_s 
     
+
 def prob_P_s_given_Z(self, param, shapes, Z, n_segments):  
     """function to compute P(X_i0 = s| Z_i0) with parameters gamma_0"""
     
@@ -115,7 +110,8 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
         P_s_given_Z = np.transpose(np.divide( P_s_given_Z , np.sum(P_s_given_Z, axis = 0) ))   
     else:
         A, pi, b = param_list_to_matrices(self,param,shapes)
-        P_s_given_Z = pi
+        pi = np.append(pi, np.array([1]))
+        P_s_given_Z = np.exp(pi) / np.sum(np.exp(pi)) 
    
     return P_s_given_Z
         
@@ -144,14 +140,14 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         
     else:  
             A, pi, b = self.param_list_to_matrices(param,shapes)
-            P_s_given_r = A
-        
+            A = np.vstack(A, np.ones((n_segments, 1)))
+            P_s_given_r = np.divide(np.exp(A), np.sum(np.exp(A), axis = 0))
+            
     return P_s_given_r
         
     
 
 #--------------------function for maximisation step---------------------
-
 
 
 def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, r, n_segments):#for all person
@@ -169,6 +165,7 @@ def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, r, n_segments):#fo
     
     return P_sr_given_Y_Z 
 
+
 def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
     """function to compute P(X_it = s|Y_i, Z_i)"""
 
@@ -176,105 +173,3 @@ def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
     P_s_given_Y_Z = P_s_given_Y_Z/np.sum(P_s_given_Y_Z, axis = 0)
     
     return P_s_given_Y_Z
-
-
-
-def forward_backward_procedure(self, param, shapes, n_segments):
-    """function for the expectation step: compute alpha and beta with all parameters"""
-
-    p_js = ef.prob_p_js(self, param, shapes, n_segments)
-        
-    alpha = np.zeros((n_segments, self.n_customers, self.T))
-    beta = np.zeros((n_segments, self.n_customers, self.T))
-    
-    for i in range(0,self.n_customers):
-        for t in range(0,self.T):
-            v = self.T - t - 1
-                
-            Y = np.array([self.list_Y[t][i,:]])
-            if self.covariates == True:
-                Z = np.array([self.list_Z[t][i,:]])
-            else:
-                Z = []
-                
-            P_y_given_s = prob_P_y_given_s(self, Y, p_js, n_segments)
-                
-            if t == 0:
-                P_s_given_Z = prob_P_s_given_Z(self, param, shapes, Z, n_segments)
-                alpha[:,i,t] = np.multiply(P_y_given_s,P_s_given_Z)
-                beta[:,i,v] = np.ones((n_segments))
-            else:
-                P_s_given_r = prob_P_s_given_r(self, param, shapes, Z, n_segments)
-    
-                sum_alpha = np.zeros( (n_segments) )
-                sum_beta = np.zeros( (n_segments) )
-                for r in range(0,n_segments):
-                    sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[:,r]), P_y_given_s)
-                    sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[r,]), P_y_given_s)
-                alpha[:,i,t] = sum_alpha
-                beta[:,i,v]  = sum_beta
-                
-    return alpha, beta
-
-def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method):
-    """function for the maximization step"""
-        
-    x0 = param_in
-        
-    """perform the maximization"""
-    param_out = minimize(optimization_function, x0, args=(self, alpha, beta, param_in, shapes, n_segments), method=max_method)
-           
-    param_out,  = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))  
-
-    return param_out
-    
-
-def optimization_function(x, self, alpha, beta, param_in, shapes, n_segments):
-    """function that has to be minimized"""
-                
-        
-    """compute function"""
-    sum = 0;
-        
-    P_s_given_Y_Z = state_event(self, alpha, beta, n_segments)
-
-    Y = self.list_Y[0]
-    if self.covariates == True:
-        Z = self.list_Z[0]
-    else: 
-        Z = np.array([])
-    
-    P_s_given_Z = prob_P_s_given_Z(self, x, shapes, Z, n_segments)  #i x s
-    P_s_given_Y_Z_0 = np.transpose(P_s_given_Y_Z[:,:,0]) #s x i x t
-    sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z)))
-    
-    P_s_given_r = prob_P_s_given_r(self, x, shapes, Z, n_segments)
-
-    for t in tqdm(range(1,self.T)):
-        Y = self.list_Y[t]
-        if self.covariates == True:
-            Z = self.list_Z[t]   
-        else: 
-            Z = []
-
-        for r in range(0,n_segments):
-            for s in range(0,n_segments):
-                P_sr_given_Y_Z = joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, r, n_segments)
-                
-                sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
-    
-    for t in tqdm(range(0,self.T)):
-        Y = self.list_Y[t]        
-        P_y_given_s = prob_P_y_given_s(self, Y, prob_p_js(self, x, shapes, n_segments), n_segments)
-        P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t])
-        
-        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t[s],np.log(P_y_given_s[s])))
-    
-    return -sum    
-
-   
-
-
-
-
-

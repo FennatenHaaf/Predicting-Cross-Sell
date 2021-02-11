@@ -84,7 +84,7 @@ def prob_p_js(self, param, shapes, n_segments):
         
     
 def prob_P_y_given_s(self, y, p_js, n_segments):
-    """function to compute P(Y_it | X_it = s) with probabilities p"""
+    """function to compute P(Y_it | X_it = s) with probabilities p_js"""
 
     P_y_given_s = np.ones((n_segments))
         
@@ -106,7 +106,8 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
         P_s_given_Z = P_s_given_Z / np.sum(P_s_given_Z)      
     else:
         A, pi, b = param_list_to_matrices(self,param,shapes)
-        P_s_given_Z = pi
+        P_s_given_Z = pi[] / np.sum(pi)
+        
    
     return P_s_given_Z
         
@@ -153,15 +154,6 @@ def state_event(self, alpha, beta, i, t, n_segments):
     P_s_given_Y_Z = P_s_given_Y_Z/np.sum(P_s_given_Y_Z)
     
     return P_s_given_Y_Z
-
-
-
-
-
-
-
-
-
 
 
 
