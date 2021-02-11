@@ -15,6 +15,7 @@ import gc
 from tqdm import tqdm
 import os.path
 from os import path
+import re
 
 
 class dataProcessor:
@@ -1169,7 +1170,7 @@ class dataProcessor:
         '''
         pat_unique = self.df_pat['portfolioid'].unique()
         self.df_pat = utils.doConvertFromDict(self.df_pat)
-        self.df_pat = utils.select_time_in_data(self.df_pat, 'dateeow',period_to_use= 'Q', start = '2018Q1')
+        # self.df_pat = utils.select_time_in_data(self.df_pat, 'dateeow',period_to_use= 'Q', start = '2018Q1')
 
         self.df_pat.loc[self.df_pat["dateeow"] == "2021-01-03 00:00:00", "dateeow"] = self.endDate
 
@@ -1363,6 +1364,7 @@ class dataProcessor:
               f"corporate or accountoverlay data is {no_extra_information_index.shape} ")
         print(f"****Finished linking timeseries sets at {utils.get_time()}****")
 
+    ###################----------------------------------------------------------------------------
 
     def aggregate_data_linked_time_series(self, period_to_convert_to = "Q", period_to_use = "All", use_sample = False, select_col = True):
         ''''
@@ -1377,24 +1379,91 @@ class dataProcessor:
                     self.linked_ts_unconverted_sampler()
             else:
                 try:
-                    self.importSets('ltsunc', select_col= True)
+                    self.importSets('ltsunc', select_col= select_col)
                 except:
                     self.linkTimeSets()
 
-        sample_columns = ['dateeow', 'portfolioid', 'personid', 'businessid', 'pakketcategorie', 'aantalloginsapp', 'roodstandyn',
-                          'finergy_tp', 'age_hh',
-                          'SBIsectorName', 'indicator_corp_and_retail_business', 'indicator_corp_and_retail',
-                          'iscorporatepersonyn_business',
-                          'business_id_with_corp_and_retail', 'boekhoudkoppeling', 'has_account_overlay', 'has_business_id',
-                          'has_experian_data']
 
-        df_linked_time = self.df_linked_ts_unc[sample_columns].copy()
-        df_linked_time = utils.doConvertFromDict(df_linked_time, ignore_errors=True)
+        self.df_linked_ts = self.df_linked_ts_unc.copy()
+        self.df_linked_ts = pd.get_dummies(self.df_linked_ts, columns=['activitystatus'], prefix="indicator")
+        time_convert_dict = utils.doDictIntersect(self.df_linked_ts.columns, declarationsFile.getTimeConvertDict())
+        id_aggregate_dict = utils.doDictIntersect(self.df_linked_ts.columns, declarationsFile.getPersonAggregateDict())
+        self.df_linked_ts = utils.doConvertFromDict(self.df_linked_ts, ignore_errors=True)
+        self.df_linked_ts['new_period'] = self.df_linked_ts['dateeow'].dt.to_period(period_to_convert_to)
 
-        time_convert_dict = utils.doDictIntersect(df_linked_time.columns, declarationsFile.getTimeConvertDict())
-        df_linked_time
+        #Create dummies for activitystatus.
 
-        ztesta11 = "lts_quick_description = df_linked_time.groupby('personid').aggregate({'portfolioid': (lambda x: list(x.unique()))," \
+        df_linked_after_time_convert = self.df_linked_ts. \
+            groupby(['personid', 'portfolioid', 'new_period'], observed=True, as_index = False).aggregate(time_convert_dict)
+
+        df_linked_after_id_aggregation = df_linked_after_time_convert.groupby(['personid', 'new_period'], observed=True,as_index = False).aggregate(
+            id_aggregate_dict)
+
+        new_name_list = []
+        for value in df_linked_after_id_aggregation.columns:
+            new_name = ""
+            for i in value:
+                new_name += i + "_"
+
+            new_name = new_name.replace('<lambda_0>', 'mode')
+            new_name = new_name.rstrip('_')
+            new_name_list.append(new_name)
+        print(len(new_name_list))
+        df_linked_after_id_aggregation.columns = new_name_list
+
+        pass
+
+
+
+
+        # [x.replace('<df_e>', '_mode') for x in ('sdfd', 'sdfsdfa', '<df_e>')]
+        # df_linked_after_time_convert.columns = [value[0] + value[1] for value in df_linked_after_time_convert.columns if len(value) > 1]
+        # df_linked_after_time_convert.columns = [value[0] + value[1] for value in df_linked_after_time_convert.columns]
+        # df_linked_after_time_convert.columns = df_linked_after_time_convert.columns.to_flat_index()
+        # primary_set = ['personid','portfolioid','new_period']
+        # number_of_var_chunks = 3
+        # set_to_chunk = list(set(self.df_linked_ts.columns) - set(primary_set))
+        # set_to_chunk_len = len(set_to_chunk)
+        # itersize = set_to_chunk_len// number_of_var_chunks + 1
+        # low_index, high_index = 0, itersize
+        # final_concat_list = []
+        #
+        # while low_index < set_to_chunk_len:
+        #     print(set_to_chunk[low_index:high_index])
+        #     column_selection = primary_set + set_to_chunk[low_index:high_index]
+        #     time_convert_dict = utils.doDictIntersect(column_selection, declarationsFile.getTimeConvertDict())
+        #     id_aggregate_dict = utils.doDictIntersect(column_selection, declarationsFile.getPersonAggregateDict())
+        #     df_linked_after_time_convert = self.df_linked_ts.loc[:,column_selection].\
+        #         groupby(['personid', 'portfolioid', 'new_period'], observed = True).aggregate(time_convert_dict)
+        #     # self.df_linked_ts.loc[:,column_selection].groupby('personid')['portfolioid'].nunique()
+        #
+        #     df_linked_after_id_aggregation = df_linked_after_time_convert.groupby(['personid', 'new_period'], observed = True).aggregate(id_aggregate_dict)
+        #     final_concat_list.append(df_linked_after_id_aggregation)
+        #
+        #     low_index += high_index
+        #     high_index += itersize
+        #     high_index = min(high_index,set_to_chunk_len)
+
+
+
+        # personid_list = self.df_linked_ts['personid'].unique()
+        # number_of_loops = 20
+        # number_of_ids = personid_list.shape[0]
+        # itersize = number_of_ids//number_of_loops + 1
+        # low_index ,high_index = 0, itersize
+        # final_concat_list = []
+        # while high_index < number_of_ids:
+        #     person_slice = personid_list[low_index:high_index]
+        #     df_linked_after_time_convert = self.df_linked_ts.query("personid.isin(@person_slice)").groupby(
+        #         ['personid', 'portfolioid', 'new_period']).aggregate(time_convert_dict)
+        #
+        #     df_linked_after_id_aggregation = df_linked_after_time_convert.groupby(['personid', 'new_period']).aggregate(id_aggregate_dict)
+        #     final_concat_list.append(df_linked_after_id_aggregation)
+        #     low_index = high_index
+        #     high_index += itersize
+
+
+        ztesta11 = "lts_quick_description = self.df_linked_ts.groupby('personid').aggregate({'portfolioid': (lambda x: list(x.unique()))," \
                    "'has_business_id': 'mean','has_experian_data': ('mean', (lambda x: list(x.unique()))),'has_account_overlay': 'mean'," \
                    "'pakketcategorie': (lambda x: list(x.unique())),'dateeow': 'first'})"
 
@@ -1503,6 +1572,18 @@ class dataProcessor:
         ##IMPORT AND CONVERT METHODS--------------------------------------------------------##
 
     def importSets(self, fileID, select_col = False, addition_to_name = "", **readArgs):
+        def remove_datetime_from_dict(a_dict):
+            return_dict = {}
+            for value in a_dict:
+                if not re.match(r"datetime.", a_dict[value]):
+                    if re.match(r'.?int[8,16,32]', a_dict[value]):
+                        return_dict[value] = 'float16'
+                    else:
+                        return_dict[value] = a_dict[value]
+
+            return return_dict
+
+
         if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
             return pd.read_csv(f"{self.indir}/linkpersonportfolio.csv", **readArgs)
 
@@ -1523,10 +1604,19 @@ class dataProcessor:
 
         ##Import Intermediate Files
         elif fileID == "ltsunc" or fileID == "linked_ts_unconverted.csv":
+
+            # readArgs = {**readArgs, 'low_memory': False}
+            self.df_linked_ts_unc = pd.read_csv(f"{self.interdir}/linked_ts_unconverted_sample{addition_to_name}.csv", nrows=0, **readArgs)
+            convert_at_import_dict = utils.doDictIntersect(self.df_linked_ts_unc.columns, declarationsFile.getConvertDict())
+            convert_at_import_dict = remove_datetime_from_dict(convert_at_import_dict)
             if select_col:
                 readArgs = {**readArgs, 'usecols' : declarationsFile.getColToParseLTSunc()}
-            readArgs = {**readArgs, 'low_memory': False}
-            self.df_linked_ts_unc = utils.importChunk(f"{self.interdir}/linked_ts_unconverted{addition_to_name}.csv", 250000, **readArgs)
+                convert_at_import_dict = utils.doDictIntersect(declarationsFile.getPatColToParseTS(),convert_at_import_dict)
+            readArgs = {**readArgs, 'dtype': convert_at_import_dict}
+            try:
+                self.df_linked_ts_unc = utils.importChunk(f"{self.interdir}/linked_ts_unconverted{addition_to_name}.csv", 250000, **readArgs)
+            except:
+                pass
 
         elif fileID == "ltsuncsmp" or fileID == "linked_ts_unconverted_sample.csv":
             if select_col:
@@ -1600,7 +1690,7 @@ class dataProcessor:
 
     def linked_ts_unconverted_sampler(self, n = 5000, replaceGlobal = False, addition_to_file_name = ""):
         ''''
-        Samples observations from df_linked_time. First make sure to import df_linked_time or
+        Samples observations from self.df_linked_ts. First make sure to import self.df_linked_ts or
         create it with the linkTimeSets functions.
         '''
         randomizer = np.random.RandomState(self.seed)

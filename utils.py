@@ -109,21 +109,16 @@ def exportChunk(data, chunkSize, exportString, **writeArgs):
         print("File already exists")
         return
     nRows = data.shape[0]
-    if chunkSize > nRows:
-        chunkSize = nRows
-    data.iloc[:chunkSize, :].to_csv(path_or_buf=exportString, mode="a",**writeArgs)
+    startIndex = 0
+    endIndex = min(startIndex + chunkSize,nRows)
 
-    startIndex = chunkSize
-    endIndex = startIndex + chunkSize
-    while endIndex <= nRows:
+    while startIndex < nRows:
         data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a",header=False,
                                                  **writeArgs)
-        startIndex += chunkSize
+        startIndex = endIndex
         endIndex += chunkSize
+        endIndex = min(endIndex, nRows)
 
-    restChunk = nRows - startIndex
-    if restChunk > 0:
-        data.iloc[startIndex:nRows, :].to_csv(path_or_buf=exportString, mode="a", header=False, **writeArgs)
     print("Export of {} completed".format(exportString))
 
 def importAndConcat(listOfDataLocations, chunkSize=0, **readArgs):
