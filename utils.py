@@ -104,8 +104,8 @@ def importChunk(importString, chunksize=500000, **readerArg):
         dfList.append(chunk)
     return pd.concat(dfList, ignore_index=True)
 
-def exportChunk(data, chunkSize, exportString, **writeArgs):
-    if os.path.isfile(exportString):
+def exportChunk(data, chunkSize, exportString, check_if_exists = True ,**writeArgs):
+    if os.path.isfile(exportString) and check_if_exists:
         print("File already exists")
         return
     nRows = data.shape[0]
