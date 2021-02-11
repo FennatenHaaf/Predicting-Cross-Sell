@@ -251,6 +251,9 @@ class dataProcessor:
         #---------------- Take a subsample of the IDs -----------------------
         
         if subsample:
+            
+        # TODO add to if statement that len needs to be larger than sample
+        # size, else print a message? maybe do assert?
             print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
             valid_ids = valid_ids.sample(n = sample_size, 
                                          random_state = self.seed).reset_index(drop=True)
@@ -515,7 +518,7 @@ class dataProcessor:
             indicator[f"betalenyn_{name}"] = df.loc[:,"betalenyn"]
             indicator[f"depositoyn_{name}"] = df.loc[:,"depositoyn"]
             indicator[f"flexibelsparenyn_{name}"] = df.loc[:,"flexibelsparenyn"]
-            indicator[f"kwartaalsparenyn_{name}"] = df.loc[:,"saldokwartaalsparen"]
+            indicator[f"kwartaalsparenyn_{name}"] = df.loc[:,"kwartaalsparenyn"]
             indicator[f"aantalfueltransacties_{name}"] = df.loc[:,"aantalfueltransacties"]
             
             # We pakken het MAXIMUM om de meest actieve rekening weer te geven
