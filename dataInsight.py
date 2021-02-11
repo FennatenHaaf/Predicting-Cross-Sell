@@ -9,7 +9,8 @@ Erasmus School of Economics
 
 import pandas as pd
 import utils
-
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 """
 Printing Intermediate Results
@@ -71,6 +72,14 @@ def mostCommon(data, columnName, numberOfValues=1, returnFormat=False, returnVal
         print("\n")
     if returnFormat or returnVals:
         return table
+    
+def plotFinergyCounts(df_experian, ids):
+    sns.set(rc={'figure.figsize':(15,10)})
+    df_experian = df_experian[df_experian["personid"].isin(ids)] 
+    print("plotting finergy counts")
+    graph =sns.countplot(x="finergy_tp", data = df_experian)
+    plt.show()
+    
 
 def mostCommonDict(data, nameList, numberOfValues=1):
     dictOfTables = {}
