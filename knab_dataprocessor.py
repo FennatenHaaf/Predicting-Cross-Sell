@@ -105,7 +105,7 @@ class dataProcessor:
         
     def select_ids(self, subsample = True, sample_size = 500, 
                    outname = "base_experian",
-                   filename = "valid_ids.csv",
+                   filename = "valid_ids",
                    use_file = True):
         """Selects a certain set of person IDs from the linking dataset, where:
             - information for ALL portfolios is present in the linking data
@@ -153,9 +153,9 @@ class dataProcessor:
 
         #-------------------------- GET VALID IDS ---------------------------
        
-        if (path.exists(f"{self.interdir}/{filename}") & (use_file)):
+        if (path.exists(f"{self.interdir}/{filename}.csv") & (use_file)):
             print("Reading from existing file of valid IDs")
-            valid_ids = pd.read_csv(f"{self.interdir}/{filename}").squeeze()
+            valid_ids = pd.read_csv(f"{self.interdir}/{filename}.csv").squeeze()
         else:
             print("creating new file of valid IDs:")
             all_ids = pd.Series(self.df_experian["personid"].unique())
@@ -172,14 +172,14 @@ class dataProcessor:
 
             # For the ones with corporate portfolio, we also want AT LEAST one of the
             # corporate IDs to have business information
-            temp = self.df_link.loc[:,["personid","businessType","corporateid"]].copy()
+            temp = self.df_link[["personid","businessType","corporateid"]].copy()
             temp = temp[~(temp["corporateid"].isnull())].copy()
-            temp["info"] = 1
-            temp["info"][(temp["businessType"].isnull())] = 0
-            temp2 = temp[["personid", "info"]].groupby("personid").max().reset_index(level=0)
+            temp["info"] = [0 if pd.isnull(val) else 1 for val in temp["businessType"]]
+            
+            temp = temp[["personid", "info"]].groupby("personid").max().reset_index(level=0)
             
             # If the max is 0, then all of these values are missing, therefore we want to remove
-            missing_info_ids2 = temp2["personid"][temp2["info"]==0]
+            missing_info_ids2 = temp["personid"][temp["info"]==0]
             valid_ids = valid_ids[~(valid_ids.isin(missing_info_ids2))] # remove ids from the set
             len3= len(valid_ids)
             print(f"{len2-len3} IDs dropped for not having info on at least 1 of their businesses")
@@ -226,19 +226,26 @@ class dataProcessor:
             print(f"{len4-len5} IDs dropped for not having full experian info at all moments in time")
      
             #-------------- ENSURE INFORMATION IN TRANSACTION DATA -------------
-            active_ids = self.get_active_portfolios2()
-            valid_ids = valid_ids[valid_ids.isin(active_ids)]
-            len6= len(valid_ids)
-            print(f"{len5-len6} IDs dropped for not being in transaction info at least once")
-            # TODO should specify the time period as well? so get all the active
-            # ids within a specific time period
             
+            # haal de active portfolio IDs op voor een specifieke periode
+            active_portfolios = self.get_active_portfolios2() 
+            
+            # We willen de person IDs waarvoor TEN MINSTE 1 portfolio ten minste
+            # 1 activiteits entry heeft in de periode 2018-2020
+            active_person_ids = \
+            self.df_link["personid"][(self.df_link["portfolioid"].isin(active_portfolios))]  
+            valid_ids = valid_ids[(valid_ids.isin(active_person_ids))]
+            len6= len(valid_ids)
+            print(f"{len5-len6} IDs dropped for not having at least one portfolio " \
+                  "in the transaction info in given time period")
+                
             #--------------------- SAVE THE VALID IDS --------------------------
-            utils.save_df_to_csv(self.df_link, self.interdir, 
-                                  f"{self.interdir}/{filename}", add_time = False )      
+            utils.save_df_to_csv(valid_ids, self.interdir, 
+                                  f"{filename}", add_time = False )      
             print(f"Finished and output saved, at {utils.get_time()}")
             
         print(f"got {len(valid_ids)} useable IDs from the Experian data")
+        dataInsight.plotFinergyCounts(self.df_experian,valid_ids)
         
         #---------------- Take a subsample of the IDs -----------------------
         
@@ -260,6 +267,7 @@ class dataProcessor:
             print(f"Finished and output saved, at {utils.get_time()}")        
         
         print("-------------------------------------")
+        
         
         
 
@@ -961,7 +969,6 @@ class dataProcessor:
                     f"{self.indir}/portfolio_activity_retail_2019.csv",
                     f"{self.indir}/portfolio_activity_business_2020.csv",
                     f"{self.indir}/portfolio_activity_retail_2020.csv"]
-        
         ids = pd.Series()
         for path in tqdm(readlist):
            add_ids = pd.read_csv(path, **readArgs)
@@ -969,6 +976,7 @@ class dataProcessor:
            ids = ids.drop_duplicates()
            
         return ids
+    
     
     def get_active_portfolios2(self):
         readArgs = {"usecols": ["portfolioid","dateeow"]}
@@ -985,33 +993,41 @@ class dataProcessor:
         ids = pd.DataFrame()
         for path in tqdm(readlist):
            add_ids = pd.read_csv(path, **readArgs)
-           ids = pd.concatenate(ids,add_ids)
-           ids = ids.drop_duplicates()
+           ids = pd.concat([ids,add_ids])  
+        ids = ids.drop_duplicates()
         
         print("Getting min and max dates for each ID")
         # Get variables representing the first and last date the ID is in the
         # transaction data
         ids["dateeow"] = ids["dateeow"].astype('datetime64[ns]')
-        maxdate = ids.groupby("personid").max()
+        maxdate = ids.groupby("portfolioid").max()
         maxdate = maxdate.rename(columns={"dateeow": "last_transac",})
-        mindate = ids.groupby("personid").min()
+        mindate = ids.groupby("portfolioid").min()
         mindate= mindate.rename(columns={"dateeow": "first_transac",})
         
         # add to IDs data
-        ids = ids["personid"].drop_duplicates().copy() 
-        ids = ids.merge(maxdate, how="left", left_on=["personid"], 
-                        right_on=["personid"])    
-        ids = ids.merge(maxdate, how="left", left_on=["personid"], 
-                        right_on=["personid"])
+        idsunique = ids["portfolioid"].drop_duplicates().reset_index(level=0).copy() 
+        idsunique = idsunique.merge(maxdate, how="left", left_on=["portfolioid"], 
+                        right_on=["portfolioid"])    
+        idsunique = idsunique.merge(mindate, how="left", left_on=["portfolioid"], 
+                        right_on=["portfolioid"])
         
         #-> The first date has to be BEFORE a certain starting date
         #-> The last date has to be AFTER a certain ending date    
-        valid_ids = ids["personid"][(ids["last_transac"]>= self.end_date) \
-                                    & (ids["first_transac"]<= self.start_date)]        
+        # valid_ids_transac = idsunique["portfolioid"][\
+        #     (idsunique["last_transac"]>= self.end_date) \
+        #     & (idsunique["first_transac"]<= self.start_date)]        
         #TODO: Het kan nu nog dat mensen niet ELKE periode transactions hebben?
         
-        valid_ids = valid_ids.reset_index(level=0,drop=True)
-        return valid_ids
+        # The portfolio 
+        valid_ids_transac = idsunique["portfolioid"][\
+            (idsunique["first_transac"]<= self.end_date) \
+            & (idsunique["last_transac"]>= self.start_date)]   
+        
+        
+        
+        valid_ids_transac = valid_ids_transac.reset_index(level=0,drop=True)
+        return valid_ids_transac
         
         
         
