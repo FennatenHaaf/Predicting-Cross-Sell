@@ -5,6 +5,8 @@ analysis in importing, exporting or Analysis.
 Written for the Quantitative Marketing & Business Analytics seminar
 Erasmus School of Economics
 """
+import numpy as np
+
 
 def getPatColToParseCross(subset="total"):
     """ Method to select which specific columns are imported from the Knab
@@ -137,7 +139,7 @@ def getConvertDict():
          'personid':"category",
         'businessid': 'category',
          'businessType': "category",
-          'foundingDate':'datetime64',
+          'foundingDate':'uint16',
          'businessAgeInDays':'uint16',
         'businessAgeInMonths': 'uint16',
         'businessAgeInYears': 'float16',
@@ -172,9 +174,16 @@ def getConvertDict():
         'business_id_with_corp_and_retail': 'uint8',
         'retail_id_with_corp_and_retail' : 'uint8'
     }
+    time_set_new2 = {
+        'new_period': 'datetime64',
+        'indicator_1_inactief': 'uint8',
+        'indicator_2_SparenOnlyYN': 'uint8',
+        'indicator_3_actief': 'uint8',
+        'indicator_4_primaire bank' : 'uint8'
+    }
 
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, 
-            **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **time_sets_new}
+            **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **time_sets_new, **time_set_new2}
 
 
 
@@ -236,197 +245,312 @@ def getPatColToParseTS(subset="total"):
     else:
         print("error getting list")
 
-def getPivotColumns():
-    columnsPivot = [
-        # "dateeow",
-        # "yearweek",
-        # "portfolioid",
-        # "pakketcategorie",
-        # 'overstapserviceyn',
-        # 'betaalalertsyn',
-        # 'aantalbetaalalertsubscr',
-        # 'aantalbetaalalertsontv',
-        'roodstandyn',
-        'saldoregulatieyn',
-        'appyn',
-        'aantalloginsapp',
-        'aantalloginsweb',
-        'activitystatus',
-        'betalenyn',
-        'saldobetalen',
-        'aantalbetaaltransacties',
-        'aantalatmtransacties',
-        'aantalpostransacties',
-        'aantalfueltransacties',
-        'depositoyn',
-        'saldodeposito',
-        'flexibelsparenyn',
-        'saldoflexibelsparen',
-        'kwartaalsparenyn',
-        'saldokwartaalsparen',
-        'gemaksbeleggenyn',
-        'saldogemaksbeleggen',
-        'participatieyn',
-        'saldoparticipatie',
-        'vermogensbeheeryn',
-        'saldovermogensbeheer',
-        'saldototaal',
-        'saldolangetermijnsparen',
-        'aantaltegenrekeningenlaatsteq'
-    ]
-    return columnsPivot
-
-def getAggFdduncDict():
-    aggFuncDictP1 = {
-    'dateeow': min}
-
-    aggFuncDictP2 = {
-        **aggFuncDictP1,
-        'overstapserviceyn': "mean",
-        # 'betaalalertsyn': "mean",
-        # 'aantalbetaalalertsubscr': "uint16",
-        # 'aantalbetaalalertsontv': "uint16",
-        'roodstandyn': "mean",
-        'saldoregulatieyn': "mean",
-        'appyn': "mean",
-        'aantalloginsapp': sum,
-        'aantalloginsweb': sum
-        # 'activitystatus': "category",
-        }
-
-    aggFuncDictP3 = {
-        **aggFuncDictP1,
-        'betalenyn': "uint8",
-        'saldobetalen': "int32",
-        'aantalbetaaltransacties': "uint16",
-        'aantalatmtransacties': "uint16",
-        'aantalpostransacties': "uint16",
-        'aantalfueltransacties': "uint16",
-        'depositoyn': "uint8",
-        'saldodeposito': "uint32",
-        'flexibelsparenyn': "uint8",
-        'saldoflexibelsparen': "uint32",
-        'kwartaalsparenyn': "uint8",
-        'saldokwartaalsparen': "uint32",
-        'gemaksbeleggenyn': "uint8",
-        'saldogemaksbeleggen': "uint32",
-        'participatieyn': "uint8",
-        'saldoparticipatie': "uint32",
-        'vermogensbeheeryn': "uint8",
-        'saldovermogensbeheer': "uint32",
-        'saldototaal': "int32",
-        'saldolangetermijnsparen': "uint32",
-        'aantaltegenrekeningenlaatsteq': "uint16"}
-
-    aggfuncDict = {**aggFuncDictP2, **aggFuncDictP3}
-    return aggfuncDict
-
-
-def getAggFuncDict():
+def getTimeConvertDict():
     """ Define datatypes to import variables as, in order to make it more
     memory efficient"""
 
     datatypeGeneralActivity = {
-        'dateeow': 'last',
-        'yearweek': "max",
-        'portfolioid': "nunique",
-        'pakketcategorie': "first"}
+        'dateeow': 'count',
+        # 'yearweek': "last",
+        # 'portfolioid': "nunique",
+        'pakketcategorie': "last"}
 
     datatypeActivity = {
-        'overstapserviceyn': "first",
-        'betaalalertsyn': "first",
-        'aantalbetaalalertsubscr': "max",
-        'aantalbetaalalertsontv': "mean",
-        'roodstandyn': "last",
-        'saldoregulatieyn': "last",
-        'appyn': "last",
-        'aantalloginsapp': "mean",
-        'aantalloginsweb': "mean",
-        'activitystatus': (lambda x: x.mode())}
+        'overstapserviceyn': "median",
+        'betaalalertsyn': "median",
+        'aantalbetaalalertsubscr': "sum",
+        'aantalbetaalalertsontv': "sum",
+        'roodstandyn': "median",
+        'saldoregulatieyn': "median",
+        'appyn': "median",
+        'aantalloginsapp': "sum",
+        'aantalloginsweb': "sum",
+        'activitystatus': (lambda x: x.mode()[0]  )}
 
     datatypeTrans = {
-        'betalenyn': "uint8",
-        'saldobetalen': "int32",
-        'aantalbetaaltransacties': "uint16",
-        'aantalatmtransacties': "uint16",
-        'aantalpostransacties': "uint16",
-        'aantalfueltransacties': "uint16",
-        'depositoyn': "uint8",
-        'saldodeposito': "uint32",
-        'flexibelsparenyn': "uint8",
-        'saldoflexibelsparen': "uint32",
-        'kwartaalsparenyn': "uint8",
-        'saldokwartaalsparen': "uint32",
-        'gemaksbeleggenyn': "uint8",
-        'saldogemaksbeleggen': "uint32",
-        'participatieyn': "uint8",
-        'saldoparticipatie': "uint32",
-        'vermogensbeheeryn': "uint8",
-        'saldovermogensbeheer': "uint32",
-        'saldototaal': "int32",
-        'saldolangetermijnsparen': "uint32",
-        'aantaltegenrekeningenlaatsteq': "uint16"}
+        'betalenyn': "median",
+        'saldobetalen': "mean",
+        'aantalbetaaltransacties': "sum",
+        'aantalatmtransacties': "sum",
+        'aantalpostransacties': "sum",
+        'aantalfueltransacties': "sum",
+        'depositoyn': "median",
+        'saldodeposito': "mean",
+        'flexibelsparenyn': "last",
+        'saldoflexibelsparen': "mean",
+        'kwartaalsparenyn': "median",
+        'saldokwartaalsparen': "mean",
+        'gemaksbeleggenyn': "median",
+        'saldogemaksbeleggen': "mean",
+        'participatieyn': "median",
+        'saldoparticipatie': "mean",
+        'vermogensbeheeryn': "median",
+        'saldovermogensbeheer': "mean",
+        'saldototaal': "mean",
+        'saldolangetermijnsparen': "mean",
+        'aantaltegenrekeningenlaatsteq': "sum"}
 
     df_lpp_dict = {
-        "validfromdate": "datetime64",
-        "validfromyearweek": "int32",
-        "personid": "category",
-        "iscorporatepersonyn": "uint8",
-        'validfromdate_lpp': "datetime64"
+        "validfromdate": "first",
+        "validfromyearweek": "last",
+        # "personid": "category",
+        "iscorporatepersonyn": "median",
+        'validfromdate_lpp': "first"
     }
 
     df_exp_dict = {
-        'valid_from_dateeow': "datetime64",
-        'valid_to_dateeow': "datetime64",
-        'age_hh': "uint8",
-        'hh_child': "uint8",
-        'hh_size': "uint8",
-        'income': "uint8",
-        'educat4': "uint8",
-        'housetype': "uint8",
-        'finergy_tp': "category",
-        'lfase': "uint8",
-        'business': "uint8",
-        'huidigewaarde_klasse': "uint8"}
+        'valid_from_dateeow': "first",
+        'valid_to_dateeow': "last",
+        'age_hh': "median",
+        'hh_child': "median",
+        'hh_size': "median",
+        'income': "median",
+        'educat4': "median",
+        'housetype': "median",
+        'finergy_tp': ( lambda x: x.mode()[0] ),
+        'lfase': "median",
+        'business': "median",
+        'huidigewaarde_klasse': "median"}
 
     df_cor_dict = {
-        'businessid': 'category',
-        'businessType': "category",
-        'foundingDate': 'datetime64',
-        'businessAgeInDays': 'uint16',
-        'businessAgeInMonths': 'uint16',
-        'businessAgeInYears': 'float16',
-        'foundingYear': 'uint16',
-        'SBIcode': 'category',
-        'SBIname': 'category',
-        'SBIsector': 'category',
-        'SBIsectorName': 'category'
+        'businessid': 'last',
+        'businessType': "last",
+        'foundingDate': 'last',
+        'businessAgeInDays': 'last',
+        'businessAgeInMonths': 'last',
+        'businessAgeInYears': 'last',
+        'foundingYear': 'last',
+        'SBIcode': 'last',
+        'SBIname': 'last',
+        'SBIsector': 'last',
+        'SBIsectorName': 'last'
     }
 
     df_pin_dict = {
-        'dateinstroomweek': 'datetime64[ns]',
-        'instroomjaarweek': 'datetime64[ns]',
-        'instroompakket': 'category',
-        'birthyear': 'uint16',
-        'geslacht': 'category',
-        'type': 'category',
-        'enofyn': 'uint8'
+        'dateinstroomweek': 'last',
+        'instroomjaarweek': 'last',
+        'instroompakket': 'last',
+        'birthyear': 'last',
+        'geslacht': 'last',
+        'type': 'last',
+        'enofyn': 'last'
     }
 
     df_bhk_dict = {
-        'boekhoudkoppeling' : 'category'
+        'boekhoudkoppeling' : ( lambda x: x.mode()[0] if x.any() else np.nan )
     }
 
     time_sets_new = {
-        'has_experian_data': 'uint8',
-        'has_business_id': 'uint8',
-        'has_account_overlay': 'uint8',
-        'indicator_corp_and_retail': 'uint8',
-        'indicator_corp_and_retail_business': 'uint8',
-        'iscorporatepersonyn_business': 'uint8',
-        'business_id_with_corp_and_retail': 'uint8',
-        'retail_id_with_corp_and_retail': 'uint8'
+        'has_experian_data': 'last',
+        'has_business_id': 'last',
+        'has_account_overlay': 'last',
+        'indicator_corp_and_retail': 'last',
+        'indicator_corp_and_retail_business': 'last',
+        'iscorporatepersonyn_business': 'last',
+        'business_id_with_corp_and_retail': 'last',
+        'retail_id_with_corp_and_retail': 'last'
+    }
+
+    time_set_new2 = {
+        'new_period' : 'median',
+        'indicator_1_inactief' : 'median',
+        'indicator_2_SparenOnlyYN': 'median',
+        'indicator_3_actief': 'median',
+        'indicator_4_primaire bank' : 'median'
     }
 
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans,
             **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **df_bhk_dict, **time_sets_new}
+
+def getColToParseLTSunc():
+    ts_list = [
+        'dateeow',
+     # 'yearweek',
+     'portfolioid',
+     'pakketcategorie',
+     'overstapserviceyn',
+     # 'betaalalertsyn',
+     # 'aantalbetaalalertsubscr',
+     # 'aantalbetaalalertsontv',
+     'roodstandyn',
+     'saldoregulatieyn',
+     'appyn',
+     'aantalloginsapp',
+     'aantalloginsweb',
+     'activitystatus',
+     'betalenyn',
+     'saldobetalen',
+     'aantalbetaaltransacties',
+     'aantalatmtransacties',
+     'aantalpostransacties',
+     'aantalfueltransacties',
+     'depositoyn',
+     'saldodeposito',
+     'flexibelsparenyn',
+     'saldoflexibelsparen',
+     'kwartaalsparenyn',
+     'saldokwartaalsparen',
+     'gemaksbeleggenyn',
+     'saldogemaksbeleggen',
+     'participatieyn',
+     'saldoparticipatie',
+     'vermogensbeheeryn',
+     'saldovermogensbeheer',
+     'saldototaal',
+     'saldolangetermijnsparen',
+     'aantaltegenrekeningenlaatsteq',
+     # 'valid_from_dateeow',
+     # 'valid_to_dateeow',
+     'personid',
+     'age_hh',
+     'hh_child',
+     'hh_size',
+     'income',
+     'educat4',
+     'housetype',
+     'finergy_tp',
+     'lfase',
+     'business',
+     'huidigewaarde_klasse',
+     # 'retail_id_with_corp_and_retail',
+     'iscorporatepersonyn',
+     'validfromdate_lpp',
+     # 'indicator_corp_and_retail',
+     'businessid',
+     'businessType',
+     'businessAgeInDays',
+     'foundingYear',
+     'SBIcode',
+     'SBIname',
+     'SBIsector',
+     'SBIsectorName',
+     # 'indicator_corp_and_retail_business',
+     # 'iscorporatepersonyn_business',
+     # 'business_id_with_corp_and_retail',
+     'boekhoudkoppeling',
+     'has_account_overlay',
+     'has_business_id',
+     'has_experian_data'
+    ]
+    return ts_list
+
+def getPersonAggregateDict():
+    """ Define datatypes to import variables as, in order to make it more
+    memory efficient"""
+
+    datatypeGeneralActivity = {
+        # 'dateeow': 'last',
+        # 'yearweek': "last",
+        'portfolioid': "nunique",
+        'pakketcategorie': (lambda x: x.mode()[0], 'nunique') }
+
+    datatypeActivity = {
+        'overstapserviceyn': "median",
+        'betaalalertsyn': "median",
+        'aantalbetaalalertsubscr': "sum",
+        'aantalbetaalalertsontv': "sum",
+        'roodstandyn': "median",
+        'saldoregulatieyn': "median",
+        'appyn': "median",
+        'aantalloginsapp': "sum",
+        'aantalloginsweb': "sum",
+        'activitystatus': (lambda x: x.mode()[0] , 'nunique')}
+
+    datatypeTrans = {
+        'betalenyn': "median",
+        'saldobetalen': "max",
+        'aantalbetaaltransacties': "max",
+        'aantalatmtransacties': "max",
+        'aantalpostransacties': "max",
+        'aantalfueltransacties': "max",
+        'depositoyn': "max",
+        'saldodeposito': "max",
+        'flexibelsparenyn': "max",
+        'saldoflexibelsparen': "max",
+        'kwartaalsparenyn': "max",
+        'saldokwartaalsparen': "max",
+        'gemaksbeleggenyn': "max",
+        'saldogemaksbeleggen': "max",
+        'participatieyn': "max",
+        'saldoparticipatie': "max",
+        'vermogensbeheeryn': "max",
+        'saldovermogensbeheer': "max",
+        'saldototaal': ("max","mean"),
+        'saldolangetermijnsparen': "mean",
+        'aantaltegenrekeningenlaatsteq': "sum"}
+
+    df_lpp_dict = {
+        "validfromdate": "first",
+        "validfromyearweek": "last",
+        # "personid": "category",
+        "iscorporatepersonyn": "median",
+        'validfromdate_lpp': "first"
+    }
+
+    df_exp_dict = {
+        'valid_from_dateeow': "first",
+        'valid_to_dateeow': "last",
+        'age_hh': "median",
+        'hh_child': "median",
+        'hh_size': "median",
+        'income': "median",
+        'educat4': "median",
+        'housetype': "median",
+        'finergy_tp': ( lambda x: x.mode()[0] ),
+        'lfase': "median",
+        'business': "median",
+        'huidigewaarde_klasse': "median"}
+
+    df_cor_dict = {
+        'businessid': 'last',
+        'businessType': "last",
+        'foundingDate': 'last',
+        'businessAgeInDays': 'last',
+        'businessAgeInMonths': 'last',
+        'businessAgeInYears': 'last',
+        'foundingYear': 'last',
+        'SBIcode': 'last',
+        'SBIname': 'last',
+        'SBIsector': 'last',
+        'SBIsectorName': 'last'
+    }
+
+    df_pin_dict = {
+        'dateinstroomweek': 'min',
+        'instroomjaarweek': 'last',
+        'instroompakket': 'last',
+        'birthyear': 'last',
+        'geslacht': 'last',
+        'type': 'last',
+        'enofyn': 'last'
+    }
+
+    df_bhk_dict = {
+        'boekhoudkoppeling' : (( lambda x: x.mode()[0] if x.any() else np.nan ) , 'nunique')
+    }
+
+    time_sets_new = {
+        'has_experian_data': 'max',
+        'has_business_id': 'max',
+        'has_account_overlay': 'max',
+        # 'indicator_corp_and_retail': 'last',
+        # 'indicator_corp_and_retail_business': 'last',
+        # 'iscorporatepersonyn_business': 'last',
+        # 'business_id_with_corp_and_retail': 'last',
+        # 'retail_id_with_corp_and_retail': 'last'
+    }
+
+    last_set = {
+        'has_new_val'
+    }
+
+    time_set_new2 = {
+        # 'new_period' : 'max',
+        'indicator_1_inactief' : ['max','sum'],
+        'indicator_2_SparenOnlyYN': ['max','sum'],
+        'indicator_3_actief': ['max','sum'],
+        'indicator_4_primaire bank' : ['max','sum']
+    }
+
+    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans,
+            **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **df_bhk_dict, **time_sets_new, **time_sets_new}
