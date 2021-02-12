@@ -212,27 +212,64 @@ class HMM_eff:
         return -sum    
     
 
-    def predict(self, alpha, Z, gamma_sr_0, gamma_sk_t, pi, n_segments):
-        prediction = np.zeros(self.n_customers, self.n_categories)
-        T = self.T
-        nextstate = np.zeros(self.n_customers, self.n_categories)
-        for i in range(0,self.n_customers):
-            probstate = []
-            for s in range(0,n_segments):
-                probstate[s] = alpha[i,T,s] / np.sum(alpha[i,T,1:n_segments]) 
-            for a in  range(1,n_segments):
-                nextstate[i,s] += probstate[a]* self.prob_P_s_given_r(gamma_sr_0, gamma_sk_t, Z)
-            for j in range(1,self.n_categories):
-                prediction[i,j] += nextstate[i,s]*self.prob_P_y_given_s(j, pi)
+      def predict_product_ownership(self, param, shapes, n_segments, alpha):
+        if self.covariates == True:
+            Z = self.list_Z[self.T-1]
+    
+            gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, param, shapes)
+    
+            p_js = ef.prob_p_js(self, param, shapes, n_segments) #s x p x c
+            P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z)
+            nextstate = np.zeros(self.n_customers, n_segments) #i x s
+            prediction = np.zeros(self.n_customers, self.products, max(self.n_categories))
+    
+            
+            for i in range(0,self.n_customers):
                 
-        return prediction
+                probstate = alpha[i,self.T,:] / np.sum(alpha[:, i, self.T]) 
+                    
+                for s in  range(1,n_segments):
+                    nextstate[i,:] += probstate * P_s_given_r[i,:,s]   
+                    
+                    #i x s    s x p x c
+            for p in range(1,self.n_products):
+                for c in range(1,self.n_categories[p]):
+                    for s in range(1,n_segments):
+                        prediction[i,p,c] += nextstate[i,s]* p_js[s,p,c]
+                        
+            #prediction = np.einsum('is,spc->ipc', nextstate, p_js)
+    
+            return prediction
+            
+    def active_value(self, param, shapes, n_segments):
+        if self.covariates == False:
+            Y = self.list_Y[self.T-1]
+            
+            p_js = ef.prob_p_js(self, param, shapes, n_segments)  
+            P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
+    
+            active_value = np.argmax(P_Y_given_S, axis=1)
+            
+            return active_value
+            
+            
+    def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value):
+        
+        prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha)
+        Y = self.list_Y[self.T-1]
 
-            
-            
-            
-            
-            
-            
+        expected_n_prod = np.zeros(self.n_customers, self.n_products)
+                
+        
+        for i in range(0, self.n_customers):
+            for p in range(0,self.n_products):
+                for c in range(0,self.n_categories[p]):
+                    expected_n_prod[i,p] = expected_n_prod[i,p] + c*prod_own[i,p,c]
+                
+        dif_exp_own = np.substractexpected_n_prod - prod_own
+        
+        
+              
             
             
             
