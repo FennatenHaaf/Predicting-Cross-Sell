@@ -27,6 +27,7 @@ name_dep_var = ['p1','p2','p3']
 #name_covariates = ['var1','var2','var3d1', 'var3d2','var4d1','var4d2']
 name_covariates = ['var1','var2']
 
+#Bool: If true: run Model as paas , if False: run a more general HMM
 covariates = False
 
 test = ht.HMM_eff(df_per_time, name_dep_var, name_covariates, covariates)

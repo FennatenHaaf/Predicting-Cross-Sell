@@ -1152,7 +1152,29 @@ class dataProcessor:
 
 #linkTimeSets=====================================================================
 
-    def linkTimeSets(self, use_sample = False, select_col = True):
+    def link_data_to_timeseries(self, use_sample = False, select_col = True):
+        """
+        Links the already imported Portfolio Activity File to other data files.
+        This method will produce a dataset with activity of portfolios linked to personid's
+        associated with this portfolio.
+
+        This happens in these steps:
+        -> Combine Linkperson Portfolio to experian on personid
+        -> Combine This combined dataset to portfolio activity
+
+        -> Combine corporate details and linkpersonportfolio
+        -> Join this combined dataset to portfolio activity
+
+        -> Join boekhoudkoppelingen to this larger dataset
+
+        -> An indicator is created to follow which
+        row contains either corporate info, experian info or
+        account overlay info.
+
+
+        It is possible to sample the a
+        """
+
         print(f"****linking timeseries sets, starting at {utils.get_time()}****")
 
 
@@ -1396,13 +1418,13 @@ class dataProcessor:
                 try:
                     self.importSets('ltsuncsmp',select_col= select_col)
                 except:
-                    self.linkTimeSets()
+                    self.link_data_to_timeseries()
                     self.linked_ts_unconverted_sampler()
             else:
                 try:
                     self.importSets('ltsunc', select_col= select_col)
                 except:
-                    self.linkTimeSets()
+                    self.link_data_to_timeseries()
 
         print(f"****Started converting period of timeset {utils.get_time()}****")
         self.df_linked_ts_time_converted = self.df_linked_ts_unc.copy()
