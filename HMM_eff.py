@@ -107,7 +107,11 @@ class HMM_eff:
                             
             difference = (any(abs(param_in-param_out)) > tolerance) 
         
-        return self.param_list_to_matrices(param, shapes)
+        if self.covariates == True:
+            return ef.param_list_to_matrices(param, shapes), alpha, shapes
+        else:
+            return ef.param_list_to_matrices(param, shapes), shapes
+
         
         
     #------------Function for the expectation step------------
