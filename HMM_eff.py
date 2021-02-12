@@ -257,20 +257,67 @@ class HMM_eff:
             return active_value
             
             
-    def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value):
+    def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value, tresholds = [0.8, 0.5]):
         
         prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha)
         Y = self.list_Y[self.T-1]
 
         expected_n_prod = np.zeros(self.n_customers, self.n_products)
-                
+        dif_exp_own = np.zeros(self.n_customers, self.n_products)
+        
+        cross_sell_target = np.zeros(self.n_customers, self.n_products)
+        cross_sell_self = np.zeros(self.n_customers, self.n_products)
+        cross_sell_total = np.zeros(self.n_customers, self.n_products)
         
         for i in range(0, self.n_customers):
             for p in range(0,self.n_products):
                 for c in range(0,self.n_categories[p]):
                     expected_n_prod[i,p] = expected_n_prod[i,p] + c*prod_own[i,p,c]
                 
-        dif_exp_own = np.substractexpected_n_prod - prod_own
+                dif_exp_own[i,p] = expected_n_prod[i,p] - Y[i,p]
+                if dif_exp_own[i,p] >= tresholds[0]:
+                    if active_value == 2:
+                        cross_sell_target[i,p] = False
+                        cross_sell_self[i,p] = True
+                        cross_sell_total = True
+                    if active_value == 1:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total = True               
+                    if active_value == 0:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total = True  
+                elif dif_exp_own[i,p] < tresholds[0] & dif_exp_own >= tresholds[1]:
+                    if active_value == 2:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total = True
+                    if active_value == 1:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total = True               
+                    if active_value == 0:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total = True 
+                 else:
+                    if active_value == 2:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total = True
+                    if active_value == 1:
+                        cross_sell_target[i,p] = False
+                        cross_sell_self[i,p] = False
+                        cross_sell_total = False               
+                    if active_value == 0:
+                        cross_sell_target[i,p] = False
+                        cross_sell_self[i,p] = False
+                        cross_sell_total = False 
+                        
+        return cross_sell_target, cross_sell_self, cross_sell_total
+                    
+
         
         
               
