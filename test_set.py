@@ -36,7 +36,7 @@ name_dep_var_active = ['ac1', 'ac2', 'ac3']
 #Bool: If true: run Model as paas , if False: run a more general HMM
 covariates = False
 
-/test = ht.HMM_eff(df_per_time, name_dep_var, name_covariates, covariates)
+/test = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates, covariates)
 /n_segments = 4
 
 /gamma_0, gamma_sr_0, gamma_sk_t, beta = test.EM(n_segments, max_method = 'Nelder-Mead')
