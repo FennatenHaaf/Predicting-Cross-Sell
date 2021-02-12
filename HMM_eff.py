@@ -172,6 +172,30 @@ class HMM_eff:
     
       
     def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method):
+        """
+        
+
+        Parameters
+        ----------
+        alpha : TYPE
+            DESCRIPTION.
+        beta : TYPE
+            DESCRIPTION.
+        param_in : TYPE
+            DESCRIPTION.
+        shapes : TYPE
+            DESCRIPTION.
+        n_segments : TYPE
+            DESCRIPTION.
+        max_method : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        param_out : TYPE
+            DESCRIPTION.
+
+        """
         """function for the maximization step"""
             
         x0 = param_in
