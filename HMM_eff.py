@@ -159,11 +159,11 @@ class HMM_eff:
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
                         if self.covariates == True:    
-                            sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[i,:,r]), P_y_given_s.flatten())
-                            sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[i,r,:]), P_y_given_s.flatten())
+                            sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r[i,:,r], P_y_given_s.flatten())
+                            sum_beta = sum_beta + beta[:,i,v+1] * P_y_given_s[r] * P_s_given_r[i,r,:]
                         else:
-                            sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[0,:,r]), P_y_given_s.flatten())
-                            sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[0,r,:]), P_y_given_s.flatten())
+                            sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r[0,:,r], P_y_given_s.flatten())
+                            sum_beta = sum_beta + beta[:,i,v+1] * P_y_given_s[r] * P_s_given_r[0,r,:]
                             
                     alpha[:,i,t] = sum_alpha
                     beta[:,i,v]  = sum_beta
