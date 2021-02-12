@@ -37,7 +37,7 @@ name_dep_var_active = ['ac1', 'ac2', 'ac3']
 covariates = False
 
 n_segments = 3
-test_active = ht.HMM_eff(df_per_time, name_dep_var_active, False)
+test_active = ht.HMM_eff(df_per_time, name_dep_var_active, covariates = False)
 param_ac, shapes_ac = test_active.EM(n_segments, max_method = 'Nelder-Mead')
 #active_value = test_active.active_value(param, shapes, n_segments)
 
