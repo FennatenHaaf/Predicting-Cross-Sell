@@ -23,33 +23,33 @@ class HMM_eff:
     
     def __init__(self, list_dataframes, list_dep_var, 
                    list_covariates = [], covariates = False):
-        """list_dataframes: list consisting of the timeperiod-specific dataframes
+        """Initialisation of a HMM object
+           list_dataframes: list consisting of the timeperiod-specific dataframes
            list_dep_var: list consisting of all the names of the variables we use as dependent variables
            list_covariates: list consisting of all the names of the variables we use as covariates
-           covariates: boolean that indicates whether transition/state probabilities are modelled as logit"""
+           covariates: boolean that indicates whether transition/state probabilities are modelled as logit model"""
            
         self.list_dataframes = list_dataframes
         self.list_dep_var = list_dep_var
         self.list_covariates = list_covariates
         
-        self.n_dep_var = len(list_dep_var)
-        self.n_covariates = len(list_covariates)
-        self.n_customers = self.list_dataframes[0].shape[0]
-        self.n_products = len(list_dep_var)
-        self.T = len(list_dataframes)
+        self.n_covariates = len(list_covariates) #initialise the number of covariates
+        self.n_customers = self.list_dataframes[0].shape[0] #initialise the number of customers
+        self.n_products = len(list_dep_var) #initialise the number of product
+        self.T = len(list_dataframes) #initialise the number of dataframes, thus the timeperiod
         
-        self.covariates = covariates
+        self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
         
-        """compute per dependent variable the number of categories"""
+        #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_dep_var))
         for i in range(0,self.T):
             for j in range(0,self.n_dep_var):
-                n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique();
-                if n_per_df > self.n_categories[j]:
+                n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique(); #retrive the number of categories per product, per dataframe
+                if n_per_df > self.n_categories[j]: #if number of categories is more than previously seen in other dataframes, update number of categories
                     self.n_categories[j] = n_per_df
         self.n_categories = self.n_categories.astype(int)
                     
-        """Compute lists consisting of Y and Z matrices per timeperiod"""
+        #Compute lists consisting of Y (dependent) and Z (covariates) matrices per timeperiod
         self.list_Y =[]
 
         if covariates == True:
