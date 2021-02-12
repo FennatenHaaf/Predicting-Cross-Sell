@@ -92,11 +92,15 @@ class HMM_eff:
         iteration = 0
         difference = True
         
+        print(f"****Starting EM prodecure, at {utils.get_time()}****")
+        print(f"tolerance: {tolerance}")
+        print(f"number of parameters: {len(param_out)}")
+        
         #Start EM procedure
         while difference:
                 
             param_in = param_out #update parameters
-                
+            
             #perform forward-backward procedure (expectation step of EM) 
             alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
               
@@ -109,9 +113,11 @@ class HMM_eff:
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {iteration}, duration {diff}")
-            iteration = iteration + 1 #update iteration
 
             difference = (any(abs(param_in-param_out.x)) > tolerance) #set difference of input and output of model-parameters
+            print(f"difference: {difference}")
+            
+            iteration = iteration + 1 #update iteration
         
         if self.covariates == True:
             return param_out, alpha, shapes
