@@ -212,8 +212,8 @@ class HMM_eff:
         return -sum    
     
 
-      def predict_product_ownership(self, param, shapes, n_segments, alpha):
-        if self.covariates == True:
+    def predict_product_ownership(self, param, shapes, n_segments, alpha):
+          if self.covariates == True:
             Z = self.list_Z[self.T-1]
     
             gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, param, shapes)
