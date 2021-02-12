@@ -69,48 +69,53 @@ class HMM_eff:
             n_segments: number of segments to use for the estimation of the HMM
             tolerance: convergence tolerance
             max_method: maximization method to use for the maximization step"""
-
-
-        if self.covariates == True:
+        
+        if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
             gamma_0 = 0.2 * np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
             gamma_sr_0 = 0.3 * np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
             gamma_sk_t = 0.4 * np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = 0.5 * np.ones((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y| S_t = s)
+            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
-            param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  
-            param_out = param
-        else: 
+            param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
+            param_out = param #set name of parameterlist for the input of the algorithm
+        else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
             b = np.ones((n_segments, self.n_products, max(self.n_categories))) ##parameters for P(Y| S_t = s)
+            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
-            param = ef.param_matrices_to_list(self, A = A, pi = pi, b = b)
-            param_out = param
+            param = ef.param_matrices_to_list(self, A = A, pi = pi, b = b) #convert parametermatrices to list
+            param_out = param #set name of parameterlist for the input of the algorithm
 
+        #initialise
         iteration = 0
         difference = True
         
-        """Start EM procedure"""
+        #Start EM procedure
         while difference:
                 
-            param_in = param_out
+            param_in = param_out #update parameters
                 
+            #perform forward-backward procedure (expectation step of EM) 
             alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
               
-            start = utils.get_time()
+            start = utils.get_time() #set start time to time maximisation step
 
+            #perform maximisation step 
             param_out = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
-                
-            end = utils.get_time()
-            diff = utils.get_time_diff(start,end)
-            iteration = iteration + 1
+            
+            end = utils.get_time() #set start time to time maximisation step
+            diff = utils.get_time_diff(start,end) #get difference of start and end time, thus time to run maximisation 
+            
+            iteration = iteration + 1 #update iteration
                             
-            difference = (any(abs(param_in-param_out.x)) > tolerance)
+            difference = (any(abs(param_in-param_out.x)) > tolerance) #set difference of input and output of model-parameters
         
         if self.covariates == True:
-            return ef.param_list_to_matrices(param, shapes), alpha, shapes
+            return param_out, alpha, shapes
         else:
-            return ef.param_list_to_matrices(param, shapes), shapes
+            return param_out, shapes
 
         
         
