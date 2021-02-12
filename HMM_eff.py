@@ -41,9 +41,9 @@ class HMM_eff:
         self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
         
         #compute per dependent variable the number of categories (possible values)
-        self.n_categories = np.zeros((self.n_dep_var))
+        self.n_categories = np.zeros((self.n_products))
         for i in range(0,self.T):
-            for j in range(0,self.n_dep_var):
+            for j in range(0,self.n_products):
                 n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique(); #retrive the number of categories per product, per dataframe
                 if n_per_df > self.n_categories[j]: #if number of categories is more than previously seen in other dataframes, update number of categories
                     self.n_categories[j] = n_per_df
@@ -103,8 +103,9 @@ class HMM_eff:
             start = utils.get_time() #set start time to time maximisation step
 
             #perform maximisation step 
-            param_out = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
-                
+            opt_result = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
+            param_out = opt_result.x
+            
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {iteration}, duration {diff}")
