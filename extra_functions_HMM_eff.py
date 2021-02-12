@@ -27,10 +27,14 @@ def param_list_to_matrices(self,param,shapes):
         return gamma_0, gamma_sr_0, gamma_sk_t, beta
     else:
         n_A = shapes[0,1]
-        n_pi = shapes[1,1] 
-        A = param[0:n_A]
+        n_pi = shapes[1,1]
+        try:
+            A = param[0:n_A]
+        except:
+            param = param.x
+            A = param[0:n_A]
         pi = param[n_A:(n_A+n_pi)]
-        b = param[(n_A+n_pi):param.shape[0]]
+        b = param[(n_A+n_pi):]
         A = np.reshape(A, shapes[0,0])
         pi = np.reshape(pi, shapes[1,0])                      
         b = np.reshape(b, shapes[2,0])       
