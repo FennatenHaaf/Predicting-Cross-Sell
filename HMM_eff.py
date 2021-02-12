@@ -114,7 +114,7 @@ class HMM_eff:
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {iteration}, duration {diff}")
 
-            difference = (any(abs(param_in-param_out.x)) > tolerance) #set difference of input and output of model-parameters
+            difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
             print(f"difference: {difference}")
             
             iteration = iteration + 1 #update iteration
