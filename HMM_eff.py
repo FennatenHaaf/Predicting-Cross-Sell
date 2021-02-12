@@ -103,6 +103,7 @@ class HMM_eff:
                 
             end = utils.get_time()
             diff = utils.get_time_diff(start,end)
+            print(f"Finished iteration {iteration}, duration {diff}")
             iteration = iteration + 1
                             
             difference = (any(abs(param_in-param_out.x)) > tolerance)
