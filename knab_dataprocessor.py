@@ -169,7 +169,7 @@ class dataProcessor:
             missing_info_ids= self.df_link["personid"][self.df_link["dateinstroomweek"].isnull()]        
             valid_ids = all_ids[~(all_ids.isin(missing_info_ids))] # remove ids from the set
             len2= len(valid_ids)
-            print(f"{len1-len2} IDs dropped for not having information on all of their portfolios")
+            print(f"{len1-len2} IDs dropped for not having information on ALL of their portfolios")
 
             # For the ones with corporate portfolio, we also want AT LEAST one of the
             # corporate IDs to have business information

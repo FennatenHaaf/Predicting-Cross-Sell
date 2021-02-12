@@ -63,7 +63,7 @@ def prob_p_js(self, param, shapes, n_segments):
         A, pi, b = param_list_to_matrices(self,param,shapes)
         beta = b
     
-    for s in tqdm(range(0,n_segments)):
+    for s in range(0,n_segments):
         for p in range(0,self.n_products):
             denominator = 0
             for c in range(0,self.n_categories[p]):
