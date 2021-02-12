@@ -23,33 +23,33 @@ class HMM_eff:
     
     def __init__(self, list_dataframes, list_dep_var, 
                    list_covariates = [], covariates = False):
-        """list_dataframes: list consisting of the timeperiod-specific dataframes
+        """Initialisation of a HMM object
+           list_dataframes: list consisting of the timeperiod-specific dataframes
            list_dep_var: list consisting of all the names of the variables we use as dependent variables
            list_covariates: list consisting of all the names of the variables we use as covariates
-           covariates: boolean that indicates whether transition/state probabilities are modelled as logit"""
+           covariates: boolean that indicates whether transition/state probabilities are modelled as logit model"""
            
         self.list_dataframes = list_dataframes
         self.list_dep_var = list_dep_var
         self.list_covariates = list_covariates
         
-        self.n_dep_var = len(list_dep_var)
-        self.n_covariates = len(list_covariates)
-        self.n_customers = self.list_dataframes[0].shape[0]
-        self.n_products = len(list_dep_var)
-        self.T = len(list_dataframes)
+        self.n_covariates = len(list_covariates) #initialise the number of covariates
+        self.n_customers = self.list_dataframes[0].shape[0] #initialise the number of customers
+        self.n_products = len(list_dep_var) #initialise the number of product
+        self.T = len(list_dataframes) #initialise the number of dataframes, thus the timeperiod
         
-        self.covariates = covariates
+        self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
         
-        """compute per dependent variable the number of categories"""
+        #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_dep_var))
         for i in range(0,self.T):
             for j in range(0,self.n_dep_var):
-                n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique();
-                if n_per_df > self.n_categories[j]:
+                n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique(); #retrive the number of categories per product, per dataframe
+                if n_per_df > self.n_categories[j]: #if number of categories is more than previously seen in other dataframes, update number of categories
                     self.n_categories[j] = n_per_df
         self.n_categories = self.n_categories.astype(int)
                     
-        """Compute lists consisting of Y and Z matrices per timeperiod"""
+        #Compute lists consisting of Y (dependent) and Z (covariates) matrices per timeperiod
         self.list_Y =[]
 
         if covariates == True:
@@ -69,49 +69,53 @@ class HMM_eff:
             n_segments: number of segments to use for the estimation of the HMM
             tolerance: convergence tolerance
             max_method: maximization method to use for the maximization step"""
-
-
-        if self.covariates == True:
+        
+        if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
             gamma_0 = 0.2 * np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
             gamma_sr_0 = 0.3 * np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
             gamma_sk_t = 0.4 * np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = 0.5 * np.ones((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y| S_t = s)
+            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
-            param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  
-            param_out = param
-        else: 
+            param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
+            param_out = param #set name of parameterlist for the input of the algorithm
+        else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
             b = np.ones((n_segments, self.n_products, max(self.n_categories))) ##parameters for P(Y| S_t = s)
+            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
-            param = ef.param_matrices_to_list(self, A = A, pi = pi, b = b)
-            param_out = param
+            param = ef.param_matrices_to_list(self, A = A, pi = pi, b = b) #convert parametermatrices to list
+            param_out = param #set name of parameterlist for the input of the algorithm
 
+        #initialise
         iteration = 0
         difference = True
         
-        """Start EM procedure"""
+        #Start EM procedure
         while difference:
                 
-            param_in = param_out
+            param_in = param_out #update parameters
                 
+            #perform forward-backward procedure (expectation step of EM) 
             alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
               
-            start = utils.get_time()
+            start = utils.get_time() #set start time to time maximisation step
 
+            #perform maximisation step 
             param_out = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
                 
-            end = utils.get_time()
-            diff = utils.get_time_diff(start,end)
+            end = utils.get_time()#set start time to time maximisation step
+            diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {iteration}, duration {diff}")
-            iteration = iteration + 1
-                            
-            difference = (any(abs(param_in-param_out.x)) > tolerance)
+            iteration = iteration + 1 #update iteration
+
+            difference = (any(abs(param_in-param_out.x)) > tolerance) #set difference of input and output of model-parameters
         
         if self.covariates == True:
-            return ef.param_list_to_matrices(param, shapes), alpha, shapes
+            return param_out, alpha, shapes
         else:
-            return ef.param_list_to_matrices(param, shapes), shapes
+            return param_out, shapes
 
         
         
@@ -257,7 +261,7 @@ class HMM_eff:
             return active_value
 
 
-    def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value):
+    def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value, tresholds):
 
 
         prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha)
@@ -276,51 +280,47 @@ class HMM_eff:
             for p in range(0,self.n_products):
                 for c in range(0,self.n_categories[p]):
                     expected_n_prod[i,p] = expected_n_prod[i,p] + c*prod_own[i,p,c]
-
-
-        dif_exp_own = np.substractexpected_n_prod - prod_own
-
-                
+                    
                 dif_exp_own[i,p] = expected_n_prod[i,p] - Y[i,p]
-                if dif_exp_own[i,p] >= tresholds[0]:
-                    if active_value == 2:
-                        cross_sell_target[i,p] = False
-                        cross_sell_self[i,p] = True
-                        cross_sell_total = True
-                    if active_value == 1:
-                        cross_sell_target[i,p] = True
-                        cross_sell_self[i,p] = False
-                        cross_sell_total = True               
-                    if active_value == 0:
-                        cross_sell_target[i,p] = True
-                        cross_sell_self[i,p] = False
-                        cross_sell_total = True  
-                elif dif_exp_own[i,p] < tresholds[0] & dif_exp_own >= tresholds[1]:
-                    if active_value == 2:
-                        cross_sell_target[i,p] = True
-                        cross_sell_self[i,p] = False
-                        cross_sell_total = True
-                    if active_value == 1:
-                        cross_sell_target[i,p] = True
-                        cross_sell_self[i,p] = False
-                        cross_sell_total = True               
-                    if active_value == 0:
-                        cross_sell_target[i,p] = True
-                        cross_sell_self[i,p] = False
-                        cross_sell_total = True 
-                 else:
-                    if active_value == 2:
-                        cross_sell_target[i,p] = True
-                        cross_sell_self[i,p] = False
-                        cross_sell_total = True
-                    if active_value == 1:
-                        cross_sell_target[i,p] = False
-                        cross_sell_self[i,p] = False
-                        cross_sell_total = False               
-                    if active_value == 0:
-                        cross_sell_target[i,p] = False
-                        cross_sell_self[i,p] = False
-                        cross_sell_total = False 
+            if dif_exp_own[i,p] >= tresholds[0]:
+                if active_value == 2:
+                    cross_sell_target[i,p] = False
+                    cross_sell_self[i,p] = True
+                    cross_sell_total = True
+                if active_value == 1:
+                    cross_sell_target[i,p] = True
+                    cross_sell_self[i,p] = False
+                    cross_sell_total = True               
+                if active_value == 0:
+                    cross_sell_target[i,p] = True
+                    cross_sell_self[i,p] = False
+                    cross_sell_total = True  
+            elif dif_exp_own[i,p] < tresholds[0] & dif_exp_own >= tresholds[1]:
+                if active_value == 2:
+                    cross_sell_target[i,p] = True
+                    cross_sell_self[i,p] = False
+                    cross_sell_total = True
+                if active_value == 1:
+                    cross_sell_target[i,p] = True
+                    cross_sell_self[i,p] = False
+                    cross_sell_total = True               
+                if active_value == 0:
+                    cross_sell_target[i,p] = True
+                    cross_sell_self[i,p] = False
+                    cross_sell_total = True 
+            else:
+                if active_value == 2:
+                    cross_sell_target[i,p] = True
+                    cross_sell_self[i,p] = False
+                    cross_sell_total = True
+                if active_value == 1:
+                    cross_sell_target[i,p] = False
+                    cross_sell_self[i,p] = False
+                    cross_sell_total = False               
+                if active_value == 0:
+                    cross_sell_target[i,p] = False
+                    cross_sell_self[i,p] = False
+                    cross_sell_total = False 
                         
         return cross_sell_target, cross_sell_self, cross_sell_total
                    
