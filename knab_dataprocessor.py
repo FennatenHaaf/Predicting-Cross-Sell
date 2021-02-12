@@ -48,6 +48,7 @@ class dataProcessor:
         self.df_pat_sample = pd.DataFrame()
         self.df_linked_ts_unc = pd.DataFrame()
         self.df_linked_ts_unc_sample = pd.DataFrame()
+        self.df_linked_ts_time_converted = pd.DataFrame()
         
         # Declare other variables
         self.time_format = "%Y-%m-%d"
@@ -105,7 +106,7 @@ class dataProcessor:
         
     def select_ids(self, subsample = True, sample_size = 500, 
                    outname = "base_experian",
-                   filename = "valid_ids.csv",
+                   filename = "valid_ids",
                    use_file = True):
         """Selects a certain set of person IDs from the linking dataset, where:
             - information for ALL portfolios is present in the linking data
@@ -153,9 +154,9 @@ class dataProcessor:
 
         #-------------------------- GET VALID IDS ---------------------------
        
-        if (path.exists(f"{self.interdir}/{filename}") & (use_file)):
+        if (path.exists(f"{self.interdir}/{filename}.csv") & (use_file)):
             print("Reading from existing file of valid IDs")
-            valid_ids = pd.read_csv(f"{self.interdir}/{filename}").squeeze()
+            valid_ids = pd.read_csv(f"{self.interdir}/{filename}.csv").squeeze()
         else:
             print("creating new file of valid IDs:")
             all_ids = pd.Series(self.df_experian["personid"].unique())
@@ -172,14 +173,14 @@ class dataProcessor:
 
             # For the ones with corporate portfolio, we also want AT LEAST one of the
             # corporate IDs to have business information
-            temp = self.df_link.loc[:,["personid","businessType","corporateid"]].copy()
+            temp = self.df_link[["personid","businessType","corporateid"]].copy()
             temp = temp[~(temp["corporateid"].isnull())].copy()
-            temp["info"] = 1
-            temp["info"][(temp["businessType"].isnull())] = 0
-            temp2 = temp[["personid", "info"]].groupby("personid").max().reset_index(level=0)
+            temp["info"] = [0 if pd.isnull(val) else 1 for val in temp["businessType"]]
+            
+            temp = temp[["personid", "info"]].groupby("personid").max().reset_index(level=0)
             
             # If the max is 0, then all of these values are missing, therefore we want to remove
-            missing_info_ids2 = temp2["personid"][temp2["info"]==0]
+            missing_info_ids2 = temp["personid"][temp["info"]==0]
             valid_ids = valid_ids[~(valid_ids.isin(missing_info_ids2))] # remove ids from the set
             len3= len(valid_ids)
             print(f"{len2-len3} IDs dropped for not having info on at least 1 of their businesses")
@@ -226,23 +227,33 @@ class dataProcessor:
             print(f"{len4-len5} IDs dropped for not having full experian info at all moments in time")
      
             #-------------- ENSURE INFORMATION IN TRANSACTION DATA -------------
-            active_ids = self.get_active_portfolios2()
-            valid_ids = valid_ids[valid_ids.isin(active_ids)]
-            len6= len(valid_ids)
-            print(f"{len5-len6} IDs dropped for not being in transaction info at least once")
-            # TODO should specify the time period as well? so get all the active
-            # ids within a specific time period
             
+            # haal de active portfolio IDs op voor een specifieke periode
+            active_portfolios = self.get_active_portfolios2() 
+            
+            # We willen de person IDs waarvoor TEN MINSTE 1 portfolio ten minste
+            # 1 activiteits entry heeft in de periode 2018-2020
+            active_person_ids = \
+            self.df_link["personid"][(self.df_link["portfolioid"].isin(active_portfolios))]  
+            valid_ids = valid_ids[(valid_ids.isin(active_person_ids))]
+            len6= len(valid_ids)
+            print(f"{len5-len6} IDs dropped for not having at least one portfolio " \
+                  "in the transaction info in given time period")
+                
             #--------------------- SAVE THE VALID IDS --------------------------
-            utils.save_df_to_csv(self.df_link, self.interdir, 
-                                  f"{self.interdir}/{filename}", add_time = False )      
+            utils.save_df_to_csv(valid_ids, self.interdir, 
+                                  f"{filename}", add_time = False )      
             print(f"Finished and output saved, at {utils.get_time()}")
             
         print(f"got {len(valid_ids)} useable IDs from the Experian data")
+        dataInsight.plotFinergyCounts(self.df_experian,valid_ids)
         
         #---------------- Take a subsample of the IDs -----------------------
         
         if subsample:
+            
+        # TODO add to if statement that len needs to be larger than sample
+        # size, else print a message? maybe do assert?
             print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
             valid_ids = valid_ids.sample(n = sample_size, 
                                          random_state = self.seed).reset_index(drop=True)
@@ -260,6 +271,7 @@ class dataProcessor:
             print(f"Finished and output saved, at {utils.get_time()}")        
         
         print("-------------------------------------")
+        
         
         
 
@@ -506,7 +518,7 @@ class dataProcessor:
             indicator[f"betalenyn_{name}"] = df.loc[:,"betalenyn"]
             indicator[f"depositoyn_{name}"] = df.loc[:,"depositoyn"]
             indicator[f"flexibelsparenyn_{name}"] = df.loc[:,"flexibelsparenyn"]
-            indicator[f"kwartaalsparenyn_{name}"] = df.loc[:,"saldokwartaalsparen"]
+            indicator[f"kwartaalsparenyn_{name}"] = df.loc[:,"kwartaalsparenyn"]
             indicator[f"aantalfueltransacties_{name}"] = df.loc[:,"aantalfueltransacties"]
             
             # We pakken het MAXIMUM om de meest actieve rekening weer te geven
@@ -961,7 +973,6 @@ class dataProcessor:
                     f"{self.indir}/portfolio_activity_retail_2019.csv",
                     f"{self.indir}/portfolio_activity_business_2020.csv",
                     f"{self.indir}/portfolio_activity_retail_2020.csv"]
-        
         ids = pd.Series()
         for path in tqdm(readlist):
            add_ids = pd.read_csv(path, **readArgs)
@@ -969,6 +980,7 @@ class dataProcessor:
            ids = ids.drop_duplicates()
            
         return ids
+    
     
     def get_active_portfolios2(self):
         readArgs = {"usecols": ["portfolioid","dateeow"]}
@@ -985,33 +997,41 @@ class dataProcessor:
         ids = pd.DataFrame()
         for path in tqdm(readlist):
            add_ids = pd.read_csv(path, **readArgs)
-           ids = pd.concatenate(ids,add_ids)
-           ids = ids.drop_duplicates()
+           ids = pd.concat([ids,add_ids])  
+        ids = ids.drop_duplicates()
         
         print("Getting min and max dates for each ID")
         # Get variables representing the first and last date the ID is in the
         # transaction data
         ids["dateeow"] = ids["dateeow"].astype('datetime64[ns]')
-        maxdate = ids.groupby("personid").max()
+        maxdate = ids.groupby("portfolioid").max()
         maxdate = maxdate.rename(columns={"dateeow": "last_transac",})
-        mindate = ids.groupby("personid").min()
+        mindate = ids.groupby("portfolioid").min()
         mindate= mindate.rename(columns={"dateeow": "first_transac",})
         
         # add to IDs data
-        ids = ids["personid"].drop_duplicates().copy() 
-        ids = ids.merge(maxdate, how="left", left_on=["personid"], 
-                        right_on=["personid"])    
-        ids = ids.merge(maxdate, how="left", left_on=["personid"], 
-                        right_on=["personid"])
+        idsunique = ids["portfolioid"].drop_duplicates().reset_index(level=0).copy() 
+        idsunique = idsunique.merge(maxdate, how="left", left_on=["portfolioid"], 
+                        right_on=["portfolioid"])    
+        idsunique = idsunique.merge(mindate, how="left", left_on=["portfolioid"], 
+                        right_on=["portfolioid"])
         
         #-> The first date has to be BEFORE a certain starting date
         #-> The last date has to be AFTER a certain ending date    
-        valid_ids = ids["personid"][(ids["last_transac"]>= self.end_date) \
-                                    & (ids["first_transac"]<= self.start_date)]        
+        # valid_ids_transac = idsunique["portfolioid"][\
+        #     (idsunique["last_transac"]>= self.end_date) \
+        #     & (idsunique["first_transac"]<= self.start_date)]        
         #TODO: Het kan nu nog dat mensen niet ELKE periode transactions hebben?
         
-        valid_ids = valid_ids.reset_index(level=0,drop=True)
-        return valid_ids
+        # The portfolio 
+        valid_ids_transac = idsunique["portfolioid"][\
+            (idsunique["first_transac"]<= self.end_date) \
+            & (idsunique["last_transac"]>= self.start_date)]   
+        
+        
+        
+        valid_ids_transac = valid_ids_transac.reset_index(level=0,drop=True)
+        return valid_ids_transac
         
         
         
@@ -1366,10 +1386,11 @@ class dataProcessor:
 
     ###################----------------------------------------------------------------------------
 
-    def aggregate_data_linked_time_series(self, period_to_convert_to = "Q", period_to_use = "All", use_sample = False, select_col = True):
+    def convert_time_linked_time_series(self, period_to_convert_to ="Q", period_to_use ="All", use_sample = False, select_col = True):
         ''''
         Aggregation of Data based on time and personid
         '''
+        print(f"****Importing needed files at {utils.get_time()}****")
         if self.df_linked_ts_unc.empty: #check if linked time series has been defined
             if use_sample:
                 try:
@@ -1383,95 +1404,46 @@ class dataProcessor:
                 except:
                     self.linkTimeSets()
 
+        print(f"****Started converting period of timeset {utils.get_time()}****")
+        self.df_linked_ts_time_converted = self.df_linked_ts_unc.copy()
+        self.df_linked_ts_time_converted = pd.get_dummies(self.df_linked_ts_time_converted, columns=['activitystatus'], prefix="indicator")
+        time_convert_dict = utils.doDictIntersect(self.df_linked_ts_time_converted.columns, declarationsFile.getTimeConvertDict())
 
-        self.df_linked_ts = self.df_linked_ts_unc.copy()
-        self.df_linked_ts = pd.get_dummies(self.df_linked_ts, columns=['activitystatus'], prefix="indicator")
-        time_convert_dict = utils.doDictIntersect(self.df_linked_ts.columns, declarationsFile.getTimeConvertDict())
-        id_aggregate_dict = utils.doDictIntersect(self.df_linked_ts.columns, declarationsFile.getPersonAggregateDict())
-        self.df_linked_ts = utils.doConvertFromDict(self.df_linked_ts, ignore_errors=True)
-        self.df_linked_ts['new_period'] = self.df_linked_ts['dateeow'].dt.to_period(period_to_convert_to)
+        self.df_linked_ts_time_converted = utils.doConvertFromDict(self.df_linked_ts_time_converted, ignore_errors=True)
+        self.df_linked_ts_time_converted['converted_period'] = self.df_linked_ts_time_converted['dateeow'].dt.to_period(
+            period_to_convert_to)
 
-        #Create dummies for activitystatus.
 
-        df_linked_after_time_convert = self.df_linked_ts. \
-            groupby(['personid', 'portfolioid', 'new_period'], observed=True, as_index = False).aggregate(time_convert_dict)
+        self.df_linked_ts_time_converted = self.df_linked_ts_time_converted. \
+            groupby(['personid', 'portfolioid', 'converted_period'], observed=True, as_index = False).aggregate(time_convert_dict)
+        print(f"****Finished converting time period of time series at  {utils.get_time()}****")
 
-        df_linked_after_id_aggregation = df_linked_after_time_convert.groupby(['personid', 'new_period'], observed=True,as_index = False).aggregate(
+    def aggregate_over_personid_time_series(self):
+        if self.df_linked_ts_time_converted.empty:
+            self.convert_time_linked_time_series()
+
+        print(f"****Started aggregating data of timeseries at {utils.get_time()}****")
+
+        id_aggregate_dict = utils.doDictIntersect(self.df_linked_ts_time_converted.columns, declarationsFile.getPersonAggregateDict())
+
+        self.df_linked_ts_aggregated = self.df_linked_ts_time_converted.groupby(['personid', 'converted_period'], observed=True,
+                                                                            as_index = False).aggregate(
             id_aggregate_dict)
 
         new_name_list = []
-        for value in df_linked_after_id_aggregation.columns:
-            new_name = ""
-            for i in value:
-                new_name += i + "_"
-
+        prev_name = ""
+        for value in self.df_linked_ts_aggregated.columns:
+            new_name = value[0]
+            if prev_name == value[0]:
+                new_name += "_" + value[1]
+            prev_name = value[0]
             new_name = new_name.replace('<lambda_0>', 'mode')
             new_name = new_name.rstrip('_')
             new_name_list.append(new_name)
-        print(len(new_name_list))
-        df_linked_after_id_aggregation.columns = new_name_list
-
-        pass
+        self.df_linked_ts_aggregated.columns = new_name_list
 
 
-
-
-        # [x.replace('<df_e>', '_mode') for x in ('sdfd', 'sdfsdfa', '<df_e>')]
-        # df_linked_after_time_convert.columns = [value[0] + value[1] for value in df_linked_after_time_convert.columns if len(value) > 1]
-        # df_linked_after_time_convert.columns = [value[0] + value[1] for value in df_linked_after_time_convert.columns]
-        # df_linked_after_time_convert.columns = df_linked_after_time_convert.columns.to_flat_index()
-        # primary_set = ['personid','portfolioid','new_period']
-        # number_of_var_chunks = 3
-        # set_to_chunk = list(set(self.df_linked_ts.columns) - set(primary_set))
-        # set_to_chunk_len = len(set_to_chunk)
-        # itersize = set_to_chunk_len// number_of_var_chunks + 1
-        # low_index, high_index = 0, itersize
-        # final_concat_list = []
-        #
-        # while low_index < set_to_chunk_len:
-        #     print(set_to_chunk[low_index:high_index])
-        #     column_selection = primary_set + set_to_chunk[low_index:high_index]
-        #     time_convert_dict = utils.doDictIntersect(column_selection, declarationsFile.getTimeConvertDict())
-        #     id_aggregate_dict = utils.doDictIntersect(column_selection, declarationsFile.getPersonAggregateDict())
-        #     df_linked_after_time_convert = self.df_linked_ts.loc[:,column_selection].\
-        #         groupby(['personid', 'portfolioid', 'new_period'], observed = True).aggregate(time_convert_dict)
-        #     # self.df_linked_ts.loc[:,column_selection].groupby('personid')['portfolioid'].nunique()
-        #
-        #     df_linked_after_id_aggregation = df_linked_after_time_convert.groupby(['personid', 'new_period'], observed = True).aggregate(id_aggregate_dict)
-        #     final_concat_list.append(df_linked_after_id_aggregation)
-        #
-        #     low_index += high_index
-        #     high_index += itersize
-        #     high_index = min(high_index,set_to_chunk_len)
-
-
-
-        # personid_list = self.df_linked_ts['personid'].unique()
-        # number_of_loops = 20
-        # number_of_ids = personid_list.shape[0]
-        # itersize = number_of_ids//number_of_loops + 1
-        # low_index ,high_index = 0, itersize
-        # final_concat_list = []
-        # while high_index < number_of_ids:
-        #     person_slice = personid_list[low_index:high_index]
-        #     df_linked_after_time_convert = self.df_linked_ts.query("personid.isin(@person_slice)").groupby(
-        #         ['personid', 'portfolioid', 'new_period']).aggregate(time_convert_dict)
-        #
-        #     df_linked_after_id_aggregation = df_linked_after_time_convert.groupby(['personid', 'new_period']).aggregate(id_aggregate_dict)
-        #     final_concat_list.append(df_linked_after_id_aggregation)
-        #     low_index = high_index
-        #     high_index += itersize
-
-
-        ztesta11 = "lts_quick_description = self.df_linked_ts.groupby('personid').aggregate({'portfolioid': (lambda x: list(x.unique()))," \
-                   "'has_business_id': 'mean','has_experian_data': ('mean', (lambda x: list(x.unique()))),'has_account_overlay': 'mean'," \
-                   "'pakketcategorie': (lambda x: list(x.unique())),'dateeow': 'first'})"
-
-        # Technically
-        #TODO Use grouper object and groupby to create a new time period.
-        #TODO can also aggregate on time and on personid at the same time
-        #TODO
-
+        print(f"****Finished aggregating data of timeseries at {utils.get_time()}****")
         pass
 
     def importPortfolioActivity(self, convertData=False, selectColumns=False,
@@ -1572,16 +1544,22 @@ class dataProcessor:
         ##IMPORT AND CONVERT METHODS--------------------------------------------------------##
 
     def importSets(self, fileID, select_col = False, addition_to_name = "", **readArgs):
-        def remove_datetime_from_dict(a_dict):
+        def remove_datetime_from_dict(data):
+            a_dict = utils.doDictIntersect(data.columns, declarationsFile.getConvertDict())
+            date_list = []
             return_dict = {}
             for value in a_dict:
-                if not re.match(r"datetime.", a_dict[value]):
-                    if re.match(r'.?int[8,16,32]', a_dict[value]):
+                if re.match(r"datetime.", a_dict[value]):
+                    date_list.append(value)
+                else:
+                    if re.match(r'.?int[8,16]', a_dict[value]):
                         return_dict[value] = 'float16'
+                    elif re.match(r'.?int[32]', a_dict[value]):
+                        return_dict[value] = 'float32'
                     else:
                         return_dict[value] = a_dict[value]
 
-            return return_dict
+            return return_dict, date_list
 
 
         if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
@@ -1606,17 +1584,21 @@ class dataProcessor:
         elif fileID == "ltsunc" or fileID == "linked_ts_unconverted.csv":
 
             # readArgs = {**readArgs, 'low_memory': False}
-            self.df_linked_ts_unc = pd.read_csv(f"{self.interdir}/linked_ts_unconverted_sample{addition_to_name}.csv", nrows=0, **readArgs)
-            convert_at_import_dict = utils.doDictIntersect(self.df_linked_ts_unc.columns, declarationsFile.getConvertDict())
-            convert_at_import_dict = remove_datetime_from_dict(convert_at_import_dict)
+            self.df_linked_ts_unc = pd.read_csv(f"{self.interdir}/linked_ts_unconverted{addition_to_name}.csv", nrows=0, **readArgs)
+            convert_at_import_dict, time_parse_list = remove_datetime_from_dict(self.df_linked_ts_unc)
             if select_col:
-                readArgs = {**readArgs, 'usecols' : declarationsFile.getColToParseLTSunc()}
-                convert_at_import_dict = utils.doDictIntersect(declarationsFile.getPatColToParseTS(),convert_at_import_dict)
+                col_to_parse = declarationsFile.getPatColToParseTSunc()
+                readArgs = {**readArgs, 'usecols' : col_to_parse}
+                convert_at_import_dict= utils.doDictIntersect(col_to_parse,convert_at_import_dict)
+                time_parse_list = utils.doListIntersect(time_parse_list,col_to_parse)
+
             readArgs = {**readArgs, 'dtype': convert_at_import_dict}
+            if len(time_parse_list) > 0:
+                readArgs = {**readArgs,'parse_dates':time_parse_list}
             try:
                 self.df_linked_ts_unc = utils.importChunk(f"{self.interdir}/linked_ts_unconverted{addition_to_name}.csv", 250000, **readArgs)
-            except:
-                pass
+            except Exception as e:
+                print(type(e))
 
         elif fileID == "ltsuncsmp" or fileID == "linked_ts_unconverted_sample.csv":
             if select_col:
@@ -1702,6 +1684,16 @@ class dataProcessor:
         self.df_linked_ts_unc_sample  = self.df_linked_ts_unc.query("personid.isin(@chosenID)").copy()
         self.exportEdited("ltsuncsmp", addition_to_file_name)
 
+    def general_sampler(self, data,n = 5000, column_to_sample_from = "personid"):
+        ''''
+        Samples observations from a dataset and return a dataset which is filtered on these values.
+        '''
+        randomizer = np.random.RandomState(self.seed)
+        unique_ids = data[column_to_sample_from].unique()
+        chosenID = randomizer.choice(unique_ids, n)
+        data_sample  = self.df_linked_ts_unc.query(f"{column_to_sample_from}.isin(@chosenID)").copy()
+        return data_sample
+
     def doConvertPAT(self):
         if self.df_pat.empty:
             return print("No df_pat to convert")
@@ -1710,6 +1702,6 @@ class dataProcessor:
     def doConvertLTS(self, do_ignore_errors = True):
         if self.df_linked_ts_unc.empty:
             return print("No df_pat to convert")
-        self.df_linked_ts_unc = utils.doConvertFromDict(self.df_linked_ts_unc, ignore_errors= do_ignore_errors)
+        self.df_linked_ts_unc = utils.doConvertFromDict(self.df_linked_ts_unc, ignore_errors=do_ignore_errors)
 
 

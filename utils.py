@@ -104,20 +104,22 @@ def importChunk(importString, chunksize=500000, **readerArg):
         dfList.append(chunk)
     return pd.concat(dfList, ignore_index=True)
 
-def exportChunk(data, chunkSize, exportString, **writeArgs):
-    if os.path.isfile(exportString):
+def exportChunk(data, chunkSize, exportString, check_if_exists = True ,**writeArgs):
+    if os.path.isfile(exportString) and check_if_exists:
         print("File already exists")
         return
     nRows = data.shape[0]
     startIndex = 0
     endIndex = min(startIndex + chunkSize,nRows)
+    headerBool = True
 
     while startIndex < nRows:
-        data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a",header=False,
+        data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a",header=headerBool,
                                                  **writeArgs)
         startIndex = endIndex
         endIndex += chunkSize
         endIndex = min(endIndex, nRows)
+        headerBool = False
 
     print("Export of {} completed".format(exportString))
 
