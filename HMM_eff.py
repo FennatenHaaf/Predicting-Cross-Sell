@@ -84,7 +84,7 @@ class HMM_eff:
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
             b = np.ones((n_segments, self.n_products, max(self.n_categories))) ##parameters for P(Y| S_t = s)
             shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
-            param = self.param_matrices_to_list(A = A, pi = pi, b = b)
+            param = ef.param_matrices_to_list(self, A = A, pi = pi, b = b)
             param_out = param
 
         iteration = 0
@@ -99,9 +99,8 @@ class HMM_eff:
               
             start = utils.get_time()
 
-            param_out = self.maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method)
-            
-            
+            param_out = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
+                
             end = utils.get_time()
             diff = utils.get_time_diff(start,end)
             iteration = iteration + 1
@@ -143,8 +142,13 @@ class HMM_eff:
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
-                        sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[:,r]), P_y_given_s.flatten())
-                        sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[r,:]), P_y_given_s.flatten())
+                        if self.covariates == True:    
+                            sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[i,:,r]), P_y_given_s.flatten())
+                            sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[i,r,:]), P_y_given_s.flatten())
+                        else:
+                            sum_alpha = sum_alpha + np.multiply( np.multiply(alpha[:,i,t-1],P_s_given_r[0,:,r]), P_y_given_s.flatten())
+                            sum_beta = sum_beta + np.multiply( np.multiply(beta[:,i,v+1],P_s_given_r[0,r,:]), P_y_given_s.flatten())
+                            
                     alpha[:,i,t] = sum_alpha
                     beta[:,i,v]  = sum_beta
                 

@@ -30,7 +30,7 @@ name_covariates = ['var1','var2']
 covariates = False
 
 test = ht.HMM_eff(df_per_time, name_dep_var, name_covariates, covariates)
-n_segments = 2 
+n_segments = 4
 
 
 gamma_0, gamma_sr_0, gamma_sk_t, beta = test.EM(n_segments, max_method = 'Nelder-Mead')

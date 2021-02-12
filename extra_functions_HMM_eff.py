@@ -103,13 +103,13 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
     
     """case with covariates"""
     if self.covariates == True:
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self,param,shapes)
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, param, shapes)
 
         P_s_given_Z = np.exp(np.transpose([gamma_0[:,0]] * row_Z) + np.matmul(gamma_0[:,1:self.n_covariates+1] , np.transpose(Z) ) )
         P_s_given_Z = np.vstack( (P_s_given_Z, np.ones((1,row_Z))) )  #for the base case
         P_s_given_Z = np.transpose(np.divide( P_s_given_Z , np.sum(P_s_given_Z, axis = 0) ))   
     else:
-        A, pi, b = param_list_to_matrices(self,param,shapes)
+        A, pi, b = param_list_to_matrices(self, param, shapes)
         pi = np.append(pi, np.array([1]))
         P_s_given_Z = np.exp(pi) / np.sum(np.exp(pi)) 
    
@@ -123,7 +123,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 
     """case with covariates"""
     if self.covariates == True:
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self,param,shapes)
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, param, shapes)
 
         gamma_sr_0 = np.vstack((gamma_sr_0, np.zeros((1,n_segments))))
         P_s_given_r = np.repeat(gamma_sr_0[np.newaxis,:,:], row_Z, axis = 0)
@@ -139,9 +139,9 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
         
     else:  
-            A, pi, b = self.param_list_to_matrices(param,shapes)
-            A = np.vstack(A, np.ones((n_segments, 1)))
-            P_s_given_r = np.divide(np.exp(A), np.sum(np.exp(A), axis = 0))
+            A, pi, b = param_list_to_matrices(self, param, shapes)
+            A = np.vstack((A, np.ones((1, n_segments))))
+            P_s_given_r = np.array([ np.divide(np.exp(A), np.sum(np.exp(A), axis = 0)) ])
             
     return P_s_given_r
         
