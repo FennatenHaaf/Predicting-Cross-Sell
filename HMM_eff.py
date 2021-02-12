@@ -189,7 +189,7 @@ class HMM_eff:
         
         P_s_given_r = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
     
-        for t in tqdm(range(1,self.T)):
+        for t in range(1,self.T):
             Y = self.list_Y[t]
             if self.covariates == True:
                 Z = self.list_Z[t]   
@@ -202,7 +202,7 @@ class HMM_eff:
                     
                     sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
         
-        for t in tqdm(range(0,self.T)):
+        for t in range(0,self.T):
             Y = self.list_Y[t]        
             P_y_given_s = ef.prob_P_y_given_s(self, Y, ef.prob_p_js(self, x, shapes, n_segments), n_segments)
             P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t])
