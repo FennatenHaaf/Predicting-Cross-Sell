@@ -223,19 +223,27 @@ class HMM_eff:
         sum = 0;
             
         P_s_given_Y_Z = ef.state_event(self, alpha, beta, n_segments)
+        p_js = ef.prob_p_js(self, x, shapes, n_segments)
     
         Y = self.list_Y[0]
         if self.covariates == True:
             Z = self.list_Z[0]
         else: 
             Z = np.array([])
+            
+        P_s_given_r = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
+
         
+        #t=0, term 1
         P_s_given_Z = ef.prob_P_s_given_Z(self, x, shapes, Z, n_segments)  #i x s
         P_s_given_Y_Z_0 = np.transpose(P_s_given_Y_Z[:,:,0]) #s x i x t
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z)))
         
-        P_s_given_r = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
-    
+        #t=0, term 3
+        P_y_given_s = ef.prob_P_y_given_s(self, Y, ef.prob_p_js(self, x, shapes, n_segments), n_segments) #ixs
+        P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,0]) #ixs
+        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s)))
+        
         for t in range(1,self.T):
             Y = self.list_Y[t]
             if self.covariates == True:
@@ -243,18 +251,16 @@ class HMM_eff:
             else: 
                 Z = []
     
+            #t=t, term 2
             for r in range(0,n_segments):
                 for s in range(0,n_segments):
                     P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, r, n_segments)
-                    
                     sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
-        
-        for t in range(0,self.T):
-            Y = self.list_Y[t]        
-            P_y_given_s = ef.prob_P_y_given_s(self, Y, ef.prob_p_js(self, x, shapes, n_segments), n_segments)
-            P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t])
-            
-            sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t[s],np.log(P_y_given_s[s])))
+                    
+            #t=t, term 3
+            P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #ixs
+            P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t]) #ixs
+            sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s)))
 
         return -sum
 
