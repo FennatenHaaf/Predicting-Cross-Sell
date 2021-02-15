@@ -170,7 +170,8 @@ def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, n_segments):#for a
     P_sr_given_Y_Z = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
     P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
     P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixs]
-    P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z[:,:,t], axis = 0)])  )
+    P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z[:,:,t], axis = 0)]))
+    
     
     return P_sr_given_Y_Z 
 
@@ -179,6 +180,54 @@ def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
     """function to compute P(X_it = s|Y_i, Z_i)"""
 
     P_s_given_Y_Z = np.multiply(alpha, beta)
-    P_s_given_Y_Z = P_s_given_Y_Z/np.sum(P_s_given_Y_Z, axis = 0)
+    P_s_given_Y_Z = np.divide(P_s_given_Y_Z, np.sum(P_s_given_Y_Z, axis = 0))
     
     return P_s_given_Y_Z
+
+
+
+
+
+
+
+
+
+
+
+def forward_backward_procedure(self, param, shapes, n_segments):
+    """function for the expectation step: compute alpha and beta with all parameters"""
+
+    p_js = prob_p_js(self, param, shapes, n_segments)
+        
+    alpha = np.zeros((n_segments, self.n_customers, self.T))
+    beta = np.zeros((n_segments, self.n_customers, self.T))
+        
+    
+    for t in range(0,self.T):
+        v = self.T - t - 1
+                    
+        Y = self.list_Y[t]
+        if self.covariates == True:
+            Z = self.list_Z[t]
+        else:
+            Z = []
+                    
+        P_y_given_s = prob_P_y_given_s(self, Y, p_js, n_segments) #i x s 
+                        
+        if t == 0: #s x i x t
+            P_s_given_Z = prob_P_s_given_Z(self, param, shapes, Z, n_segments) #[i x s]
+            alpha[:,:,t] = np.transpose( np.multiply(P_y_given_s, P_s_given_Z) ) # [i x s] [i x s] = [i x s]'
+            beta[:,:,v] = np.ones((n_segments,self.n_customers))
+        else:
+            P_s_given_r = prob_P_s_given_r(self, param, shapes, Z, n_segments) #[i x s x s]
+            
+            sum_alpha = np.zeros( (n_segments, self.n_customers) )
+            sum_beta = np.zeros( (n_segments, self.n_customers) )
+            for r in range(0,n_segments):                               #[ix1]                                               [ixs]               [ixs]
+                sum_alpha = sum_alpha + np.transpose( np.multiply( np.transpose(np.array([alpha[r,:,t-1]])) , np.multiply(P_s_given_r[:,:,r], P_y_given_s) ) )
+                sum_beta = sum_beta + np.transpose( np.multiply( np.transpose(np.array([beta[r,:,v+1]])) , np.multiply(P_s_given_r[:,r,:] , np.transpose(np.array([P_y_given_s[:,r]]))) ) )
+                                                                       #[i,1]                                            [i,s]                   [i,1]                            
+            alpha[:,:,t] = sum_alpha
+            beta[:,:,v]  = sum_beta
+                    
+    return alpha, beta

@@ -106,7 +106,7 @@ class HMM_eff:
             start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
-            alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
+            alpha, beta = ef.forward_backward_procedure(self, param_in, shapes, n_segments)
               
             start = utils.get_time() #set start time to time maximisation step
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
@@ -140,42 +140,43 @@ class HMM_eff:
         
     def forward_backward_procedure(self, param, shapes, n_segments):
         """function for the expectation step: compute alpha and beta with all parameters"""
-
+    
         p_js = ef.prob_p_js(self, param, shapes, n_segments)
-        
+            
         alpha = np.zeros((n_segments, self.n_customers, self.T))
         beta = np.zeros((n_segments, self.n_customers, self.T))
+            
         
-    
-        for i in range(0,self.n_customers):
-            for t in range(0,self.T):
-                v = self.T - t - 1
-                
-                Y = np.array([self.list_Y[t][i,:]])
-                if self.covariates == True:
-                    Z = np.array([self.list_Z[t][i,:]])
-                else:
-                    Z = []
-                
-                P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
-                
-                if t == 0:
-                    P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
-                    alpha[:,i,t] = np.multiply(P_y_given_s, P_s_given_Z).flatten()
-                    beta[:,i,v] = np.ones((n_segments))
-                else:
-                    P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
-    
-                    sum_alpha = np.zeros( (n_segments) )
-                    sum_beta = np.zeros( (n_segments) )
-                    for r in range(0,n_segments):
-                            sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r[0,:,r], P_y_given_s.flatten())
-                            sum_beta = sum_beta + beta[r,i,v+1] * P_s_given_r[0,r,:] * P_y_given_s[0,r] 
+        for t in range(0,self.T):
+            v = self.T - t - 1
+                        
+            Y = self.list_Y[t]
+            if self.covariates == True:
+                Z = self.list_Z[t]
+            else:
+                Z = []
+                        
+            P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #i x s 
                             
-                    alpha[:,i,t] = sum_alpha
-                    beta[:,i,v]  = sum_beta
+            if t == 0: #s x i x t
+                P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments) #[i x s]
+                alpha[:,:,t] = np.transpose( np.multiply(P_y_given_s, P_s_given_Z) ) # [i x s] [i x s] = [i x s]'
+                beta[:,:,v] = np.ones((n_segments,self.n_customers))
+            else:
+                P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments) #[i x s x s]
                 
+                sum_alpha = np.zeros( (n_segments, self.n_customers) )
+                sum_beta = np.zeros( (n_segments, self.n_customers) )
+                for r in range(0,n_segments):                               #[ix1]                                               [ixs]               [ixs]
+                    sum_alpha = sum_alpha + np.transpose( np.multiply( np.transpose(np.array([alpha[r,:,t-1]])) , np.multiply(P_s_given_r[:,:,r], P_y_given_s) ) )
+                    sum_beta = sum_beta + np.transpose( np.multiply( np.transpose(np.array([beta[r,:,v+1]])) , np.multiply(P_s_given_r[:,r,:] , np.transpose(np.array([P_y_given_s[:,r]]))) ) )
+                                                                           #[i,1]                                            [i,s]                   [i,1]                            
+                alpha[:,:,t] = sum_alpha
+                beta[:,:,v]  = sum_beta
+                        
         return alpha, beta
+
+
     
       
     def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method):
