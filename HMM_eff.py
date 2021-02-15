@@ -106,7 +106,7 @@ class HMM_eff:
             start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
-            alpha, beta = ef.forward_backward_procedure(self, param_in, shapes, n_segments)
+            alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
               
             start = utils.get_time() #set start time to time maximisation step
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
