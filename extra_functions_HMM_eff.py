@@ -7,6 +7,7 @@ Created on Fri Feb  5 14:39:33 2021
 import numpy as np 
 import math
 from tqdm import tqdm
+from time import perf_counter
 
 
 def param_list_to_matrices(self,param,shapes):
@@ -87,18 +88,40 @@ def prob_p_js(self, param, shapes, n_segments):
         
     
 def prob_P_y_given_s(self, Y, p_js, n_segments):
-    """function to compute P(Y_it | X_it = s) with probabilities p"""
+    """
+    Function to compute P(Y_it | X_it = s)  with probabilities p.
+    This is done by calculating P(Y_ijt| X_it) for every j
+
+    """
+    """
+
+    P_y_given_s = np.ones((row_Y, n_segments))
+
+    for j in range(0,self.n_products):
+        n_categories_for_j = self.n_categories[j]
+        prob_j_all_c = np.ones((row_Y, n_segments))
+        for c in range(0,n_categories_for_j):
+            prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
+            prob_j_all_c = np.multiply(prob_j_all_c, prob_j_c)
+        P_y_given_s = np.multiply(P_y_given_s, prob_j_all_c)
+
+    """
+
 
     row_Y = len(Y)
 
     P_y_given_s = np.ones((row_Y, n_segments))
-        
-    for p in range(0,self.n_products):
-        for c in range(0,self.n_categories[p]):
-            prob_p_c = np.transpose(np.power(np.transpose([p_js[:,p,c]]), [Y[:,p] == c]))
-            P_y_given_s = np.multiply(P_y_given_s, prob_p_c)   
-    return P_y_given_s 
-    
+
+    for j in range(0,self.n_products):
+        n_categories_for_j = self.n_categories[j]
+        prob_j_all_c = np.ones((row_Y, n_segments))
+        for c in range(0,n_categories_for_j):
+            prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
+            prob_j_all_c = np.multiply(prob_j_all_c, prob_j_c)
+        P_y_given_s = np.multiply(P_y_given_s, prob_j_all_c)
+
+
+    return P_y_given_s
 
 def prob_P_s_given_Z(self, param, shapes, Z, n_segments):  
     """function to compute P(X_i0 = s| Z_i0) with parameters gamma_0"""
