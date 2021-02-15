@@ -1448,13 +1448,14 @@ class dataProcessor:
 
         id_aggregate_dict = utils.doDictIntersect(self.df_linked_ts_time_converted.columns, declarationsFile.getPersonAggregateDict())
 
-        self.df_linked_ts_aggregated = self.df_linked_ts_time_converted.groupby(['personid', 'converted_period'], observed=True,
-                                                                            as_index = False).aggregate(
+        self.df_lts_agg = self.df_linked_ts_time_converted.groupby(['personid', 'converted_period'], observed=True,
+                                                                   as_index = False).aggregate(
             id_aggregate_dict)
 
         new_name_list = []
         prev_name = ""
-        for value in self.df_linked_ts_aggregated.columns:
+        #Change several things in columns names
+        for value in self.df_lts_agg.columns:
             new_name = value[0]
             if prev_name == value[0]:
                 new_name += "_" + value[1]
@@ -1462,7 +1463,7 @@ class dataProcessor:
             new_name = new_name.replace('<lambda_0>', 'mode')
             new_name = new_name.rstrip('_')
             new_name_list.append(new_name)
-        self.df_linked_ts_aggregated.columns = new_name_list
+        self.df_lts_agg.columns = new_name_list
 
 
         print(f"****Finished aggregating data of timeseries at {utils.get_time()}****")
@@ -1641,6 +1642,10 @@ class dataProcessor:
                 readArgs = {**readArgs, 'usecols' : declarationsFile.getPatColToParseTS()}
             self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_sample{addition_to_name}.csv", **readArgs)
 
+        elif fileID == 'ltsagg' or fileID == 'linked_ts_aggregated.csv':
+            self.df_lts_agg = pd.read_csv(f"{self.interdir}/linked_ts_aggregated.csv", **readArgs)
+            self.df_lts_agg = utils.doConvertFromDict(self.df_lts_agg)
+
         else:
             print("error importing")
 
@@ -1677,8 +1682,14 @@ class dataProcessor:
                 return print(errorMessage)
             writeArgs = {"index": False}
             utils.exportChunk(self.df_linked_ts_unc_sample, 250000, f"{self.interdir}/linked_ts_unconverted_sample{addition_to_name}.csv", **writeArgs)
+
+        elif fileID == 'ltsagg' or fileID == 'linked_ts_aggregated.csv':
+            writeArgs = {"index": False}
+            self.df_lts_agg = self.df_lts_agg(f"{self.interdir}/linked_ts_aggregated.csv", **writeArgs)
         else:
             print("error exporting")
+
+
 
     def portfolioActivitySampler(self, n = 4000, export_after = False, replaceGlobal = False, addition_to_file_name = ""):
         randomizer = np.random.RandomState(self.seed)
@@ -1725,5 +1736,13 @@ class dataProcessor:
         if self.df_linked_ts_unc.empty:
             return print("No df_pat to convert")
         self.df_linked_ts_unc = utils.doConvertFromDict(self.df_linked_ts_unc, ignore_errors=do_ignore_errors)
+
+    def test_in_dataprocessor(self):
+        "Method to enable debugging with self. and test the data## "
+
+        test_pivot = pd.pivot_table(self.df_lts_agg, values='personid', index=
+        ['has_experian_data', 'has_business_id', 'has_account_overlay'], aggfunc='nunique')
+
+        pass
 
 
