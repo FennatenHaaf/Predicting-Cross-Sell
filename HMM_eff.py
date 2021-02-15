@@ -252,11 +252,12 @@ class HMM_eff:
                 Z = []
     
             #t=t, term 2
-            for r in range(0,n_segments):
-                for s in range(0,n_segments):
-                    P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, r, n_segments)
-                    sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
-                    
+            #for r in range(0,n_segments):
+            for s in range(0,n_segments):
+                P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, n_segments)
+                #sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
+                sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,:]))  )
+
             #t=t, term 3
             P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #ixs
             P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t]) #ixs
