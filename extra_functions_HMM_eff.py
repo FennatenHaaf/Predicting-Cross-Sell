@@ -157,7 +157,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, n_segments):#for all person
     """function to compute P(X_it-1 = s_t-1, X_it = s_t|Y_i, Z_i)"""
     
-    P_s_given_Y_Z = np.multiply(alpha, beta)
+    P_s_given_Y_Z_ut = np.multiply(alpha, beta)
     
     P_s_given_r = prob_P_s_given_r(self, param, shapes, Z, n_segments)
     P_y_given_s = prob_P_y_given_s(self, Y, prob_p_js(self, param, shapes, n_segments), n_segments)
@@ -170,7 +170,7 @@ def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, n_segments):#for a
     P_sr_given_Y_Z = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
     P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
     P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixs]
-    P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z[:,:,t], axis = 0)]))
+    P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z_ut[:,:,t], axis = 0)]))
     
     
     return P_sr_given_Y_Z 
