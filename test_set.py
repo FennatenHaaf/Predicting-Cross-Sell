@@ -36,6 +36,7 @@ name_dep_var_active = ['ac1', 'ac2', 'ac3']
 #Bool: If true: run Model as paas , if False: run a more general HMM
 covariates = False
 
+
 #test = ht.HMM_eff(df_per_time, name_dep_var, name_covariates, covariates)
 #n_segments = 4
 
@@ -44,10 +45,14 @@ covariates = False
 n_segments = 3
 test_active = ht.HMM_eff(df_per_time, name_dep_var_active, False)
 param_ac, shapes_ac = test_active.EM(n_segments, max_method = 'Nelder-Mead')
+
+#n_segments = 3
+#test_active = ht.HMM_eff(df_per_time, name_dep_var_active, covariates = False)
+#param_ac, shapes_ac = test_active.EM(n_segments, max_method = 'Nelder-Mead')
 #active_value = test_active.active_value(param, shapes, n_segments)
 
 
-#n_segments = 4
-#test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates, True)
-#param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
+n_segments = 4
+test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates, True)
+param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
 #cross_sell_target, cross_sell_self, cross_self_total = test_cross_sell.cross_sell_yes_no(param_cross, shapes_cross, n_segments, alpha, active_value):
