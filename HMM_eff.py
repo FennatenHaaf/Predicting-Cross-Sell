@@ -17,6 +17,8 @@ import numpy as np
 from scipy.optimize import minimize 
 import utils
 from tqdm import tqdm
+from geneticalgorithm import geneticalgorithm as ga
+
 #from pyswarm import pso
 
 class HMM_eff:
@@ -241,7 +243,7 @@ class HMM_eff:
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z)))
         
         #t=0, term 3
-        P_y_given_s = ef.prob_P_y_given_s(self, Y, ef.prob_p_js(self, x, shapes, n_segments), n_segments) #ixs
+        P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #ixs
         P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,0]) #ixs
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s)))
         
