@@ -17,7 +17,7 @@ import numpy as np
 from scipy.optimize import minimize 
 import utils
 from tqdm import tqdm
-from geneticalgorithm import geneticalgorithm as ga
+#from geneticalgorithm import geneticalgorithm as ga
 
 #from pyswarm import pso
 
@@ -247,6 +247,8 @@ class HMM_eff:
         P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,0]) #ixs
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s)))
         
+        P_s_given_Y_Z_ut = np.multiply(alpha, beta)
+        
         for t in range(1,self.T):
             Y = self.list_Y[t]
             if self.covariates == True:
@@ -256,8 +258,14 @@ class HMM_eff:
     
             #t=t, term 2
             #for r in range(0,n_segments):
+            
+            # These do not depend on the segment - use as input for joint event function
+            P_s_given_r = ef.prob_P_s_given_r(self, param_in, shapes, Z, n_segments)
+            P_y_given_s = ef.prob_P_y_given_s(self, Y, ef.prob_p_js(self, param_in, shapes, n_segments),n_segments)
+            
             for s in range(0,n_segments):
-                P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, n_segments)
+                P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, n_segments,
+                                                P_s_given_Y_Z_ut, P_s_given_r, P_y_given_s)
                 #sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
                 sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,:]))  )
 
