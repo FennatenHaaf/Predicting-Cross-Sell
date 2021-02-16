@@ -150,12 +150,10 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
         
         P_s_given_Z = np.transpose( np.exp( P_s_given_Z - logsumexp(P_s_given_Z) ))   
 
-        #P_s_given_Z = np.transpose(np.divide( P_s_given_Z , np.sum(P_s_given_Z, axis = 0) ))  
-
     else:
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         pi = np.append(pi, np.array([1]))
-        P_s_given_Z = np.exp(pi) / np.sum(np.exp(pi)) 
+        P_s_given_Z = np.exp( pi - logsumexp(pi) )
    
     return P_s_given_Z
         
@@ -178,15 +176,17 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         mat = np.array_split(mat, row_Z, axis = 1)
         mat = np.array(mat)
         
-        P_s_given_r = np.exp(P_s_given_r + mat)
+        P_s_given_r = P_s_given_r + mat
 
-        P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
-        
+        #P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
+        log_sum_exp = logsumexp(P_s_given_r, axis = 1, row_Z = row_Z, n_segments = n_segments, reshape = True)
+        P_s_given_r = np.exp(P_s_given_r - np.reshape(log_sum_exp, (row_Z,1,n_segments))) #i x s x s
     else:  
-            A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
-            A = np.vstack((A, np.ones((1, n_segments))))
-            P_s_given_r = np.array([ np.divide(np.exp(A), np.sum(np.exp(A), axis = 0)) ])
-            
+        A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
+        A = np.vstack((A, np.ones((1, n_segments))))
+        
+        #P_s_given_r = np.array([ np.divide(np.exp(A), np.sum(np.exp(A), axis = 0)) ])
+        P_s_given_r = np.exp(A - logsumexp(A))
     return P_s_given_r
         
     
@@ -224,9 +224,16 @@ def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
     return P_s_given_Y_Z
 
 
-def logsumexp(x, axis = 0):
+def logsumexp(x, axis = 0, row_Z = 1, n_segments = 1, reshape = False):
+    
     c = x.max(axis = axis)
-    diff = x - c
+    
+    if reshape == False:
+        diff = x - c 
+    else:
+        diff = x - np.reshape(c, (row_Z,1,n_segments))
+        hoi = np.sum(np.exp(diff), axis = axis)
+        
     return c + np.log(np.sum(np.exp(diff), axis = axis))
 
 
