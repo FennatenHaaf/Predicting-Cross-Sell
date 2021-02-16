@@ -104,6 +104,11 @@ class dataProcessor:
 
 
 
+# =============================================================================
+# Methods to select which IDs to use & make the base dataset
+# =============================================================================
+
+
     def select_ids(self, subsample = True, sample_size = 500, 
                    outname = "base_experian",
                    filename = "valid_ids",
@@ -403,9 +408,11 @@ class dataProcessor:
     
   
         
-    
   
-#methods to make the final datasets ============================================
+  
+# =============================================================================
+# methods to make the final datasets ==========================================
+# =============================================================================
     
 
     def time_series_from_cross(self, outname = "final_df"):
@@ -797,7 +804,9 @@ class dataProcessor:
 
 
 
-#some helper methods that are used to handle time =================================
+# =============================================================================
+# #some helper methods that are used to handle time ===========================
+# =============================================================================
 
 
     def get_last_day_period(self, date, next_period = False):
@@ -883,7 +892,9 @@ class dataProcessor:
 
 
     
-#methods to process corporate data ===================================================
+# =============================================================================
+# methods to process corporate data ===========================================
+# =============================================================================
 
     def processCorporateData(self):
         """processes the corporate information data and creates some extra
@@ -1054,14 +1065,15 @@ class dataProcessor:
         self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
 
 
-#methods to create transaction & activity data ============================================
+
+# =============================================================================
+# methods to create transaction & activity data ===============================
+# =============================================================================
     
     def create_transaction_data_crosssection(self, date = None):
         """creates transaction data based on the cross-section for a specific date"""
         
-        #Deze variabelen zijn in sommige jaren altijd 0 dus gebruiken we niet
-        # cols_to_drop = ["yearweek", "gemaksbeleggenyn", "saldogemaksbeleggen", "participatieyn",
-        #               "saldoparticipatie","vermogensbeheeryn", "saldovermogensbeheer"]
+        # Bepaalde variabelen zijn in sommige jaren altijd 0 dus gebruiken we niet
         readArgs = {"usecols": declarationsFile.getPatColToParseCross(subset = "transactions")}
 
         if date.year >2019:
@@ -1104,9 +1116,6 @@ class dataProcessor:
                 
         return dataset
     
-    
-        
-        
 
     def create_activity_data_crosssection(self, date):
         """creates activity data based on the cross-section for a specific date"""
@@ -1222,7 +1231,9 @@ class dataProcessor:
 
 
 
-#linkTimeSets=====================================================================
+# =============================================================================
+# linkTimeSets=================================================================
+# =============================================================================
 
     def link_data_to_timeseries(self, use_sample = False, select_col = True):
         """
