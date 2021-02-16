@@ -88,75 +88,6 @@ def prob_p_js(self, param, shapes, n_segments):
     return p_js
         
 
-def z_test_P_y_gives(self, Y, p_js, n_segments):
-
-    row_Y = len(Y)
-
-    max_categories =  max(self.n_categories)
-    p_new = p_js.reshape((n_segments, 1, self.n_products * max_categories))
-    P_y_given_s = np.ones((row_Y, n_segments))
-    t1 = perf_counter()
-    P_y_given_s = np.ones((row_Y,n_segments))
-
-    y_new = np.repeat(Y,max_categories, axis = 1)
-    y_help = np.tile(np.arange(0,max_categories), self.n_products)
-    y_new = y_new - y_help
-
-    y_index = y_new == 0
-
-    for s in range(0,n_segments):
-        chance = np.power(p_new[s],y_index)
-        P_y_given_s[:,s] = chance.prod(axis = 1)
-
-    t2 = perf_counter()
-    print(t2 - t1)
-
-
-    P_y_given_s = np.ones((row_Y, n_segments))
-    t1 = perf_counter()
-    P_y_given_s = np.ones((n_segments,row_Y,self.n_products))
-    for s in range(0,n_segments):
-        for c in range(0,max(self.n_categories)):
-            chance = np.power(p_js[s,:,c], Y == c)
-            P_y_given_s[s,:,:] = np.multiply(P_y_given_s[s,:,:], chance)
-    P_y_given_s = np.transpose(P_y_given_s.prod(axis=2))
-    t2 = perf_counter()
-    print(t2 - t1)
-
-    P_y_given_s = np.ones((row_Y, n_segments))
-    t1 = perf_counter()
-    P_y_given_s = np.ones((n_segments,row_Y,self.n_products))
-    for s in range(0,n_segments):
-        for c in range(0,max(self.n_categories)):
-            chance = np.power(p_js[s,:,c], Y == c)
-            P_y_given_s[s,:,:] = np.multiply(P_y_given_s[s,:,:], chance)
-    P_y_given_s = np.transpose(P_y_given_s.prod(axis=2))
-    t2 = perf_counter()
-    print(t2 - t1)
-
-    P_y_given_s = np.ones((row_Y, n_segments))
-    tp_js = np.transpose(p_js)
-    t1 = perf_counter()
-    for j in range(0,self.n_products):
-        for c in range(0,self.n_categories[j]):
-            prob_j_c = np.transpose(np.power(tp_js[j,c]), Y[:,j] == c)
-            P_y_given_s = np.multiply(P_y_given_s, prob_j_c)
-
-    t2 = perf_counter()
-    print(t2 - t1)
-
-    P_y_given_s = np.ones((row_Y, n_segments))
-    t1 = perf_counter()
-    for j in range(0,self.n_products):
-        for c in range(0,self.n_categories[j]):
-            # prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
-            prob_j_c = np.power(p_js[:, j, c][np.newaxis, :], Y[:, j][:, np.newaxis] == c)
-            P_y_given_s = np.multiply(P_y_given_s, prob_j_c)
-
-    t2 = perf_counter()
-    print(t2 - t1)
-
-
 def prob_P_y_given_s(self, Y, p_js, n_segments):
     """
     Function to compute P(Y_it | X_it = s)  with probabilities p.
@@ -182,7 +113,7 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
     if self.covariates == True:
         gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, param, shapes)
 
-        P_s_given_Z = np.exp(np.transpose([gamma_0[:,0]] * row_Z) + np.matmul(gamma_0[:,1:self.n_covariates+1] , np.transpose(Z) ) )
+        P_s_given_Z = np.exp(gamma_0[:,0][:,np.newaxis] + gamma_0[:,1:self.n_covariates+1].dot(np.transpose(Z)) )
         P_s_given_Z = np.vstack( (P_s_given_Z, np.ones((1,row_Z))) )  #for the base case
         P_s_given_Z = np.transpose(np.divide( P_s_given_Z , np.sum(P_s_given_Z, axis = 0) ))   
     else:
