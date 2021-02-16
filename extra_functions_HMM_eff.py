@@ -11,11 +11,11 @@ from time import perf_counter
 import numexpr as ne
 
 
-def param_list_to_matrices(self,param,shapes):
+def param_list_to_matrices(self, n_segments, param,shapes):
     """change the shape of the parameters to separate matrices"""
 
     if self.covariates == True:
-        n_gamma_0 = shapes[0,1]
+        """n_gamma_0 = shapes[0,1]
         n_gamma_sr_0  = shapes[1,1]   
         n_gamma_sk_t = shapes[2,1]
         gamma_0 = param[0:n_gamma_0]
@@ -26,6 +26,28 @@ def param_list_to_matrices(self,param,shapes):
         gamma_sr_0 = np.reshape(gamma_sr_0, shapes[1,0])                        
         gamma_sk_t = np.reshape(gamma_sk_t, shapes[2,0])                        
         beta = np.reshape(beta, shapes[3,0])
+        return gamma_0, gamma_sr_0, gamma_sk_t, beta"""
+        
+        n_gamma_0 = shapes[0,1]
+        n_gamma_sr_0  = shapes[1,1]   
+        n_gamma_sk_t = shapes[2,1]
+        gamma_0 = param[0:n_gamma_0]
+        gamma_sr_0 = param[n_gamma_0:(n_gamma_0+n_gamma_sr_0)]
+        gamma_sk_t = param[(n_gamma_0+n_gamma_sr_0):(n_gamma_0+n_gamma_sr_0+n_gamma_sk_t)]
+        
+        gamma_0 = np.reshape(gamma_0, shapes[0,0])
+        gamma_sr_0 = np.reshape(gamma_sr_0, shapes[1,0])                        
+        gamma_sk_t = np.reshape(gamma_sk_t, shapes[2,0])
+        
+        beta_param = param[(n_gamma_0+n_gamma_sr_0+n_gamma_sk_t):param.shape[0]]
+        beta = np.zeros((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y| S_t = s)
+
+        i = 0
+        for s in range(n_segments):
+            for p in range(0,self.n_products):
+                beta[s,p,0:self.n_categories[p]] = beta_param[i:i+self.n_categories[p]]
+                i = i + self.n_categories[p]
+        
         return gamma_0, gamma_sr_0, gamma_sk_t, beta
     else:
         n_A = shapes[0,1]
@@ -43,11 +65,21 @@ def param_list_to_matrices(self,param,shapes):
         return A, pi, b
         
         
-def param_matrices_to_list(self, A = [], pi = [], b = [], gamma_0 = [], gamma_sr_0 = [], gamma_sk_t = [], beta = []):
+def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = [], gamma_sr_0 = [], gamma_sk_t = [], beta = []):
     """transform parameter matrices to one vector"""
 
     if self.covariates == True:
+        """
         parameters = np.concatenate((gamma_0.flatten(), gamma_sr_0.flatten(), gamma_sk_t.flatten(), beta.flatten()))
+        """
+        beta_vec = np.array([0])
+        
+        for s in range(n_segments):
+            for p in range(0,self.n_products):
+                beta_vec = np.concatenate( (beta_vec, beta[s,p,0:self.n_categories[p]]) )
+        beta_vec = beta_vec[1:beta_vec.size]
+        
+        parameters = np.concatenate((gamma_0.flatten(), gamma_sr_0.flatten(), gamma_sk_t.flatten(), beta_vec))
     else:
         parameters = np.concatenate((A.flatten(), pi.flatten(), b.flatten()))
     
@@ -64,9 +96,9 @@ def prob_p_js(self, param, shapes, n_segments):
     
     """case with covariates"""
     if self.covariates == True:
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self,param,shapes)
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param,shapes)
     else:
-        A, pi, b = param_list_to_matrices(self,param,shapes)
+        A, pi, b = param_list_to_matrices(self, n_segments, param,shapes)
         beta = b
     
     for s in range(0,n_segments):
@@ -75,15 +107,15 @@ def prob_p_js(self, param, shapes, n_segments):
             for c in range(0,self.n_categories[p]):
                 if c == 0: #first category (zero ownership of product) is the base
                     log_odds[s,p,c] = 0
-                    denominator = denominator + math.exp(log_odds[s,p,c])
+                    denominator = denominator + log_odds[s,p,c]
                 else:
                     if s == n_segments - 1: #last segment is the base
                         log_odds[s,p,c] = beta[s,p,c]
-                        denominator = denominator + math.exp(log_odds[s,p,c])
+                        denominator = denominator + log_odds[s,p,c]
                     else: 
                         log_odds[s,p,c] = beta[n_segments-1,p,c] + beta[s,p,c]
-                        denominator = denominator + math.exp(log_odds[s,p,c])
-            p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,0:self.n_categories[p]]) / denominator
+                        denominator = denominator + log_odds[s,p,c]
+            p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,0:self.n_categories[p]] - logsumexp(log_odds[s,p,0:self.n_categories[p]]))
                         
     return p_js
         
@@ -111,13 +143,13 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
     
     """case with covariates"""
     if self.covariates == True:
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, param, shapes)
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
 
         P_s_given_Z = np.exp(gamma_0[:,0][:,np.newaxis] + gamma_0[:,1:self.n_covariates+1].dot(np.transpose(Z)) )
         P_s_given_Z = np.vstack( (P_s_given_Z, np.ones((1,row_Z))) )  #for the base case
         P_s_given_Z = np.transpose(np.divide( P_s_given_Z , np.sum(P_s_given_Z, axis = 0) ))   
     else:
-        A, pi, b = param_list_to_matrices(self, param, shapes)
+        A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         pi = np.append(pi, np.array([1]))
         P_s_given_Z = np.exp(pi) / np.sum(np.exp(pi)) 
    
@@ -131,7 +163,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 
     """case with covariates"""
     if self.covariates == True:
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, param, shapes)
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
 
         gamma_sr_0 = np.vstack((gamma_sr_0, np.zeros((1,n_segments))))
         P_s_given_r = np.repeat(gamma_sr_0[np.newaxis,:,:], row_Z, axis = 0)
@@ -147,7 +179,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
         
     else:  
-            A, pi, b = param_list_to_matrices(self, param, shapes)
+            A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
             A = np.vstack((A, np.ones((1, n_segments))))
             P_s_given_r = np.array([ np.divide(np.exp(A), np.sum(np.exp(A), axis = 0)) ])
             
@@ -186,6 +218,13 @@ def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
     P_s_given_Y_Z = np.divide(P_s_given_Y_Z, np.sum(P_s_given_Y_Z, axis = 0))
     
     return P_s_given_Y_Z
+
+
+def logsumexp(x, axis = 0):
+    c = x.max(axis = axis)
+    return c + np.log(np.sum(np.exp(x - c)))
+
+
 
 
 

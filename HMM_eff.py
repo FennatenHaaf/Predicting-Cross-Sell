@@ -73,21 +73,35 @@ class HMM_eff:
             max_method: maximization method to use for the maximization step"""
         
         if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
-            gamma_0 = 0.2 * np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            """gamma_0 = 0.2 * np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
             gamma_sr_0 = 0.3 * np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
             gamma_sk_t = 0.4 * np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = 0.5 * np.ones((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y| S_t = s)
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
+            param_out = param #set name of parameterlist for the input of the algorithm """
+            gamma_0 = 0.2 * np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            gamma_sr_0 = 0.3 * np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t = 0.4 * np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
+            beta = np.zeros((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y| S_t = s)
+            
+            for s in range(n_segments):
+                for p in range(0,self.n_products):
+                    beta[s,p,0:self.n_categories[p]] = 0.5 * np.ones((1,self.n_categories[p]))                    
+            
+            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
+            shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
+            param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
+            
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
             b = np.ones((n_segments, self.n_products, max(self.n_categories))) ##parameters for P(Y| S_t = s)
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
-            param = ef.param_matrices_to_list(self, A = A, pi = pi, b = b) #convert parametermatrices to list
+            param = ef.param_matrices_to_list(self, n_segments, A = A, pi = pi, b = b) #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
 
         #initialise
@@ -280,7 +294,7 @@ class HMM_eff:
         if self.covariates == True:
             Z = self.list_Z[self.T-1]
 
-            gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, param, shapes)
+            gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param, shapes)
 
             p_js = ef.prob_p_js(self, param, shapes, n_segments) #s x p x c
             P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z)
