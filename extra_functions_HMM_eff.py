@@ -86,40 +86,47 @@ def prob_p_js(self, param, shapes, n_segments):
                         
     return p_js
         
-    
+
+def test_P_y_gives(self, Y, p_js, n_segments):
+
+    row_Y = len(Y)
+
+    P_y_given_s = np.ones((row_Y, n_segments))
+    t1 = perf_counter()
+    P_y_given_s = np.ones((n_segments,row_Y,self.n_products))
+    for s in range(0,n_segments):
+        for c in range(0,max(self.n_categories)):
+            chance = np.power(p_js[s,:,c], Y == c)
+            P_y_given_s[s,:,:] = np.multiply(P_y_given_s[s,:,:], chance)
+    P_y_given_s = np.transpose(P_y_given_s.prod(axis=2))
+    t2 = perf_counter()
+    print(t2 - t1)
+
+
+    P_y_given_s = np.ones((row_Y, n_segments))
+    t1 = perf_counter()
+    for j in range(0,self.n_products):
+        for c in range(0,self.n_categories[j]):
+            prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
+            P_y_given_s = np.multiply(P_y_given_s, prob_j_c)
+
+    t2 = perf_counter()
+    print(t2 - t1)
+
+
 def prob_P_y_given_s(self, Y, p_js, n_segments):
     """
     Function to compute P(Y_it | X_it = s)  with probabilities p.
     This is done by calculating P(Y_ijt| X_it) for every j
 
     """
-    """
-
-    P_y_given_s = np.ones((row_Y, n_segments))
-
-    for j in range(0,self.n_products):
-        n_categories_for_j = self.n_categories[j]
-        prob_j_all_c = np.ones((row_Y, n_segments))
-        for c in range(0,n_categories_for_j):
-            prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
-            prob_j_all_c = np.multiply(prob_j_all_c, prob_j_c)
-        P_y_given_s = np.multiply(P_y_given_s, prob_j_all_c)
-
-    """
-
-
     row_Y = len(Y)
 
     P_y_given_s = np.ones((row_Y, n_segments))
-
     for j in range(0,self.n_products):
-        n_categories_for_j = self.n_categories[j]
-        prob_j_all_c = np.ones((row_Y, n_segments))
-        for c in range(0,n_categories_for_j):
+        for c in range(0,self.n_categories[j]):
             prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
-            prob_j_all_c = np.multiply(prob_j_all_c, prob_j_c)
-        P_y_given_s = np.multiply(P_y_given_s, prob_j_all_c)
-
+            P_y_given_s = np.multiply(P_y_given_s, prob_j_c)
 
     return P_y_given_s
 
