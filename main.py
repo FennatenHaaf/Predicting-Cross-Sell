@@ -28,8 +28,8 @@ if __name__ == "__main__":
     sample_size = 500 # The sample size
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
-    time_series = False # Do we want to run the code for getting time series data
-    saldo_data = True
+    time_series = True # Do we want to run the code for getting time series data
+    saldo_data = False
     
     #----------------INITIALISE DATASET CREATION-------------------
     start = utils.get_time()
@@ -60,13 +60,12 @@ if __name__ == "__main__":
         df_cross_link = test.create_cross_section_perportfolio(df_cross, cross_date, 
                                               outname = "df_cross_portfoliolink")
         # Aggregate all of the portfolio information per person ID
-        test.create_cross_section_perperson(df_cross, df_cross_link,
+        df_out = test.create_cross_section_perperson(df_cross, df_cross_link,
                                             cross_date, outname = "final_df_quarterly")
     
     #----------------MAKE TIME SERIES DATASETS-------------------
     if time_series:
-        test.time_series_from_cross(outname = "final_df")
-    
+        dflist = test.time_series_from_cross(outname = "final_df")
     
     #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
     #TODO: first transorm the data before we make this daset?

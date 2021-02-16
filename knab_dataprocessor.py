@@ -104,7 +104,6 @@ class dataProcessor:
 
 
 
-        
     def select_ids(self, subsample = True, sample_size = 500, 
                    outname = "base_experian",
                    filename = "valid_ids",
@@ -170,13 +169,16 @@ class dataProcessor:
         #-------------------- TAKE A SUBSAMPLE OF THE IDs ------------------
         
         if subsample:
-            assert sample_size <= len(valid_ids), \
-            "The sample size can't be larger than the number of IDs"
-        
-            print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
-            valid_ids = valid_ids.sample(n = sample_size, 
-                                         random_state = self.seed).reset_index(drop=True)
-            print(f"Done at {utils.get_time()}.")
+            if(sample_size <= len(valid_ids)):
+                print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
+                valid_ids = valid_ids.sample(n = sample_size, 
+                                             random_state = self.seed).reset_index(drop=True)
+                print(f"Done at {utils.get_time()}.")
+            else:
+                print(f"The sample size ({sample_size}) can't be larger "\
+                      f"than the number of IDs ({len(valid_ids)})")
+                print("Continuing without taking subsample...")
+               
 
         # Now we can select the base data
         self.base_df = self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy()
@@ -184,7 +186,6 @@ class dataProcessor:
         
         #------------------ ADD A WEEK TO VALIDTO DATES  ------------------
         
-        #TODO: check that this has the intended effect!!!
         # To account for small gaps between validto and validfrom dates (which may be
         # due to administration), we add 7 days to the validto dates of experian
         select = ( ~(self.base_df["valid_to_dateeow"].isnull()) \
@@ -204,7 +205,8 @@ class dataProcessor:
         
         
         
-    def get_valid_ids(self, filename, useaggregated=True):
+    def get_valid_ids(self, filename, invalid = "zzinvalid_ids",
+                       use_file = True):
         """Gets the person IDs in the Experian dataset which have complete
         information for all of their portfolios and characteristics"""
         
@@ -234,34 +236,7 @@ class dataProcessor:
     
         #----------------- ENSURE INFORMATION IN EXPERIAN DATA ---------------
         # we want there to be experian data in every time period for the IDs 
-    
-        if useaggregated:
-            # This is the dataset made by the linktimesets function! - check if this works
-            readArgs = {"usecols": ["personid","converted_period" ]}
-            activeids = pd.read_csv(f"{self.interdir}/linked_ts_aggregated.csv", **readArgs)
-            # we want only the ones that appear in our period
-            # TODO: this is a temporary fix !!!!!!!!!!!!!!!!!! Just get all the 
-            # periods between our beginning and starting date!
-            periods = ["2018Q1","2018Q2","2018Q3","2018Q4",
-                       "2019Q1","2019Q2","2019Q3","2019Q4",
-                       "2020Q1","2020Q2","2020Q3","2020Q4"]
-            
-            activeids = activeids[activeids["converted_period"].isin(periods)]
-            activeids = activeids[["personid"]].groupby("personid").size().reset_index(name="periods")
-            activeids = activeids[activeids["periods"]==12]
-            activeids = pd.Series(activeids["personid"].unique())
-            #TODO: om nog iets zekerder te zijn kunnen we ook zeggen dat saldototaal
-            #niet 0 mag zijn (maar dat is alleen relevant als ze voor alledrie geen
-            #info hebben misschien?)
-            
-            valid_ids = valid_ids[valid_ids.isin(activeids)]
-            lenx= len(valid_ids)
-            print(f"{len3-lenx} IDs dropped for not being in activity data" \
-                  " for the full timeperiod (based on aggregated dataset)")
-        else:
-            lenx=len3
-      
-        #else: # other method, not perfect yet
+
         # Get a variable representing the last date until which an ID is valid
         maxending = self.df_experian[["valid_to_dateeow","personid"]].copy()
         maxending["valid_to_dateeow"] = maxending["valid_to_dateeow"].fillna(self.last_date).astype('datetime64[ns]')
@@ -283,24 +258,14 @@ class dataProcessor:
         #-> The last validto date has to be AFTER a certain ending date    
         valid_ids_experian = self.df_experian["personid"][(self.df_experian["valid_to_max"]>= self.end_date) \
                                             & (self.df_experian["valid_from_min"]<= self.start_date)]        
-        #TODO: zou het kunnen dat IDs in de tussentijd worden uitgeschreven en 
-        # weer ingeschreven??
-        
+
         valid_ids_experian = valid_ids_experian.reset_index(level=0,drop=True)
         # Get the intersection with the previous set
         valid_ids = valid_ids[valid_ids.isin(valid_ids_experian)]
         len4= len(valid_ids)
-        print(f"{lenx-len4} IDs dropped for not being there for the full timeperiod")
-  
-        # Make sure there are also the household size variables etc. present, 
-        # not just finergy
-        experian_missing = self.df_experian["personid"][self.df_experian["age_hh"].isnull()]
-        # Remove the ids where any of the entries has a null for age_hh
-        valid_ids = valid_ids[~(valid_ids.isin(experian_missing))]
-        len5= len(valid_ids)
-        print(f"{len4-len5} IDs dropped for not having full experian info at all moments in time")
- 
-        #-------------- ENSURE INFORMATION IN TRANSACTION DATA -------------
+        print(f"{len3-len4} IDs dropped for not being there for the full timeperiod")
+        
+        #-------------- MAKE SURE IDS ARE ACTIVE -------------
         
         # haal de active portfolio IDs op voor een specifieke periode
         active_portfolios = self.get_active_portfolios() 
@@ -310,18 +275,90 @@ class dataProcessor:
         active_person_ids = \
         self.df_link["personid"][(self.df_link["portfolioid"].isin(active_portfolios))]  
         valid_ids = valid_ids[(valid_ids.isin(active_person_ids))]
-        len6= len(valid_ids)
-        print(f"{len5-len6} IDs dropped for not having at least one portfolio " \
+        len5= len(valid_ids)
+        print(f"{len4-len5} IDs dropped for not having at least one portfolio " \
               "in the transaction info in given time period")
+        
+        #------------NOW RUN THE TIME SERIES AND GET VALID IDS ---------------
+        
+        if (path.exists(f"{self.interdir}/{invalid}.csv") & (use_file)):
+            invalid_ids = pd.read_csv(f"{self.interdir}/{invalid}.csv").squeeze()
+        else:
+            temp= self.df_experian[self.df_experian["personid"].isin(valid_ids)].copy()
+    
+            # To account for small gaps between validto and validfrom dates (which may be
+            # due to administration), we add 7 days to the validto dates of experian
+            select = ( ~(temp["valid_to_dateeow"].isnull()) \
+                 &(temp["valid_to_dateeow"] <= (self.last_date + timedelta(days=-7))) )
+            temp.loc[select,"valid_to_dateeow"] = \
+                (temp[["valid_to_dateeow"]]+timedelta(days=7))
+                
+            date = self.get_last_day_period(self.start_date, next_period=False)
+            end = self.get_last_day_period(self.end_date, next_period=False)
             
+            invalid_ids = pd.Series()
+            i=1
+            starttime = utils.get_time()
+            
+            # Now, until we have gone through all of the periods make a cross-section
+            while (date <= end):           
+                print("=====================================================")                   
+                print("Making data for each period to identify ids with missing data....")
+                print(f"period {i}")
+                i+=1
+                
+                #Make the cross-sectional dataset for this specific cross-date
+                df_cross = self.get_time_slice(temp, date)
+                
+                # Make sure that IDs do not appear twice in df_cross 
+                # -> We sort by date and keep the one with most recent valid_from
+                df_cross = df_cross.sort_values("valid_from_dateeow")
+                df_cross.drop_duplicates(subset=["personid"],
+                              keep='last', inplace=True) 
+                
+                # make the cross section per person
+                df_cross_link = self.create_cross_section_perportfolio(df_cross, date, 
+                                          outname = "portfoliolink_temp",
+                                          save=False)
+                # Add the IDs where data is missing to the IDs to be removed
+                missing_experian= df_cross["personid"][df_cross["age_hh"].isnull()] 
+                invalid_ids = invalid_ids.append(missing_experian.squeeze())
+                missing_activity = df_cross_link["personid"][df_cross_link["saldobetalen"].isnull()]  
+                invalid_ids = invalid_ids.append(missing_activity.squeeze())
+    
+                invalid_ids = invalid_ids.drop_duplicates()
+                
+                #utils.save_df_to_csv(invalid_ids, self.interdir, 
+                #          "invalid_test", add_time = False )
+    
+                # Now get the last day of the next period for our next cross-date
+                date = self.get_last_day_period(date,next_period=True)
+                
+            print("=========== DONE GETTING MISSING IDS =============")
+            endtime = utils.get_time()
+            diff = utils.get_time_diff(starttime, endtime)
+            print(f"Total time to make invalid IDs file: {diff}")
+            print(f"Saving file to filename: {invalid}.csv")
+            utils.save_df_to_csv(invalid_ids, self.interdir, 
+                         f"{invalid}", add_time = False )
+            print("=====================================================")    
+        #--------------------------------------------------------------------    
+        valid_ids = valid_ids[~(valid_ids.isin(invalid_ids))]
+        len6= len(valid_ids)
+        print(f"{len5-len6} IDs dropped for having either missing experian " \
+              "or missing transaction data in one of the time periods")
+        
         #------------------ SAVE & RETURN THE VALID IDS ---------------------
         utils.save_df_to_csv(valid_ids, self.interdir, 
                               f"{filename}", add_time = False )     
         return valid_ids
         
-    
+        
     
     def get_active_portfolios(self):
+        """Gets all the portfolio IDS which appear in the transaction data within
+        the specified time period AT LEAST once"""
+        
         readArgs = {"usecols": ["portfolioid","dateeow"]}
         readlist = [f"{self.indir}/portfolio_activity_transaction_retail.csv",
                     f"{self.indir}/portfolio_activity_transaction_business.csv",
@@ -360,9 +397,6 @@ class dataProcessor:
             (idsunique["first_transac"]<= self.end_date) \
             & (idsunique["last_transac"]>= self.start_date)]   
                
-        #TODO: Het kan nu nog dat mensen niet ELKE periode transaction info
-        #hebben?
-
         valid_ids_transac = valid_ids_transac.reset_index(level=0,drop=True)
         return valid_ids_transac
         
@@ -381,6 +415,8 @@ class dataProcessor:
         date = self.get_last_day_period(self.start_date, next_period=False)
         print("Ending date for the time series dataset:")
         end = self.get_last_day_period(self.end_date, next_period=False)
+        
+        dflist = []
         
         # Now, until we have gone through all of the periods make a cross-section
         while (date <= end):        
@@ -407,16 +443,17 @@ class dataProcessor:
             df_cross_link = self.create_cross_section_perportfolio(df_cross, date, 
                                       outname = f"portfoliolink_{year}Q{quarter}")
             
-            self.create_cross_section_perperson(df_cross, df_cross_link, date,
+            df_final = self.create_cross_section_perperson(df_cross, df_cross_link, date,
                                       outname = f"{outname}_{year}Q{quarter}")
             
             # Now get the last day of the next period for our next cross-date
             date = self.get_last_day_period(date,next_period=True)
             print(f"next date: {date}")
+            
+            dflist.append(df_final)
     
         print("=========== DONE MAKING TIME SERIES =============")
-        
-        
+        return dflist
         
         
     def create_base_cross_section(self,
@@ -469,7 +506,8 @@ class dataProcessor:
 
 
     def create_cross_section_perportfolio(self, df_cross, cross_date, 
-                                          outname = "df_cross_portfoliolink"): 
+                                          outname = "df_cross_portfoliolink",
+                                          save = True): 
         """Creates a dataset of information for a set of people at a 
         specific time"""
         
@@ -555,11 +593,11 @@ class dataProcessor:
                                             right_on=["personid","portfolioid"])
         
         #------------------------ SAVE & RETURN -------------------------
-        
-        if self.save_intermediate:
-            utils.save_df_to_csv(df_cross_link, self.interdir, 
-                                 outname, add_time = False )      
-            print(f"Finished and output saved, at {utils.get_time()}")
+        if save:
+            if self.save_intermediate:
+                utils.save_df_to_csv(df_cross_link, self.interdir, 
+                                     outname, add_time = False )      
+                print(f"Finished and output saved, at {utils.get_time()}")
 
         return df_cross_link  
         print("-------------------------------------")
@@ -726,8 +764,8 @@ class dataProcessor:
         utils.save_df_to_csv(df_cross, self.interdir, 
                              outname, add_time = False )      
         print(f"Finished and output saved, at {utils.get_time()}")
-
-        print("-------------------------------------")
+        print("===============================================")
+        return df_cross
         
         
 
