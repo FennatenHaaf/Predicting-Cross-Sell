@@ -12,16 +12,19 @@ df_per_time = []
 
 name_columns = ['p1','p2','p3','var1','var2','var3d1', 'var3d2','var4d1','var4d2', 'ac1','ac2','ac3']
 
+fixed_random_seed = np.random.RandomState(978391)
 for t in range(0,3):
     #variables for cross-sell
-    integers1 = np.random.randint(3, size=(100, 2))
-    integers2 = np.random.randint(4, size=(100, 1))
-    continu = np.random.uniform(low=0, high=10, size=(100,2))
-    binary = np.random.randint(2, size=(100, 4))
+
+    n_of_obs = 99
+    integers1 = fixed_random_seed.randint(3, size=(n_of_obs, 2))
+    integers2 = fixed_random_seed.randint(4, size=(n_of_obs, 1))
+    continu = fixed_random_seed.uniform(low=0, high=10, size=(n_of_obs,2))
+    binary = fixed_random_seed.randint(2, size=(n_of_obs, 4))
     
     #variables for active
-    integers3 = np.random.randint(3, size=(100, 2))
-    integers4 = np.random.randint(4, size=(100, 1))
+    integers3 = fixed_random_seed.randint(3, size=(n_of_obs, 2))
+    integers4 = fixed_random_seed.randint(4, size=(n_of_obs, 1))
     
     matrix = np.concatenate((integers1, integers2, continu, binary, integers3, integers4), axis = 1)
     df = pd.DataFrame(data = matrix, columns = name_columns)
