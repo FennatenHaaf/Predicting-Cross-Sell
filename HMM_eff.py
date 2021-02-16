@@ -254,12 +254,12 @@ class HMM_eff:
         #t=0, term 1
         P_s_given_Z = ef.prob_P_s_given_Z(self, x, shapes, Z, n_segments)  #i x s
         P_s_given_Y_Z_0 = np.transpose(P_s_given_Y_Z[:,:,0]) #s x i x t
-        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z)))
+        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z + 10**(-300))))
         
         #t=0, term 3
         P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #ixs
         P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,0]) #ixs
-        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s)))
+        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s + 10**(-300))))
         
         P_s_given_Y_Z_ut = np.multiply(alpha, beta)
         
@@ -281,12 +281,12 @@ class HMM_eff:
                 P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, n_segments,
                                                 P_s_given_Y_Z_ut, P_s_given_r, P_y_given_s)
                 #sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
-                sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,:]))  )
+                sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,:] + 10**(-300)))  )
 
             #t=t, term 3
             P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #ixs
             P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t]) #ixs
-            sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s)))
+            sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s + 10**(-300))))
 
         return -sum
 
