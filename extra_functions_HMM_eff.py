@@ -145,9 +145,13 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
     if self.covariates == True:
         gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
 
-        P_s_given_Z = np.exp(gamma_0[:,0][:,np.newaxis] + gamma_0[:,1:self.n_covariates+1].dot(np.transpose(Z)) )
-        P_s_given_Z = np.vstack( (P_s_given_Z, np.ones((1,row_Z))) )  #for the base case
-        P_s_given_Z = np.transpose(np.divide( P_s_given_Z , np.sum(P_s_given_Z, axis = 0) ))   
+        P_s_given_Z = gamma_0[:,0][:,np.newaxis] + gamma_0[:,1:self.n_covariates+1].dot(np.transpose(Z)) 
+        P_s_given_Z = np.vstack( (P_s_given_Z, np.zeros((1,row_Z))) )  #for the base case
+        
+        P_s_given_Z = np.transpose( np.exp( P_s_given_Z - logsumexp(P_s_given_Z) ))   
+
+        #P_s_given_Z = np.transpose(np.divide( P_s_given_Z , np.sum(P_s_given_Z, axis = 0) ))  
+
     else:
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         pi = np.append(pi, np.array([1]))
@@ -222,7 +226,8 @@ def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
 
 def logsumexp(x, axis = 0):
     c = x.max(axis = axis)
-    return c + np.log(np.sum(np.exp(x - c)))
+    diff = x - c
+    return c + np.log(np.sum(np.exp(diff), axis = axis))
 
 
 
