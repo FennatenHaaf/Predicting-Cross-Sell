@@ -8,6 +8,7 @@ import numpy as np
 import math
 from tqdm import tqdm
 from time import perf_counter
+import numexpr as ne
 
 
 def param_list_to_matrices(self,param,shapes):
@@ -87,9 +88,29 @@ def prob_p_js(self, param, shapes, n_segments):
     return p_js
         
 
-def test_P_y_gives(self, Y, p_js, n_segments):
+def z_test_P_y_gives(self, Y, p_js, n_segments):
 
     row_Y = len(Y)
+
+    max_categories =  max(self.n_categories)
+    p_new = p_js.reshape((n_segments, 1, self.n_products * max_categories))
+    P_y_given_s = np.ones((row_Y, n_segments))
+    t1 = perf_counter()
+    P_y_given_s = np.ones((row_Y,n_segments))
+
+    y_new = np.repeat(Y,max_categories, axis = 1)
+    y_help = np.tile(np.arange(0,max_categories), self.n_products)
+    y_new = y_new - y_help
+
+    y_index = y_new == 0
+
+    for s in range(0,n_segments):
+        chance = np.power(p_new[s],y_index)
+        P_y_given_s[:,s] = chance.prod(axis = 1)
+
+    t2 = perf_counter()
+    print(t2 - t1)
+
 
     P_y_given_s = np.ones((row_Y, n_segments))
     t1 = perf_counter()
@@ -102,12 +123,34 @@ def test_P_y_gives(self, Y, p_js, n_segments):
     t2 = perf_counter()
     print(t2 - t1)
 
+    P_y_given_s = np.ones((row_Y, n_segments))
+    t1 = perf_counter()
+    P_y_given_s = np.ones((n_segments,row_Y,self.n_products))
+    for s in range(0,n_segments):
+        for c in range(0,max(self.n_categories)):
+            chance = np.power(p_js[s,:,c], Y == c)
+            P_y_given_s[s,:,:] = np.multiply(P_y_given_s[s,:,:], chance)
+    P_y_given_s = np.transpose(P_y_given_s.prod(axis=2))
+    t2 = perf_counter()
+    print(t2 - t1)
+
+    P_y_given_s = np.ones((row_Y, n_segments))
+    tp_js = np.transpose(p_js)
+    t1 = perf_counter()
+    for j in range(0,self.n_products):
+        for c in range(0,self.n_categories[j]):
+            prob_j_c = np.transpose(np.power(tp_js[j,c]), Y[:,j] == c)
+            P_y_given_s = np.multiply(P_y_given_s, prob_j_c)
+
+    t2 = perf_counter()
+    print(t2 - t1)
 
     P_y_given_s = np.ones((row_Y, n_segments))
     t1 = perf_counter()
     for j in range(0,self.n_products):
         for c in range(0,self.n_categories[j]):
-            prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
+            # prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
+            prob_j_c = np.power(p_js[:, j, c][np.newaxis, :], Y[:, j][:, np.newaxis] == c)
             P_y_given_s = np.multiply(P_y_given_s, prob_j_c)
 
     t2 = perf_counter()
@@ -125,7 +168,7 @@ def prob_P_y_given_s(self, Y, p_js, n_segments):
     P_y_given_s = np.ones((row_Y, n_segments))
     for j in range(0,self.n_products):
         for c in range(0,self.n_categories[j]):
-            prob_j_c = np.transpose(np.power(np.transpose([p_js[:,j,c]]), [Y[:,j] == c]))
+            prob_j_c = np.power(p_js[:, j, c][np.newaxis, :], Y[:, j][:, np.newaxis] == c)
             P_y_given_s = np.multiply(P_y_given_s, prob_j_c)
 
     return P_y_given_s
