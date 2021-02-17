@@ -17,6 +17,7 @@ import numpy as np
 from scipy.optimize import minimize 
 import utils
 from tqdm import tqdm
+from time import perf_counter
 #from geneticalgorithm import geneticalgorithm as ga
 
 #from pyswarm import pso
@@ -41,7 +42,7 @@ class HMM_eff:
         self.T = len(list_dataframes) #initialise the number of dataframes, thus the timeperiod
         
         self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
-        
+
         #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_products))
         for i in range(0,self.T):
@@ -64,7 +65,14 @@ class HMM_eff:
             Y = list_dataframes[i][list_dep_var]
             self.list_Y.append(Y.to_numpy())
         
-        
+        # #Short method for creating categories, Z and Y
+        # idx = pd.IndexSlice
+        # self.n_categories2 = data_frame_collection.loc[idx[:], idx[:, list_dep_var]].nunique().unstack().max().to_numpy(
+        # dtype='uint8')
+        # self.list_Z2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_covariates]].sort_index(axis=1).to_numpy(
+        #     dtype='uint8'), 3, axis=1)
+        # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
+        #     dtype='uint8'), 3,axis=1)
           
     def EM(self, n_segments, tolerance = 10**(-4), max_method = "BFGS"):
         """function to run the EM algorithm
@@ -229,9 +237,15 @@ class HMM_eff:
         x0 = param_in
             
         """perform the maximization"""
-        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), 
-                             method=max_method)
-               
+
+
+        minimize_options = {'return_all': True, 'disp': True}
+        t1 = perf_counter()
+        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments), method=max_method,
+                             options= minimize_options)
+        t2 = perf_counter()
+        print('Time for maximization:',t2-t1, '')
+
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))  
     
         return param_out
@@ -246,6 +260,7 @@ class HMM_eff:
         P_s_given_Y_Z_ut = np.multiply(alpha, beta)
 
         """compute function"""
+        print('x shape : ',x.shape)
         sum = 0;
 
         Y = self.list_Y[0]
@@ -291,6 +306,7 @@ class HMM_eff:
             P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t]) #ixs
             sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300))))
 
+        print('function value:', -sum)
         return -sum
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
