@@ -238,7 +238,7 @@ class HMM_eff:
             
         """perform the maximization"""
 
-
+        self.maximization_iters = 0
         minimize_options = {'return_all': True, 'disp': True}
         t1 = perf_counter()
         param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method=max_method,
@@ -260,7 +260,6 @@ class HMM_eff:
         P_s_given_Y_Z_ut = np.multiply(alpha, beta)
 
         """compute function"""
-        print('x shape : ',x.shape)
         sum = 0;
 
         Y = self.list_Y[0]
@@ -306,7 +305,8 @@ class HMM_eff:
             P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t]) #ixs
             sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300))))
 
-        print('function value:', -sum)
+        self.maximization_iters += 1
+        print('function value:', -sum,' at iteration ',self.maximization_iters)
         return -sum
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
