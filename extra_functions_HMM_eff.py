@@ -110,10 +110,10 @@ def prob_p_js(self, param, shapes, n_segments):
                     denominator = denominator + log_odds[s,p,c]
                 else:
                     if s == n_segments - 1: #last segment is the base
-                        log_odds[s,p,c] = beta[s,p,c]
+                        log_odds[s,p,c] = beta[s,p,c-1]
                         denominator = denominator + log_odds[s,p,c]
                     else: 
-                        log_odds[s,p,c] = beta[n_segments-1,p,c] + beta[s,p,c]
+                        log_odds[s,p,c] = beta[n_segments-1,p,c-1] + beta[s,p,c-1]
                         denominator = denominator + log_odds[s,p,c]
             p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,0:self.n_categories[p]] - logsumexp(log_odds[s,p,0:self.n_categories[p]]))
                         

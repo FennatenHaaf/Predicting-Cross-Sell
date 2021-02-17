@@ -92,11 +92,11 @@ class HMM_eff:
             gamma_0 = 0.2 * np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
             gamma_sr_0 = 0.3 * np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
             gamma_sk_t = 0.4 * np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
-            beta = np.zeros((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y| S_t = s)
+            beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
             
             for s in range(n_segments):
                 for p in range(0,self.n_products):
-                    beta[s,p,0:self.n_categories[p]] = 0.5 * np.ones((1,self.n_categories[p]))                    
+                    beta[s,p,0:self.n_categories[p]-1] = 0.5 * np.ones((1,self.n_categories[p]-1))                    
             
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
@@ -239,7 +239,7 @@ class HMM_eff:
         """perform the maximization"""
 
         self.maximization_iters = 0
-        self.iterprint = True
+        self.iterprint = False
 
         minimize_options = {'disp': True, 'fatol': 1e-2, 'xatol': 1}
         t1 = perf_counter()
