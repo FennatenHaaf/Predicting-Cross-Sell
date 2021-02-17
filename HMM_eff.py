@@ -239,17 +239,18 @@ class HMM_eff:
         """perform the maximization"""
 
         self.maximization_iters = 0
-        minimize_options = {'return_all': True, 'disp': True}
+        self.iterprint = True
+
+        minimize_options = {'disp': True, 'fatol': 1e-2, 'xatol': 1}
         t1 = perf_counter()
         param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method=max_method,
                              options= minimize_options)
         t2 = perf_counter()
-        print('Time for maximization:',t2-t1, '')
+        print('Time for maximization:',t2-t1, 'with ', self.maximization_iters, "number of iterations")
+        pass
 
-        #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))  
-    
         return param_out
-        
+        #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
     
     def optimization_function(self, x, alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z):
         """function that has to be minimized"""
@@ -306,7 +307,8 @@ class HMM_eff:
             sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300))))
 
         self.maximization_iters += 1
-        print('function value:', -sum,' at iteration ',self.maximization_iters)
+        if self.iterprint:
+            print('function value:', -sum,' at iteration ',self.maximization_iters)
         return -sum
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):

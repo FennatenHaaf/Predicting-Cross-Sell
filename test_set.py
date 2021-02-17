@@ -89,9 +89,9 @@ name_dep_var_active = ['ac1', 'ac2', 'ac3']
 
 
 
-# n_segments = 3
+n_segments = 3
 
-n_segments = 4
+# n_segments = 4
 
 
 
