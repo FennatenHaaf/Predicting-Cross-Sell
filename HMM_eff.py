@@ -241,7 +241,7 @@ class HMM_eff:
 
         minimize_options = {'return_all': True, 'disp': True}
         t1 = perf_counter()
-        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments), method=max_method,
+        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method=max_method,
                              options= minimize_options)
         t2 = perf_counter()
         print('Time for maximization:',t2-t1, '')
