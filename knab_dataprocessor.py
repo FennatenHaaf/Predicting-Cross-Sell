@@ -112,6 +112,7 @@ class dataProcessor:
     def select_ids(self, subsample = True, sample_size = 500, 
                    outname = "base_experian",
                    filename = "valid_ids",
+                   invalid ="invalid_ids",
                    use_file = True):
         """Selects a certain set of person IDs from the linking dataset, where:
             - information for ALL portfolios is present in the linking data
@@ -164,7 +165,7 @@ class dataProcessor:
             valid_ids = pd.read_csv(f"{self.interdir}/{filename}.csv").squeeze()
         else:
             print("creating new file of valid IDs:")
-            valid_ids = self.get_valid_ids(filename)
+            valid_ids = self.get_valid_ids(filename,invalid)
             print(f"Finished and output saved, at {utils.get_time()}")
             
         print(f"got {len(valid_ids)} useable IDs from the Experian data")
@@ -175,7 +176,7 @@ class dataProcessor:
         
         if subsample:
             if(sample_size <= len(valid_ids)):
-                print(f"****Taking a subsample of {sample_size} IDs, at {utils.get_time()}.****")
+                print(f"Taking a subsample of {sample_size} IDs, at {utils.get_time()}.")
                 valid_ids = valid_ids.sample(n = sample_size, 
                                              random_state = self.seed).reset_index(drop=True)
                 print(f"Done at {utils.get_time()}.")
@@ -321,21 +322,27 @@ class dataProcessor:
                 df_cross.drop_duplicates(subset=["personid"],
                               keep='last', inplace=True) 
                 
-                # make the cross section per person
-                df_cross_link = self.create_cross_section_perportfolio(df_cross, date, 
-                                          outname = "portfoliolink_temp",
+                # make the cross section per portfolio
+                df_cross_link = self.create_cross_section_perportfolio(df_cross, 
+                                          date, outname = "portfoliolink_temp",
                                           save=False)
+                
+                # TODO this is not efficient, but: make crosssec per person 
+                df_final = self.create_cross_section_perperson(df_cross,
+                                                    df_cross_link, date,
+                                                    outname = "df_final_temp",
+                                                    save = False)
+                
                 # Add the IDs where data is missing to the IDs to be removed
                 missing_experian= df_cross["personid"][df_cross["age_hh"].isnull()] 
                 invalid_ids = invalid_ids.append(missing_experian.squeeze())
                 missing_activity = df_cross_link["personid"][df_cross_link["saldobetalen"].isnull()]  
                 invalid_ids = invalid_ids.append(missing_activity.squeeze())
+                missing_portfolios = df_final["personid"][df_final["birthyear"].isnull()]  
+                invalid_ids = invalid_ids.append(missing_portfolios.squeeze())
     
                 invalid_ids = invalid_ids.drop_duplicates()
                 
-                #utils.save_df_to_csv(invalid_ids, self.interdir, 
-                #          "invalid_test", add_time = False )
-    
                 # Now get the last day of the next period for our next cross-date
                 date = self.get_last_day_period(date,next_period=True)
                 
@@ -473,7 +480,7 @@ class dataProcessor:
         We use their activity histories until the specified time and their
         characteristics at the specified time."""
 
-        print(f"****Creating cross-sectional data, at {utils.get_time()}****")
+        print(f"Creating cross-sectional data, at {utils.get_time()}")
         
         #-------------Check that date is entered correctly--------------
         
@@ -519,7 +526,7 @@ class dataProcessor:
         specific time"""
         
         #----------- Portfolio + business information (per portfolio) --------
-        print(f"****Getting time-sliced linking data, at {utils.get_time()}****")
+        print(f"Getting time-sliced linking data, at {utils.get_time()}")
         
         # Start by taking a cross-section of the dataset linking 
         # portfolio ids to person ids and to business+portfolio information
@@ -545,7 +552,7 @@ class dataProcessor:
         
         
         #-------------- Add Transaction information (per portfolio) --------------
-        print(f"****Summarizing transaction activity per portfolio, at {utils.get_time()}****")
+        print(f"Summarizing transaction activity per portfolio, at {utils.get_time()}")
                 
         temp_dataset = self.create_transaction_data_crosssection(cross_date)
         df_transactions = self.summarize_transactions(dataset = temp_dataset,
@@ -558,7 +565,7 @@ class dataProcessor:
                                   right_on=["portfolioid"],) 
         
         #-------------- Add activity information (per portfolio) -----------
-        print(f"****Summarizing activity per portfolio, at {utils.get_time()}****")
+        print(f"Summarizing activity per portfolio, at {utils.get_time()}")
                 
         temp_dataset = self.create_activity_data_crosssection(cross_date)
         df_activity = self.summarize_activity(dataset = temp_dataset,
@@ -577,7 +584,7 @@ class dataProcessor:
                                                   '1_inactief':1}},inplace=True)
         
         #-------------- Add bookkeeping overlay data (per portfolio) --------------
-        print(f"****Summarizing bookkeeping overlay data per portfolio, at {utils.get_time()}****")
+        print(f"Summarizing bookkeeping overlay data per portfolio, at {utils.get_time()}")
         
         df_portfolio_boekhoudkoppeling = self.get_time_slice(pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv"),
                                              cross_date,
@@ -614,12 +621,13 @@ class dataProcessor:
         
         
     def create_cross_section_perperson(self, df_cross, df_cross_link,
-                                       cross_date, outname = "final_df"):  
+                                       cross_date, outname = "final_df",
+                                       save = True):  
         """This function takes a dataset linking each person ID to
         information for each portfolio separately, and returns a dataset
         where all the portfolio information is aggregated per person ID"""
        
-        print(f"****Summarizing all information per ID, at {utils.get_time()}****")
+        print(f"*Summarizing all information per ID, at {utils.get_time()}")
         
         #-------------------------------------------------------------------
         
@@ -768,10 +776,11 @@ class dataProcessor:
                 
         #------------------------ SAVE & RETURN -------------------------
         
-        utils.save_df_to_csv(df_cross, self.interdir, 
-                             outname, add_time = False )      
-        print(f"Finished and output saved, at {utils.get_time()}")
-        print("===============================================")
+        if save:
+            utils.save_df_to_csv(df_cross, self.interdir, 
+                                 outname, add_time = False )      
+            print(f"Finished and output saved, at {utils.get_time()}")
+            print("===============================================")
         return df_cross
         
         
