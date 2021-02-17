@@ -42,37 +42,98 @@ if __name__ == "__main__":
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
+    transform = True # Transform & aggregate the data
     saldo_data = True # Do we want to create the dataset for predicting saldo
-    transform = False
-    
     
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
 # =============================================================================
-    # Characteristics
-    person_var = ['age_hh', # maybe don't need if we already have age
-     'hh_size',
-     'income',
-     'educat4',
-     'housetype',
-     'finergy_tp',
-     'lfase',
-     'business',
-     'huidigewaarde_klasse']
     
-    person_transform = ["age",
-                      "geslacht_dummy"]
+    #------ Portfolio types -------
+    crosssell_types = [
+        "business",
+        "retail",
+        "joint",
+        "accountoverlay"
+        ]
     
-    # perportfolio
-    # aggregated portfolio things
-    
-    # activity
-    activity_var = ["activitystatus",
-                    "log_logins_totaal",
-                    "log_aantaltransacties_totaal"]
-    # also activity
-    
+    crosssell_types_max = [ 
+        # These are bounded (not larger than 3)
+        "business_max",
+        "retail_max",
+        "joint_max",
+        "accountoverlay_max"
+        ]
 
+    #------ Account balances -------
+
+    saldo_perportfolio = [
+        "log_saldototaal_business",
+        "log_saldototaal_retail", 
+        "log_saldototaal_joint"
+        ]
+    
+    saldo_total = [
+        "log_saldototaal"
+        ]
+    
+    # ------ Characteristics -------
+    person_dummies = [
+        # Experian variables:
+        #'age_hh', # maybe don't need if we already have age
+        'hh_child',
+        'hh_size',
+        'income',
+        'educat4',
+        'housetype',
+        #'finergy_tp',
+        'lfase',
+        'business',
+        'huidigewaarde_klasse',
+        # Our own addition:
+        "age_bins", 
+        "geslacht"
+        ]
+        
+    #------ Activity & transaction variables -------
+    
+    activity_dummies = [
+        "activitystatus"
+        ]
+    
+    activity_total = [
+        "log_logins_totaal",
+        "log_aantaltransacties_totaal",
+        "aantalproducten_totaal"
+        ]
+    
+    # activity variables per portfolio
+    activity_perportfolio = []
+    activity_dummies_perportfolio = []
+    
+    for var in (["business","retail","joint"]):  
+       for name in activity_total:     
+            activity_perportfolio.append(f"log_{var}_{name}")
+       activity_dummies_perportfolio.append(f"activitystatus_{name}")
+     
+        
+    #------ Business characteristics variables --------
+    business_dummies = [
+        "SBIname",
+        "SBIsectorName",
+        "businessAgeInYears",
+        "businessType",
+        ]
+    
+    # TODO maak businessageinyears_bins
+
+    
+    # TODO the dummies all  need to be tranformed later ! 
+    # use: pd.get_dummies(df['col'], prefix=['col'])
+    
+    # also possible to get: logins web & logins app separately
+    # & the transaction information separately
+    
 # =============================================================================
 # CREATE DATASETS
 # =============================================================================
@@ -136,10 +197,23 @@ if __name__ == "__main__":
             print(f"number of periods: {len(dflist)}")
            
             
+    #----------------AGGREGATE & TRANSFORM THE DATA-------------------
+    if transform:    
+       print(f"****Transforming datasets & adding some variables at {utils.get_time()}****")
+       for i, df in enumerate(dflist):    
+            df = dflist[i]
+            df = AD.aggregate_portfolio_types(df)
+            dflist[i] = AD.transform_variables(df) 
+    
     
     #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
-    if saldo_data:
-        selection = ["percdiff"]
+    if (saldo_data & transform):
+        print(f"****Create data for saldo prediction at {utils.get_time()}****")
+        # Define which variables to use in the dataset
+        selection = person_dummies # get experian characteristics
+        selection.extend(activity_total) # add activity vars
+        
+        # Run the data creation
         diffdata = AD.create_saldo_data(dflist, interdir,
                                         filename= "saldopredict",
                                         select_variables = selection)
@@ -154,12 +228,6 @@ if __name__ == "__main__":
 # RUN HMM MODEL
 # =============================================================================
     
-    #----------------AGGREGATE & TRANSFORM THE DATA-------------------
-    if transform:    
-       for i, df in enumerate(dflist):    
-            dflist[i] = AD.aggregate_portfolio_types(dflist[i])
-            dflist[i] = AD.transform_variables(dflist[i]) 
-
     # Hier code om het HMM model te runnen?
     # Definieer een lijst van characteristics om te gebruiken voor het
     # model!

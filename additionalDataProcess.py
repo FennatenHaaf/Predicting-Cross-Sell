@@ -31,11 +31,14 @@ def create_saldo_data(dflist, interdir, filename ="saldodiff",
     
     for df in dflist:
         if i==0:    
-            # We aggregate but don't transform the data
-            dfold = aggregate_portfolio_types(df)
+            # We assume our input is already transformed & aggregated!
+            #dfold = aggregate_portfolio_types(df)
+            dfold = df
         else:
-            dfnew = aggregate_portfolio_types(df)
-            data = get_difference_data(dfnew,dfold,select_variables)
+            #dfnew = aggregate_portfolio_types(df)
+            dfnew = df
+            data = get_difference_data(dfnew,dfold,select_variables =
+                                       select_variables)
             diffdata = pd.concat([diffdata,data])
             dfold = dfnew
         i+=1
@@ -47,8 +50,9 @@ def create_saldo_data(dflist, interdir, filename ="saldodiff",
     return diffdata
 
 
+
 def get_difference_data(this_period,prev_period, log =True,
-                        select_variables =None):
+                        select_variables=None):
     """Get the datapoints for which there is a difference of 1 or more
     portfolios"""
     #TODO also add account overlay somehow so that we can also find the impact
@@ -59,52 +63,57 @@ def get_difference_data(this_period,prev_period, log =True,
                                         "joint"]].sum(axis=1)
     prev_period['portfoliototaal']= prev_period[["business","retail",
                                         "joint"]].sum(axis=1)
-
-    # Get saldo difference
-    # this_period['saldototaal'] = this_period[["saldototaal_business",
-    #                                           "saldototaal_retail",
-    #                                           "saldototaal_joint"]].sum(axis=1)
-    # prev_period['saldototaal'] = prev_period[["saldototaal_business",
-    #                                           "saldototaal_retail",
-    #                                           "saldototaal_joint"]].sum(axis=1)
-    # Not necessary, we have already aggregated the data
     
+    this_period['portfolio_change'] = this_period['portfoliototaal'] - \
+                                      prev_period['portfoliototaal']
     
     if log:
         # We take the log difference
-        this_period['percdiff'] = getlogs(this_period['saldototaal']) \
-                                   - getlogs(prev_period['saldototaal'])
-        #this_period['percdiff'] = (np.log(this_period['saldototaal']+1)) \
-        #                            - np.log((prev_period['saldototaal']+1))
+        #saldo_prev = getlogs(prev_period['saldototaal'])
+        #saldo_now = getlogs(this_period['saldototaal'])
+        saldo_prev = prev_period['log_saldototaal']
+        saldo_now = this_period['log_saldototaal']
+        this_period['percdiff'] = saldo_now-saldo_prev
+
     else:
-         # Take the percentage - we add +1 to deal with 0 in the data
-         this_period['percdiff'] =(((this_period['saldototaal']+1) \
-                                - (prev_period['saldototaal']+1)) / (prev_period['saldototaal']+1) )*100
+        # Take the percentage - we add the minimum of the previous period to
+        # deal with negative or zero values 
+        minsaldo = prev_period['saldototaal'].min()
+        saldo_prev = this_period['saldototaal']+1+minsaldo
+        saldo_now = prev_period['saldototaal']+1+minsaldo
+        this_period['percdiff'] =((saldo_now-saldo_prev) / saldo_prev)*100
    
     # Get portfolio variables
     for name in (["business","retail","joint"]):
+        this_period[name] = this_period[name].fillna(0)
+        prev_period[name] = prev_period[name].fillna(0)
         this_period[f"{name}_change"] = this_period[name] - prev_period[name]
+        this_period[f"{name}_change"] = this_period[f"{name}_change"]
+        
+        # create a dummy for the type of portfolio that a person got extra 
+        this_period[f"{name}_change_dummy"] = 0
+        this_period.loc[this_period[f"{name}_change"]>0, f"{name}_change_dummy"]=1
+        
+    
+    #------------ Select the variables for the final dataset ------------
+    
+    # We want the cases where 
+    select_portfoliogain = (this_period['portfoliototaal']>prev_period['portfoliototaal'])
+    data = this_period.loc[select_portfoliogain, ["percdiff", "portfolio_change",
+                                                  "business_change", 
+                                                  "retail_change","joint_change",
+                                                  "business_change_dummy",
+                                                  "retail_change_dummy",
+                                                  "retail_change_dummy",]]
 
-    # TODO look at negative saldo
+    data["saldo_prev"] = saldo_prev
+    data["saldo_now"] = saldo_now
+    
+    # get some extra variables of interest from the preceding period
+    if select_variables is not None:
+          data[select_variables] = prev_period.loc[select_portfoliogain,
+                                                   select_variables]
 
-    select = (this_period['portfoliototaal']>prev_period['portfoliototaal'])
-    
-    if (select_variables ==None):
-        data = this_period.loc[select,'percdiff']
-    
-    else:
-        data = this_period.loc[select,'percdiff']
-    # add a variable for which type of data was added: dummy for business, joint,
-    # retail
-    
-    # put in variables select: type of portfolios added, characteristics current, 
-    # saldo of the individual types??
-    
-    #verschil van de logs pakken, met ook voorgaande saldo als verklarende 
-    #variabele gebruiken (?)
-    
-    # Do a for loop outside this and add the thing to a df
-    
     return data
     
 
@@ -117,10 +126,11 @@ def get_difference_data(this_period,prev_period, log =True,
 
 def getlogs(Y):
     minY = Y.min()
-    print(f"Taking log of {Y.name}. the minimum amount for this column is: {minY}")
+    print(f"Taking log of {Y.name}, minimum that gets added to log: {minY}")
     # add the smallest amount of Y
     logY = np.log(Y+1-minY)
     return logY
+
 
 
 def aggregate_portfolio_types(df):
@@ -142,42 +152,12 @@ def aggregate_portfolio_types(df):
                                     f"aantalatmtransacties_{name}",
                                     f"aantalpostransacties_{name}",
                                     f"aantalfueltransacties_{name}"]].sum(axis=1)
-    
-    # # For logins, activiteit, & transacties, we take the maximum
-    # for variable in ['aantalloginsapp',
-    #                  'aantalloginsweb',
-    #                  'activitystatus',
-    #                  'aantalbetaaltransacties',
-    #                  'aantalatmtransacties',
-    #                  'aantalpostransacties',
-    #                  'aantalfueltransacties']:
-    
-    #     df[variable] = df[[f"{variable}_business",f"{variable}_retail", f"{variable}_joint"]].max(axis=1)
-    
-    ## Get sum of logins_totaal as well
-    # df['logins_totaal'] = df[['aantalloginsapp','aantalloginsweb']].sum(axis=1) 
-    
-    ## Also get total transactions
-    # df['aantaltransacties_totaal'] = df[['aantalbetaaltransacties',
-    #                                      'aantalatmtransacties',
-    #                                      'aantalpostransacties',
-    #                                      'aantalfueltransacties']].sum(axis=1)
-    
-    #TODO note sum of max will always >= the max of sums - may not be fair?
+
     
     # Take the MAX of the logins, transactions and activity status 
     for var in ['logins_totaal','aantaltransacties_totaal','activitystatus']:
         df[f'{var}'] = df[[f"{var}_business",f"{var}_retail", 
                                 f"{var}_joint"]].max(axis=1)
-
-    # Max of the transactions
-    # df['aantaltransacties_totaal'] = df[["aantaltransacties_totaal_business","aantaltransacties_totaal_retail", 
-    #                         "aantaltransacties_totaal_joint"]].max(axis=1)
-    
-    # # max of the activity status 
-    # df['activitystatus_totaal'] = df[["aantaltransacties_totaal_business","aantaltransacties_totaal_retail", 
-    #                         "aantaltransacties_totaal_joint"]].max(axis=1)
-
 
     # Sum for the total account balance
     df['saldototaal'] = df[["saldototaal_business","saldototaal_retail", 
@@ -195,6 +175,7 @@ def aggregate_portfolio_types(df):
     
 
 
+
 def transform_variables(df, separate_types = False):
     """Transform variables so that they are all around the same scale"""
     
@@ -210,17 +191,18 @@ def transform_variables(df, separate_types = False):
         
     
     # Put a MAX on the business, portfolio, joint variables (3 per type max)
-    for name in (["business","retail","joint"]):
+    for name in (["business","retail","joint","accountoverlay"]):
         df[f"{name}_max"] = df[f"{name}"]
 
         df.loc[(df[f"{name}"]>3),f"{name}_max"] = "3"   # Should I make it a string or make it a number?
         # This only relevant for business and joint since retail does not have >1
         
-    # TODO also put a max on the total number of products????
+    # TODO also put a max on the total number of products???? or take the log??
     
     # make geslacht into a dummy
     df["geslacht_dummy"] =1
     df.loc[(df["geslacht"]=="vrouw"),"geslacht_dummy"] = 0
+    
     
     # make age into years (-> create categories?)
     today = date.today() 
@@ -230,7 +212,15 @@ def transform_variables(df, separate_types = False):
     bins = pd.IntervalIndex.from_tuples([ (0, 18), (18, 30), 
                                          (30, 45), (45, 60),
                                          (60, 75), (75, 200)])
-    df["agebins"] = pd.cut(df["age"], bins, labels=False)
+    df["age_bins"] = pd.cut(df["age"], bins, labels=False)
     
+    
+    # also make bins out of the business age! mostly range between 0 and 30
+    bbins = pd.IntervalIndex.from_tuples([ (-1, 2), (2, 5), 
+                                         (5, 10), (20, 30),
+                                         (30, np.inf)])
+    df["businessAgeInYears_bins"] = pd.cut(df["businessAgeInYears"], bbins, labels=False)
+    
+    return df
     
     
