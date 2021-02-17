@@ -11,7 +11,7 @@ from time import perf_counter
 import numexpr as ne
 
 
-def param_list_to_matrices(self, n_segments, param,shapes):
+def param_list_to_matrices(self, n_segments, param, shapes):
     """change the shape of the parameters to separate matrices"""
 
     if self.covariates == True:
@@ -40,13 +40,13 @@ def param_list_to_matrices(self, n_segments, param,shapes):
         gamma_sk_t = np.reshape(gamma_sk_t, shapes[2,0])
         
         beta_param = param[(n_gamma_0+n_gamma_sr_0+n_gamma_sk_t):param.shape[0]]
-        beta = np.zeros((n_segments, self.n_products, max(self.n_categories))) #parameters for P(Y| S_t = s)
+        beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
 
         i = 0
         for s in range(n_segments):
             for p in range(0,self.n_products):
-                beta[s,p,0:self.n_categories[p]] = beta_param[i:i+self.n_categories[p]]
-                i = i + self.n_categories[p]
+                beta[s,p,0:self.n_categories[p]-1] = beta_param[i:i+self.n_categories[p]-1]
+                i = i + self.n_categories[p]-1
         
         return gamma_0, gamma_sr_0, gamma_sk_t, beta
     else:
@@ -76,7 +76,7 @@ def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = 
         
         for s in range(n_segments):
             for p in range(0,self.n_products):
-                beta_vec = np.concatenate( (beta_vec, beta[s,p,0:self.n_categories[p]]) )
+                beta_vec = np.concatenate( (beta_vec, beta[s,p,0:self.n_categories[p]-1]) )
         beta_vec = beta_vec[1:beta_vec.size]
         
         parameters = np.concatenate((gamma_0.flatten(), gamma_sr_0.flatten(), gamma_sk_t.flatten(), beta_vec))
@@ -232,7 +232,6 @@ def logsumexp(x, axis = 0, row_Z = 1, n_segments = 1, reshape = False):
         diff = x - c 
     else:
         diff = x - np.reshape(c, (row_Z,1,n_segments))
-        hoi = np.sum(np.exp(diff), axis = axis)
         
     return c + np.log(np.sum(np.exp(diff), axis = axis))
 
