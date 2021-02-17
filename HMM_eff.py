@@ -224,46 +224,46 @@ class HMM_eff:
         """
         """function for the maximization step"""
             
+        P_s_given_Y_Z = ef.state_event(self, alpha, beta, n_segments)
+
         x0 = param_in
             
         """perform the maximization"""
-        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments), method=max_method)
+        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), 
+                             method=max_method)
                
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))  
     
         return param_out
         
     
-    def optimization_function(self, x, alpha, beta, param_in, shapes, n_segments):
+    def optimization_function(self, x, alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z):
         """function that has to be minimized"""
                     
-            
+        
+        p_js_max = ef.prob_p_js(self, x, shapes, n_segments)
+        p_js_cons = ef.prob_p_js(self, param_in, shapes, n_segments)
+        P_s_given_Y_Z_ut = np.multiply(alpha, beta)
+
         """compute function"""
         sum = 0;
-            
-        P_s_given_Y_Z = ef.state_event(self, alpha, beta, n_segments)
-        p_js = ef.prob_p_js(self, x, shapes, n_segments)
-    
+
         Y = self.list_Y[0]
         if self.covariates == True:
             Z = self.list_Z[0]
         else: 
             Z = np.array([])
             
-        P_s_given_r = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
-
+        P_s_given_Y_Z_0 = np.transpose(P_s_given_Y_Z[:,:,0]) #s x i x t
         
         #t=0, term 1
         P_s_given_Z = ef.prob_P_s_given_Z(self, x, shapes, Z, n_segments)  #i x s
-        P_s_given_Y_Z_0 = np.transpose(P_s_given_Y_Z[:,:,0]) #s x i x t
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z + 10**(-300))))
         
         #t=0, term 3
-        P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #ixs
-        P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,0]) #ixs
-        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s + 10**(-300))))
+        P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments) #ixs
+        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s + 10**(-300))))
         
-        P_s_given_Y_Z_ut = np.multiply(alpha, beta)
         
         for t in range(1,self.T):
             Y = self.list_Y[t]
@@ -275,19 +275,21 @@ class HMM_eff:
             #t=t, term 2
             #for r in range(0,n_segments):
             # These do not depend on the segment - use as input for joint event function
-            P_s_given_r = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
-            P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js,n_segments)
+            P_s_given_r_cons = ef.prob_P_s_given_r(self, param_in, shapes, Z, n_segments)
+            P_y_given_s_cons = ef.prob_P_y_given_s(self, Y, p_js_cons, n_segments)
+            
+            P_s_given_r_max = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
             
             for s in range(0,n_segments):
                 P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, n_segments,
-                                                P_s_given_Y_Z_ut, P_s_given_r, P_y_given_s)
+                                                P_s_given_Y_Z_ut, P_s_given_r_cons, P_y_given_s_cons)
                 #sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
-                sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,:] + 10**(-300)))  )
+                sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r_max[:,s,:] + 10**(-300)))  )
 
             #t=t, term 3
-            P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #ixs
+            P_y_given_s_max = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments) #ixs
             P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t]) #ixs
-            sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s + 10**(-300))))
+            sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300))))
 
         return -sum
 
