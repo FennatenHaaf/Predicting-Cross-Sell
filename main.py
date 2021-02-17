@@ -9,6 +9,7 @@ import knab_dataprocessor as KD
 import utils
 import additionalDataProcess as AD
 import HMM_eff as ht
+import extra_functions_HMM_eff as ef
 
 import pandas as pd
 from os import path
@@ -43,7 +44,8 @@ if __name__ == "__main__":
     cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
-    saldo_data = True # Do we want to create the dataset for predicting saldo
+    saldo_data = False # Do we want to create the dataset for predicting saldo
+    run_hmm = True
     
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -63,6 +65,13 @@ if __name__ == "__main__":
         "retail_max",
         "joint_max",
         "accountoverlay_max"
+        ]
+    
+    crosssell_types_max_nooverlay = [ 
+        # These are bounded (not larger than 3)
+        "business_max",
+        "retail_max",
+        "joint_max",
         ]
 
     #------ Account balances -------
@@ -118,15 +127,13 @@ if __name__ == "__main__":
      
         
     #------ Business characteristics variables --------
+    
     business_dummies = [
         "SBIname",
         "SBIsectorName",
         "businessAgeInYears_bins",
         "businessType",
         ]
-    
-    # TODO maak businessageinyears_bins
-
     
     # TODO the dummies all  need to be tranformed later ! 
     # use: pd.get_dummies(df['col'], prefix=['col'])
@@ -237,7 +244,45 @@ if __name__ == "__main__":
     # Hier code om het HMM model te runnen?
     # Definieer een lijst van characteristics om te gebruiken voor het
     # model!
-    
+    if (run_hmm & transform):
+        
+        print(f"****Defining variables to use at {utils.get_time()}****")
+        
+        # Define the dependent variable
+        name_dep_var_cross_sell = crosssell_types_max_nooverlay
+        
+        # Just need to get the dummies for activity status for now
+        for i, df in enumerate(dflist):            
+            df = dflist[i]
+            dummies, dummynames =  AD.make_dummies(df,
+                                                 activity_dummies,
+                                                 drop_first = True)
+            df[dummynames] = dummies[dummynames]
+        
+        activity_variables = dummynames #activity status 1.0 is de base case
+        activity_variables.extend(activity_total)
+        
+        # Say which covariates we are going to use
+        name_covariates = activity_variables
+        
+        #Define number of segments
+        n_segments = 4
+        
+        #---------------- RUN THE HMM MODEL ---------------
+        
+        test_cross_sell = ht.HMM_eff(dflist, name_dep_var_cross_sell, 
+                                     name_covariates, covariates = True)
+
+        
+        param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, 
+                                                                    max_method = 'Nelder-Mead')
+       
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, 
+                                                                          n_segments, 
+                                                                          param_cross, 
+                                                                          shapes_cross)
+        
+        p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
     
 
     

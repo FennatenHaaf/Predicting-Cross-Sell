@@ -7,16 +7,8 @@ Erasmus School of Economics
 
 import pandas as pd
 import numpy as np
-from datetime import datetime
-from datetime import timedelta
 from datetime import date
 import utils
-import dataInsight
-import declarationsFile
-import gc
-from tqdm import tqdm
-from os import path
-import re
 
 
 # =============================================================================
@@ -253,12 +245,14 @@ def transform_variables(df, separate_types = False):
     
     
     
-def make_dummies(df, dummieslist):
+def make_dummies(df, dummieslist, drop_first = False):
     """Returns a dataframe of dummies and the column names"""
     
     dummiesdf = df[dummieslist].astype('category')
-    dummiesdf = pd.get_dummies(dummiesdf, prefix = dummieslist)
-    
+    if drop_first:
+        dummiesdf = pd.get_dummies(dummiesdf, prefix = dummieslist,
+                                   drop_first = True)
+    else:
+        dummiesdf = pd.get_dummies(dummiesdf, prefix = dummieslist)
+        
     return dummiesdf, list(dummiesdf.columns.values)
-
-    # note: still need to drop certain columns for a base!!
