@@ -7,6 +7,8 @@ Created on Mon Feb  8 11:06:29 2021
 import HMM_eff as ht
 import numpy as np 
 import pandas as pd
+import extra_functions_HMM_eff as ef
+
 
 df_per_time = [] 
 
@@ -53,4 +55,6 @@ name_dep_var_active = ['ac1', 'ac2', 'ac3']
 n_segments = 4
 test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates,covariates = True)
 param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
+gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, n_segments, param_cross, shapes_cross)
+p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
 #cross_sell_target, cross_sell_self, cross_self_total = test_cross_sell.cross_sell_yes_no(param_cross, shapes_cross, n_segments, alpha, active_value):
