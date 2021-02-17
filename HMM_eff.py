@@ -138,7 +138,9 @@ class HMM_eff:
 
             difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
             print(f"max difference: {np.max(abs(param_in-param_out))}")
-            
+            if iteration == 0:
+                print('hoi')
+                
             iteration = iteration + 1 #update iteration
         
         end_EM = utils.get_time()
@@ -272,10 +274,9 @@ class HMM_eff:
     
             #t=t, term 2
             #for r in range(0,n_segments):
-            
             # These do not depend on the segment - use as input for joint event function
-            P_s_given_r = ef.prob_P_s_given_r(self, param_in, shapes, Z, n_segments)
-            P_y_given_s = ef.prob_P_y_given_s(self, Y, ef.prob_p_js(self, param_in, shapes, n_segments),n_segments)
+            P_s_given_r = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
+            P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js,n_segments)
             
             for s in range(0,n_segments):
                 P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, n_segments,

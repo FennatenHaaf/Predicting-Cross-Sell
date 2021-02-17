@@ -52,7 +52,7 @@ name_dep_var_active = ['ac1', 'ac2', 'ac3']
 #active_value = test_active.active_value(param, shapes, n_segments)
 
 
-n_segments = 4
+n_segments = 3
 test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates,covariates = True)
 param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, n_segments, param_cross, shapes_cross)
