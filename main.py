@@ -40,9 +40,37 @@ if __name__ == "__main__":
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
-    saldo_data = False
+    saldo_data = True # Do we want to create the dataset for predicting saldo
+    transform = False
     
     
+# =============================================================================
+# DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
+# =============================================================================
+    # Characteristics
+    person_var = ['age_hh', # maybe don't need if we already have age
+     'hh_size',
+     'income',
+     'educat4',
+     'housetype',
+     'finergy_tp',
+     'lfase',
+     'business',
+     'huidigewaarde_klasse']
+    
+    person_transform = ["age",
+                      "geslacht_dummy"]
+    
+    # perportfolio
+    # aggregated portfolio things
+    
+    # activity
+    activity_var = ["activitystatus",
+                    "log_logins_totaal",
+                    "log_aantaltransacties_totaal"]
+    # also activity
+    
+
 # =============================================================================
 # CREATE DATASETS
 # =============================================================================
@@ -65,6 +93,7 @@ if __name__ == "__main__":
         # make subsample here! 
         processor.select_ids(subsample = subsample, sample_size = sample_size, 
                         outname = "base_experian", filename = "valid_ids",
+                        invalid = "invalid_ids",
                         use_file = True)
         
     #----------------MAKE CROSS-SECTIONAL DATASETS-------------------
@@ -85,7 +114,7 @@ if __name__ == "__main__":
         
     else:
         if (path.exists(f"{interdir}/final_df_2018Q1.csv")):
-            print("Reading df list of time series data from file")
+            print("****Reading df list of time series data from file****")
             
             dflist = [pd.read_csv(f"{interdir}/final_df_2018Q1.csv"),
                         pd.read_csv(f"{interdir}/final_df_2018Q2.csv"),
@@ -102,24 +131,16 @@ if __name__ == "__main__":
             
             print(f"sample size: {len(dflist[0])}")
             print(f"number of periods: {len(dflist)}")
+           
+            
     
     #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
     if saldo_data:
-        
-        i=0
-        diffdata = pd.DataFrame()
-        for df in dflist:
-            if i==0:    
-                dfold = df
-            else:
-                dfnew = df
-                data = AD.get_difference_data(dfnew,dfold)
-                diffdata = pd.concat([diffdata,data])
-                dfold = dfnew
-            i+=1
-    
-        utils.save_df_to_csv(diffdata, interdir, "aa_saldodiff", add_time = False )
-    
+        selection = ["percdiff"]
+        diffdata = AD.create_saldo_data(dflist, interdir,
+                                        filename= "saldopredict",
+                                        select_variables = selection)
+
     #-----------------------------------------------------------------
     end = utils.get_time()
     diff = utils.get_time_diff(start,end)
@@ -130,6 +151,12 @@ if __name__ == "__main__":
 # RUN HMM MODEL
 # =============================================================================
     
+    #----------------AGGREGATE & TRANSFORM THE DATA-------------------
+    if transform:    
+       for i, df in enumerate(dflist):    
+            dflist[i] = AD.aggregate_portfolio_types(dflist[i])
+            dflist[i] = AD.transform_variables(dflist[i]) 
+
     # Hier code om het HMM model te runnen?
     # Definieer een lijst van characteristics om te gebruiken voor het
     # model!
