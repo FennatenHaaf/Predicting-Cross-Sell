@@ -110,6 +110,7 @@ class dataProcessor:
 
 
     def select_ids(self, subsample = True, sample_size = 500, 
+                   finergy_segment=None,
                    outname = "base_experian",
                    filename = "valid_ids",
                    invalid ="invalid_ids",
@@ -171,6 +172,14 @@ class dataProcessor:
         print(f"got {len(valid_ids)} useable IDs from the Experian data")
         # Show how many there are of each finergy type
         dataInsight.plotFinergyCounts(self.df_experian,valid_ids)
+        
+        #------------------------ GET FINERGY SEGMENT ----------------------
+        
+        if ~(finergy_segment==None):        
+            select = (self.df_experian["finergy_tp"] == finergy_segment)
+            finergyids = self.df_experian["personid"][select]
+            valid_ids = valid_ids[(valid_ids.isin(finergyids))]
+            print(f"got {len(valid_ids)} IDs of finergy type {finergy_segment}")
         
         #-------------------- TAKE A SUBSAMPLE OF THE IDs ------------------
         
@@ -627,7 +636,7 @@ class dataProcessor:
         information for each portfolio separately, and returns a dataset
         where all the portfolio information is aggregated per person ID"""
        
-        print(f"*Summarizing all information per ID, at {utils.get_time()}")
+        print(f"Summarizing all information per ID, at {utils.get_time()}")
         
         #-------------------------------------------------------------------
         

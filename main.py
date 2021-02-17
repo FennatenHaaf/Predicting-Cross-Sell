@@ -33,6 +33,8 @@ if __name__ == "__main__":
     end_date = None # Until which moment do we want to use the information
     subsample = True # Do we want to take a subsample 
     sample_size = 500 # The sample size
+    finergy_segment = None # The finergy segment that we want to be in the sample
+    # e.g.: "B04"
     
 # =============================================================================
 # DEFINE WHAT TO RUN
@@ -92,9 +94,10 @@ if __name__ == "__main__":
         #Create base experian information and select the ids used -> choose to
         # make subsample here! 
         processor.select_ids(subsample = subsample, sample_size = sample_size, 
-                        outname = "base_experian", filename = "valid_ids",
-                        invalid = "invalid_ids",
-                        use_file = True)
+                             finergy_segment = finergy_segment,
+                             outname = "base_experian", filename = "valid_ids",
+                             invalid = "invalid_ids",
+                             use_file = True)
         
     #----------------MAKE CROSS-SECTIONAL DATASETS-------------------
     if cross_sec:
