@@ -175,7 +175,7 @@ class dataProcessor:
         
         #------------------------ GET FINERGY SEGMENT ----------------------
         
-        if ~(finergy_segment==None):        
+        if finergy_segment != None:
             select = (self.df_experian["finergy_tp"] == finergy_segment)
             finergyids = self.df_experian["personid"][select]
             valid_ids = valid_ids[(valid_ids.isin(finergyids))]
