@@ -265,12 +265,18 @@ if __name__ == "__main__":
         # Say which covariates we are going to use
         name_covariates = activity_variables
         
+        # take a subset of the number of periods, just to test
+        df_periods  = dflist[:3] # only use 3 periods
+        
         #Define number of segments
         n_segments = 4
         
         #---------------- RUN THE HMM MODEL ---------------
         
-        test_cross_sell = ht.HMM_eff(dflist, name_dep_var_cross_sell, 
+        startmodel = utils.get_time()
+        print(f"****Running HMM at {startmodel}****")
+        
+        test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
                                      name_covariates, covariates = True)
 
         
@@ -284,6 +290,7 @@ if __name__ == "__main__":
         
         p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
     
-
-    
+        endmodel = utils.get_time()
+        diff = utils.get_time_diff(startmodel,endmodel)
+        print(f"HMM finished! Total time: {diff}")
     
