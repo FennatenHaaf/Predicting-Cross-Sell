@@ -81,14 +81,14 @@ if __name__ == "__main__":
     person_dummies = [
         # Experian variables:
         #'age_hh', # maybe don't need if we already have age
-        'hh_child',
+        #'hh_child',
         'hh_size',
         'income',
         'educat4',
         'housetype',
         #'finergy_tp',
         'lfase',
-        'business',
+        #'business', don't use this, we dropped it
         'huidigewaarde_klasse',
         # Our own addition:
         "age_bins", 
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     business_dummies = [
         "SBIname",
         "SBIsectorName",
-        "businessAgeInYears",
+        "businessAgeInYears_bins",
         "businessType",
         ]
     
@@ -200,23 +200,29 @@ if __name__ == "__main__":
     #----------------AGGREGATE & TRANSFORM THE DATA-------------------
     if transform:    
        print(f"****Transforming datasets & adding some variables at {utils.get_time()}****")
+       
        for i, df in enumerate(dflist):    
             df = dflist[i]
             df = AD.aggregate_portfolio_types(df)
-            dflist[i] = AD.transform_variables(df) 
+            dflist[i]= AD.transform_variables(df) 
     
     
     #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
     if (saldo_data & transform):
         print(f"****Create data for saldo prediction at {utils.get_time()}****")
-        # Define which variables to use in the dataset
-        selection = person_dummies # get experian characteristics
-        selection.extend(activity_total) # add activity vars
+        
+        # Define which 'normal' variables to use in the dataset
+        selection = activity_total # add activity vars
+        
+        # Define which dummy variables to use
+        dummies = person_dummies # get experian characteristics
+        dummies.extend(activity_dummies) # get activity status
         
         # Run the data creation
-        diffdata = AD.create_saldo_data(dflist, interdir,
+        predictdata = AD.create_saldo_data(dflist, interdir,
                                         filename= "saldopredict",
-                                        select_variables = selection)
+                                        select_variables = selection,
+                                        dummy_variables = dummies)
 
     #-----------------------------------------------------------------
     end = utils.get_time()

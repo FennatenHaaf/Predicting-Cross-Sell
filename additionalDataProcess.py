@@ -24,10 +24,9 @@ import re
 # =============================================================================
 
 def create_saldo_data(dflist, interdir, filename ="saldodiff", 
-                      select_variables = None ):
+                      select_variables = None, dummy_variables = None ):
     """Make saldo data out of a df list"""
     i=0
-    diffdata = pd.DataFrame()
     
     for df in dflist:
         if i==0:    
@@ -37,9 +36,21 @@ def create_saldo_data(dflist, interdir, filename ="saldodiff",
         else:
             #dfnew = aggregate_portfolio_types(df)
             dfnew = df
-            data = get_difference_data(dfnew,dfold,select_variables =
-                                       select_variables)
-            diffdata = pd.concat([diffdata,data])
+            data = get_difference_data(dfnew,dfold,
+                                       select_variables = select_variables,
+                                       dummy_variables = dummy_variables)
+            if i==1:
+                diffdata = data
+            else:
+                # newcolumns = diffdata.columns.difference(data.columns)
+                # for col in newcolumns:
+                #     data[col]=0   
+                # -> not necessary, if there is a difference in columns it will
+                # just become nan
+                
+                diffdata = pd.concat([diffdata,data], ignore_index= True) #
+                diffdata = diffdata.fillna(0)   
+                
             dfold = dfnew
         i+=1
 
@@ -52,7 +63,7 @@ def create_saldo_data(dflist, interdir, filename ="saldodiff",
 
 
 def get_difference_data(this_period,prev_period, log =True,
-                        select_variables=None):
+                        select_variables=None, dummy_variables =None):
     """Get the datapoints for which there is a difference of 1 or more
     portfolios"""
     #TODO also add account overlay somehow so that we can also find the impact
@@ -87,9 +98,9 @@ def get_difference_data(this_period,prev_period, log =True,
     for name in (["business","retail","joint"]):
         this_period[name] = this_period[name].fillna(0)
         prev_period[name] = prev_period[name].fillna(0)
-        this_period[f"{name}_change"] = this_period[name] - prev_period[name]
-        this_period[f"{name}_change"] = this_period[f"{name}_change"]
         
+        this_period[f"{name}_change"] = this_period[name] - prev_period[name]
+       
         # create a dummy for the type of portfolio that a person got extra 
         this_period[f"{name}_change_dummy"] = 0
         this_period.loc[this_period[f"{name}_change"]>0, f"{name}_change_dummy"]=1
@@ -97,24 +108,41 @@ def get_difference_data(this_period,prev_period, log =True,
     
     #------------ Select the variables for the final dataset ------------
     
-    # We want the cases where 
-    select_portfoliogain = (this_period['portfoliototaal']>prev_period['portfoliototaal'])
+    # We want the cases where there is an absolute increase in the number of portfolios,
+    # And no decrease per type of portfolio
+    
+    select_portfoliogain =( (this_period['portfoliototaal']>prev_period['portfoliototaal']) \
+                          & (this_period['business_change']>=0) \
+                          & (this_period['retail_change']>=0) \
+                          & (this_period['joint_change']>=0)  )
+        
     data = this_period.loc[select_portfoliogain, ["percdiff", "portfolio_change",
                                                   "business_change", 
                                                   "retail_change","joint_change",
                                                   "business_change_dummy",
                                                   "retail_change_dummy",
-                                                  "retail_change_dummy",]]
+                                                  "joint_change_dummy",]]
 
     data["saldo_prev"] = saldo_prev
     data["saldo_now"] = saldo_now
     
     # get some extra variables of interest from the preceding period
+    
+    data = data.reset_index(drop=True)
+    previous_period = prev_period.loc[select_portfoliogain].reset_index(drop=True)
+    
     if select_variables is not None:
-          data[select_variables] = prev_period.loc[select_portfoliogain,
-                                                   select_variables]
-
-    return data
+         data[select_variables] = previous_period[select_variables]
+          
+    if dummy_variables is not None:
+        #dummycolumns =  prev_period.loc[select_portfoliogain,
+        #                                           dummy_variables]
+        dummies,dummynames =  make_dummies(previous_period,
+                                           dummy_variables) # use dummy variables as prefix
+        data[dummynames] = dummies[dummynames]
+        
+        
+    return data.reset_index(drop=True)
     
 
 
@@ -224,3 +252,13 @@ def transform_variables(df, separate_types = False):
     return df
     
     
+    
+def make_dummies(df, dummieslist):
+    """Returns a dataframe of dummies and the column names"""
+    
+    dummiesdf = df[dummieslist].astype('category')
+    dummiesdf = pd.get_dummies(dummiesdf, prefix = dummieslist)
+    
+    return dummiesdf, list(dummiesdf.columns.values)
+
+    # note: still need to drop certain columns for a base!!
