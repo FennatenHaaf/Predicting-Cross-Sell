@@ -72,8 +72,10 @@ def get_difference_data(this_period,prev_period, log =True,
     
     if log:
         # We take the log difference
-        this_period['percdiff'] = (np.log(this_period['saldototaal']+1)) \
-                                    - np.log((prev_period['saldototaal']+1))
+        this_period['percdiff'] = getlogs(this_period['saldototaal']) \
+                                   - getlogs(prev_period['saldototaal'])
+        #this_period['percdiff'] = (np.log(this_period['saldototaal']+1)) \
+        #                            - np.log((prev_period['saldototaal']+1))
     else:
          # Take the percentage - we add +1 to deal with 0 in the data
          this_period['percdiff'] =(((this_period['saldototaal']+1) \
@@ -107,9 +109,19 @@ def get_difference_data(this_period,prev_period, log =True,
     
 
 
+
 # =============================================================================
 # Methods for aggregating and transforming
 # =============================================================================
+
+
+def getlogs(Y):
+    minY = Y.min()
+    print(f"Taking log of {Y.name}. the minimum amount for this column is: {minY}")
+    # add the smallest amount of Y
+    logY = np.log(Y+1-minY)
+    return logY
+
 
 def aggregate_portfolio_types(df):
     """Aggregeer de activity variables en een aantal van de andere variabelen""" 
@@ -190,9 +202,11 @@ def transform_variables(df, separate_types = False):
     for var in (["saldototaal","logins_totaal","aantaltransacties_totaal"]):
         if (separate_types):
             for name in (["business","retail","joint"]):                
-                df[f"log_{var}_{name}"] =  np.log(df[f"{var}_{name}"]+1)
+                #df[f"log_{var}_{name}"] =  np.log(df[f"{var}_{name}"]+1)
+                df[f"log_{var}_{name}"] = getlogs(df[f"{var}_{name}"])
 
-        df[f"log_{var}"] =  np.log(df[f"{var}"]+1) 
+        #df[f"log_{var}"] =  np.log(df[f"{var}"]+1) 
+        df[f"log_{var}"] =  getlogs(df[f"{var}"]) 
         
     
     # Put a MAX on the business, portfolio, joint variables (3 per type max)
