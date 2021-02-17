@@ -9,29 +9,65 @@ import numpy as np
 import pandas as pd
 import extra_functions_HMM_eff as ef
 
+dtype_list =[
+    ('p1','uint8'),
+    ('p2','uint8'),
+    ('p3','float16'),
+    ('var1','uint8'),
+     ('var2','uint8'),
+      ('var3d1','uint8'),
+       ('var3d2','uint8'),
+        ('var4d1','uint8'),
+         ('var4d2','uint8'),
+          ('ac1','uint8'),
+           ('ac2','uint8'),
+            ('ac3','uint8')]
 
-df_per_time = [] 
+dtype_dict = {
+    'p1':'uint8',
+    'p2':'uint8',
+    'p3':'float16',
+    'var1':'uint8',
+     'var2':'uint8',
+      'var3d1':'uint8',
+       'var3d2':'uint8',
+        'var4d1':'uint8',
+         'var4d2':'uint8',
+          'ac1':'uint8',
+           'ac2':'uint8',
+            'ac3':'uint8'
+    }
+
+
+
+df_per_time = []
+mat_per_time = []
 
 name_columns = ['p1','p2','p3','var1','var2','var3d1', 'var3d2','var4d1','var4d2', 'ac1','ac2','ac3']
+n_of_obs = 99
+
+# multi_index = pd.MultiIndex.from_product([[x for x in range(0, 3)], name_columns])
+# data_frame_collection = pd.DataFrame(index = range(0,99),columns= multi_index)
+
 
 fixed_random_seed = np.random.RandomState(978391)
 for t in range(0,3):
     #variables for cross-sell
 
-    n_of_obs = 99
+
     integers1 = fixed_random_seed.randint(3, size=(n_of_obs, 2))
     integers2 = fixed_random_seed.randint(4, size=(n_of_obs, 1))
     continu = fixed_random_seed.uniform(low=0, high=10, size=(n_of_obs,2))
     binary = fixed_random_seed.randint(2, size=(n_of_obs, 4))
-    
+
     #variables for active
     integers3 = fixed_random_seed.randint(3, size=(n_of_obs, 2))
     integers4 = fixed_random_seed.randint(4, size=(n_of_obs, 1))
-    
+
     matrix = np.concatenate((integers1, integers2, continu, binary, integers3, integers4), axis = 1)
-    df = pd.DataFrame(data = matrix, columns = name_columns)
+    df = pd.DataFrame(data = matrix, columns = name_columns )
     df_per_time.append(df)
-    
+    # data_frame_collection[t] = df
 
 name_dep_var_cross_sell = ['p1','p2','p3']
 name_covariates = ['var1','var2']
@@ -52,8 +88,16 @@ name_dep_var_active = ['ac1', 'ac2', 'ac3']
 #active_value = test_active.active_value(param, shapes, n_segments)
 
 
-n_segments = 3
+
+# n_segments = 3
+
+n_segments = 4
+
+
+
 test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates,covariates = True)
+# test_cross_sell.data_frame_collection = data_frame_collection
+
 param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, n_segments, param_cross, shapes_cross)
 p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
