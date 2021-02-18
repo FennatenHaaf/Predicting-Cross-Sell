@@ -204,10 +204,10 @@ class dataProcessor:
         # To account for small gaps between validto and validfrom dates (which may be
         # due to administration), we add 7 days to the validto dates of experian
         select = ( ~(self.base_df["valid_to_dateeow"].isnull()) \
-             &(self.base_df["valid_to_dateeow"] <= (self.last_date + timedelta(days=-7))) )
+                  &(self.base_df["valid_to_dateeow"] <= (self.last_date + timedelta(days=-7))) )
             
         self.base_df.loc[select,"valid_to_dateeow"] = \
-            (self.base_df[["valid_to_dateeow"]]+timedelta(days=7))
+            (self.base_df.loc[select,"valid_to_dateeow"]+timedelta(days=7))
                 
         #------------------------ SAVE & RETURN -------------------------
         
