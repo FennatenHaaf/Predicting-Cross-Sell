@@ -775,6 +775,9 @@ class dataProcessor:
         characteristics = characteristics.sort_values("enofyn")
         characteristics = characteristics.drop_duplicates(subset=["personid"],
                           keep='first', inplace=False) 
+        
+        characteristics.loc[(characteristics["geslacht"]=="Mannen"), "geslacht"]="Man"
+        
         # Now merge back with df_cross                              
         df_cross= df_cross.merge(characteristics[["personid","birthyear","geslacht"]], 
                                   how="left", left_on=["personid"],
