@@ -200,7 +200,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         A = np.vstack((A, np.ones((1, n_segments))))
         
-        #P_s_given_r = np.array([ np.divide(np.exp(A), np.sum(np.exp(A), axis = 0)) ])
+        A = A[np.newaxis, :, :]
         P_s_given_r = np.exp(A - logsumexp(A))
     return P_s_given_r
         

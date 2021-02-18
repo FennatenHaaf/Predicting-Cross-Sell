@@ -330,6 +330,7 @@ class HMM_eff:
         if self.iterprint:
             print('function value:', -sum,' at iteration ',self.maximization_iters)
         return -sum
+    
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:
