@@ -125,6 +125,8 @@ class HMM_eff:
         print(f"****Starting EM prodecure, at {utils.get_time()}****")
         print(f"tolerance: {tolerance}")
         print(f"number of parameters: {len(param_out)}")
+        print(f"number of periods: {len(self.list_dataframes)}")
+        print(f"number of customers: {self.n_customers}")
         
         start_EM = utils.get_time()
 

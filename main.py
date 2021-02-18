@@ -273,24 +273,25 @@ if __name__ == "__main__":
         
         #---------------- RUN THE HMM MODEL ---------------
         
-        # startmodel = utils.get_time()
-        # print(f"****Running HMM at {startmodel}****")
-        #
-        # test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell,
-        #                              name_covariates, covariates = True)
-        #
-        #
-        # param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments,
-        #                                                             max_method = 'Nelder-Mead')
-        #
-        # gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell,
-        #                                                                   n_segments,
-        #                                                                   param_cross,
-        #                                                                   shapes_cross)
-        #
-        # p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
-        #
-        # endmodel = utils.get_time()
-        # diff = utils.get_time_diff(startmodel,endmodel)
-        # print(f"HMM finished! Total time: {diff}")
+        startmodel = utils.get_time()
+        #print(f"****Running HMM at {startmodel}****")
+        
+        test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
+                                     name_covariates, covariates = True)
+
+        
+        param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, 
+                                                                    max_method = 'Nelder-Mead')
+       
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, 
+                                                                          n_segments, 
+                                                                          param_cross, 
+                                                                          shapes_cross)
+        
+        p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
+    
+        endmodel = utils.get_time()
+        diff = utils.get_time_diff(startmodel,endmodel)
+        print(f"HMM finished! Total time: {diff}")
+
     
