@@ -92,7 +92,7 @@ def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = 
         
         for s in range(n_segments):
             for p in range(0,self.n_products):
-                beta_vec = np.concatenate( (b_vec, b[s,p,0:self.n_categories[p]-1]) )
+                b_vec = np.concatenate( (b_vec, b[s,p,0:self.n_categories[p]-1]) )
                 
         b_vec = b_vec[1:b_vec.size]
         
