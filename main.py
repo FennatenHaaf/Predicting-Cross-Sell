@@ -274,7 +274,7 @@ if __name__ == "__main__":
         #---------------- RUN THE HMM MODEL ---------------
         
         startmodel = utils.get_time()
-        print(f"****Running HMM at {startmodel}****")
+        #print(f"****Running HMM at {startmodel}****")
         
         test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
                                      name_covariates, covariates = True)
