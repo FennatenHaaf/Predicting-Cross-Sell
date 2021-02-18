@@ -17,7 +17,7 @@ def getGeneratedData():
     p_init = np.array([0.5, 0.5])
     p_trans = np.array([[0.9, 0.1], [0.2,0.8]])
     T = 2
-    n_customers = 1000
+    n_customers = 500
     n_products = 2
     n_segments = 2
     n_categories = 2

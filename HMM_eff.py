@@ -90,15 +90,19 @@ class HMM_eff:
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm """
-            gamma_0 = 0.2 * np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
-            gamma_sr_0 = 0.3 * np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
-            gamma_sk_t = 0.4 * np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
+            gamma_0 =   np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t = np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
             
             for s in range(n_segments):
                 for p in range(0,self.n_products):
-                    beta[s,p,0:self.n_categories[p]-1] = 0.5 * np.ones((1,self.n_categories[p]-1))                    
+                    beta[s,p,0:self.n_categories[p]-1] =  np.ones((1,self.n_categories[p]-1))                    
             
+            gamma_0 = np.array([[0.2, 0.5, 2]])
+            gamma_sr_0 = np.array([[0.3, 0.5]])
+            gamma_sk_t = np.array([[-0.3, 1.2]])
+            beta = np.array([[[-0.5],[0.3]] , [[0.4],[-0.3]] ])
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
@@ -183,45 +187,42 @@ class HMM_eff:
     #------------Function for the expectation step------------
         
     def forward_backward_procedure(self, param, shapes, n_segments):
-        """function for the expectation step: compute alpha and beta with all parameters"""
-    
+
         p_js = ef.prob_p_js(self, param, shapes, n_segments)
-            
+        
         alpha = np.zeros((n_segments, self.n_customers, self.T))
         beta = np.zeros((n_segments, self.n_customers, self.T))
-            
         
-        for t in range(0,self.T):
-            v = self.T - t - 1
-                        
-            Y = self.list_Y[t]
-            if self.covariates == True:
-                Z = self.list_Z[t]
-            else:
-                Z = []
-                        
-            P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments) #i x s 
-                            
-            if t == 0: #s x i x t
-                P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments) #[i x s]
-                alpha[:,:,t] = np.transpose( np.multiply(P_y_given_s, P_s_given_Z) ) # [i x s] [i x s] = [i x s]'
-                beta[:,:,v] = np.ones((n_segments,self.n_customers))
-            else:
-                P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments) #[i x s x s]
-                
-                sum_alpha = np.zeros( (n_segments, self.n_customers) )
-                sum_beta = np.zeros( (n_segments, self.n_customers) )
-                for r in range(0,n_segments):                               #[ix1]                                               [ixs]               [ixs]
-                    sum_alpha = sum_alpha + np.transpose( np.multiply( np.transpose(np.array([alpha[r,:,t-1]])) , np.multiply(P_s_given_r[:,:,r], P_y_given_s) ) )
-                    sum_beta = sum_beta + np.transpose( np.multiply( np.transpose(np.array([beta[r,:,v+1]])) , np.multiply(P_s_given_r[:,r,:] , np.transpose(np.array([P_y_given_s[:,r]]))) ) )
-                                                                           #[i,1]                                            [i,s]                   [i,1]                            
-                alpha[:,:,t] = sum_alpha
-                beta[:,:,v]  = sum_beta
-                        
-        return alpha, beta
-
-
     
+        for i in range(0,self.n_customers):
+            for t in range(0,self.T):
+                v = self.T - t - 1
+                
+                Y = np.array([self.list_Y[t][i,:]])
+                if self.covariates == True:
+                    Z = np.array([self.list_Z[t][i,:]])
+                else:
+                    Z = []
+                
+                P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
+                
+                if t == 0:
+                    P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
+                    alpha[:,i,t] = np.multiply(P_y_given_s, P_s_given_Z).flatten()
+                    beta[:,i,v] = np.ones((n_segments))
+                else:
+                    P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
+    
+                    sum_alpha = np.zeros( (n_segments) )
+                    sum_beta = np.zeros( (n_segments) )
+                    for r in range(0,n_segments):
+                            sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r[0,:,r], P_y_given_s.flatten())
+                            sum_beta = sum_beta + beta[r,i,v+1] * P_s_given_r[0,r,:] * P_y_given_s[0,r] 
+                            
+                    alpha[:,i,t] = sum_alpha
+                    beta[:,i,v]  = sum_beta
+                
+        return alpha, beta
       
     def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method):
         """
@@ -260,14 +261,19 @@ class HMM_eff:
         self.iterprint = False
 
 
-        fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
-        # # xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
-        xatol_value = 1
+        #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
+        #xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
+        #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
-        minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': 2.5*10**4}
-        # minimize_options = {'disp': True}
-        param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method=max_method,
+        #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
+        minimize_options = {'disp': True}
+
+        if self.iteration <= -1:
+            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method=max_method,
                              options= minimize_options)
+        else:
+            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method='BFGS',
+                            options= minimize_options)
 
         return param_out
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
