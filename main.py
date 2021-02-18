@@ -32,7 +32,7 @@ if __name__ == "__main__":
     start_date = "2018-01-01" # From which moment onwards do we want to use
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    subsample = True # Do we want to take a subsample 
+    subsample = False # Do we want to take a subsample
     sample_size = 500 # The sample size
     finergy_segment = None # The finergy segment that we want to be in the sample
     # e.g.: "B04"
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 # =============================================================================
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
-    time_series = False # Do we want to run the code for getting time series data
+    time_series = True # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
     run_hmm = True
@@ -273,24 +273,24 @@ if __name__ == "__main__":
         
         #---------------- RUN THE HMM MODEL ---------------
         
-        startmodel = utils.get_time()
-        print(f"****Running HMM at {startmodel}****")
-        
-        test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
-                                     name_covariates, covariates = True)
-
-        
-        param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, 
-                                                                    max_method = 'Nelder-Mead')
-       
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, 
-                                                                          n_segments, 
-                                                                          param_cross, 
-                                                                          shapes_cross)
-        
-        p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
-    
-        endmodel = utils.get_time()
-        diff = utils.get_time_diff(startmodel,endmodel)
-        print(f"HMM finished! Total time: {diff}")
+        # startmodel = utils.get_time()
+        # print(f"****Running HMM at {startmodel}****")
+        #
+        # test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell,
+        #                              name_covariates, covariates = True)
+        #
+        #
+        # param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments,
+        #                                                             max_method = 'Nelder-Mead')
+        #
+        # gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell,
+        #                                                                   n_segments,
+        #                                                                   param_cross,
+        #                                                                   shapes_cross)
+        #
+        # p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
+        #
+        # endmodel = utils.get_time()
+        # diff = utils.get_time_diff(startmodel,endmodel)
+        # print(f"HMM finished! Total time: {diff}")
     

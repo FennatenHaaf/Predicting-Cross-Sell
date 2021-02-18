@@ -59,8 +59,18 @@ def select_time_in_data(data, date_column, period_to_use, start, end =""):
                           f" {date_column}.dt.to_period('{period_to_use}') <= @end")
     return data
 
-    
-    
+def infer_date_frequency(date):
+    allowed_period_set = {r'20[1-2][0,3-9]-?Q[0-4]':"Q",
+                          r'20[1-2][0,3-9]-?[0-1][0-9]':"M",
+                          r'20[1-2][0,3-9]-?[0-1][0-9]-?[0-3][0-9]': 'D',
+                          r'20[1-2][0,3-9]':"Y"
+    }
+    for allowed_period in allowed_period_set:
+        if re.match(allowed_period,date):
+            return allowed_period_set[allowed_period]
+
+    print(f"No valid value found for parsed date : {date}")
+
 """
 EXPORTING FUNCTIONS
 """
