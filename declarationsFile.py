@@ -182,8 +182,57 @@ def getConvertDict():
         'indicator_4_primaire bank' : 'uint8'
     }
 
-    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, 
-            **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **time_sets_new, **time_set_new2}
+    final_df_dict = {
+    'aantal_SBI': 'uint8',
+     'aantal_sector':'uint8',
+     'aantal_types': 'uint8',
+     'aantalatmtransacties_business': 'uint8',
+     'aantalatmtransacties_joint': 'uint8',
+     'aantalatmtransacties_retail': 'uint16',
+     'aantalbetaaltransacties_business': 'uint16',
+     'aantalbetaaltransacties_joint': 'uint16',
+     'aantalbetaaltransacties_retail': 'uint8',
+     'aantalfueltransacties_business': 'uint8',
+     'aantalfueltransacties_joint': 'uint8',
+     'aantalfueltransacties_retail': 'uint8',
+     'aantalloginsapp_business': 'uint16',
+     'aantalloginsapp_joint': 'uint16',
+     'aantalloginsapp_retail': 'uint16',
+     'aantalloginsweb_business': 'uint16',
+     'aantalloginsweb_joint': 'uint16',
+     'aantalloginsweb_retail': 'uint16',
+     'aantalpostransacties_business': 'uint16',
+     'aantalpostransacties_joint': 'uint16',
+     'aantalpostransacties_retail': 'uint16',
+     'aantaltegenrekeningenlaatsteq_business': 'uint16',
+     'aantaltegenrekeningenlaatsteq_joint': 'uint16',
+     'aantaltegenrekeningenlaatsteq_retail': 'uint16',
+     'accountoverlay': 'uint8',
+     'activitystatus_business': 'uint8',
+     'activitystatus_joint': 'uint8',
+     'activitystatus_retail': 'uint8',
+     'betalenyn_business': 'uint8',
+     'betalenyn_joint': 'uint8',
+     'betalenyn_retail': 'uint8',
+     'depositoyn_business': 'uint8',
+     'depositoyn_joint': 'uint8',
+     'depositoyn_retail': 'uint8',
+     'flexibelsparenyn_business': 'uint8',
+     'flexibelsparenyn_joint': 'uint8',
+     'flexibelsparenyn_retail': 'uint8',
+     'geslacht_joint': 'category',
+     'joint':'uint8',
+     'kwartaalsparenyn_business':"uint8",
+     'kwartaalsparenyn_joint':"uint8",
+     'kwartaalsparenyn_retail':"uint8",
+     'retail': "uint8",
+     'saldototaal_business': 'int32',
+     'saldototaal_joint':'int32',
+     'saldototaal_retail': 'int32'
+     }
+
+    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, **df_lpp_dict, **df_exp_dict,
+            **df_cor_dict, **df_pin_dict, **time_sets_new, **time_set_new2, **final_df_dict}
 
 
 
@@ -358,7 +407,6 @@ def getTimeConvertDict():
         'indicator_3_actief': 'median',
         'indicator_4_primaire bank' : 'median'
     }
-
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans,
             **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **df_bhk_dict, **time_sets_new}
 
@@ -554,3 +602,6 @@ def getPersonAggregateDict():
 
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans,
             **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **df_bhk_dict, **time_sets_new, **time_sets_new}
+
+ ###-----------CROSS_SECTION ---------------------------####
+
