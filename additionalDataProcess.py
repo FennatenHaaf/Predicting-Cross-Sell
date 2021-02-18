@@ -19,7 +19,6 @@ def create_saldo_data(dflist, interdir, filename ="saldodiff",
                       select_variables = None, dummy_variables = None ):
     """Make saldo data out of a df list"""
     i=0
-    
     for df in dflist:
         if i==0:    
             # We assume our input is already transformed & aggregated!
@@ -45,10 +44,10 @@ def create_saldo_data(dflist, interdir, filename ="saldodiff",
                 
             dfold = dfnew
         i+=1
-
+     
+    diffdata["log_saldoprev"] = getlogs(diffdata["saldo_prev"])
     print(f"Done creating saldo prediction dataset at {utils.get_time()}" \
           f", saving to {filename}")
-        
     utils.save_df_to_csv(diffdata, interdir, filename, add_time = False )
     return diffdata
 
@@ -69,22 +68,31 @@ def get_difference_data(this_period,prev_period, log =True,
     
     this_period['portfolio_change'] = this_period['portfoliototaal'] - \
                                       prev_period['portfoliototaal']
-    
+                                      
+    saldo_prev = prev_period['saldototaal']
+    saldo_now = this_period['saldototaal']
+    minoverall = min(saldo_prev.min(),saldo_now.min())
+   
     if log:
         # We take the log difference
         #saldo_prev = getlogs(prev_period['saldototaal'])
         #saldo_now = getlogs(this_period['saldototaal'])
-        saldo_prev = prev_period['log_saldototaal']
-        saldo_now = this_period['log_saldototaal']
-        this_period['percdiff'] = saldo_now-saldo_prev
+        
+        # Need to subtract the same number of each to take the log
+        # and then get the log difference    
+        print(f"Taking log difference, min of both is {minoverall}")
+        logprev = np.log(saldo_prev+1-minoverall)
+        lognow = np.log(saldo_now+1-minoverall)
+    
+        this_period['percdiff'] =lognow-logprev
 
     else:
         # Take the percentage - we add the minimum of the previous period to
         # deal with negative or zero values 
-        minsaldo = prev_period['saldototaal'].min()
-        saldo_prev = this_period['saldototaal']+1+minsaldo
-        saldo_now = prev_period['saldototaal']+1+minsaldo
-        this_period['percdiff'] =((saldo_now-saldo_prev) / saldo_prev)*100
+        print("Taking percentage difference, min of both is {minoverall}")
+        saldo_prev2 = this_period['saldototaal']+1+minoverall
+        saldo_now2 = prev_period['saldototaal']+1+minoverall
+        this_period['percdiff'] =((saldo_now2-saldo_prev2) / saldo_prev2)*100
    
     # Get portfolio variables
     for name in (["business","retail","joint"]):
