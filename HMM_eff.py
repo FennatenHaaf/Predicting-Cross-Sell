@@ -107,7 +107,12 @@ class HMM_eff:
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
-            b = np.ones((n_segments, self.n_products, max(self.n_categories))) ##parameters for P(Y| S_t = s)
+            b = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) ##parameters for P(Y| S_t = s)
+            
+            for s in range(n_segments):
+                for p in range(0,self.n_products):
+                    b[s,p,0:self.n_categories[p]-1] = 0.5 * np.ones((1,self.n_categories[p]-1)) 
+            
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, A = A, pi = pi, b = b) #convert parametermatrices to list
@@ -122,7 +127,10 @@ class HMM_eff:
         print(f"number of parameters: {len(param_out)}")
         
         start_EM = utils.get_time()
-        
+
+        alpha_in = np.zeros((n_segments, self.n_customers, self.T))
+        beta_in = np.zeros((n_segments, self.n_customers, self.T))
+            
         #Start EM procedure
         while difference:
                 
@@ -131,36 +139,45 @@ class HMM_eff:
             start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
-            alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
+            alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
               
             start = utils.get_time() #set start time to time maximisation step
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
             #perform maximisation step 
-            opt_result = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
+            opt_result = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
             param_out = opt_result.x
             print(param_out)
             
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
-            print(f"Finished self.iteration {self.iteration}, duration M step {diff}")
+            print(f"Finished iteration {self.iteration}, duration M step {diff}")
 
-            difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
-            print(f"max difference: {np.max(abs(param_in-param_out))}")
-            if self.iteration == 0:
+            if self.iteration != 0:
+                difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
+                
+                
+            #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
+            #print(f"max difference: {np.max(abs(param_in-param_out))}")
+            print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
+            print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
+
+            if self.iteration == 1:
                 print('hoi')
                 
-            self.iteration += 1 #update iteration
+            alpha_in = alpha_out
+            beta_in = beta_out
+            
+            self.iteration = self.iteration + 1 #update iteration
         
         end_EM = utils.get_time()
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
         if self.covariates == True:
-            return param_out, alpha, shapes
+            return param_out, alpha_out, shapes
         else:
             return param_out, shapes
-
         
         
     #------------Function for the expectation step------------

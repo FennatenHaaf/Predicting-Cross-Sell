@@ -111,4 +111,4 @@ p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
 
 p_jout.to_csv(f"{outdirec}/p_j_out.csv")
 pass
-#cross_sell_target, cross_sell_self, cross_self_total = test_cross_sell.cross_sell_yes_no(param_cross, shapes_cross, n_segments, alpha, active_value):
+cross_sell_target, cross_sell_self, cross_self_total = test_cross_sell.cross_sell_yes_no(param_cross, shapes_cross, n_segments, alpha, active_value, tresholds)
