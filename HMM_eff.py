@@ -330,7 +330,6 @@ class HMM_eff:
         if self.iterprint:
             print('function value:', -sum,' at iteration ',self.maximization_iters)
         return -sum
-    
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:
@@ -376,7 +375,7 @@ class HMM_eff:
     def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value, tresholds):
 
 
-        prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha)
+        prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha, order_active_high_to_low = [0,1,2])
         Y = self.list_Y[self.T-1]
 
         expected_n_prod = np.zeros(self.n_customers, self.n_products)
@@ -395,11 +394,11 @@ class HMM_eff:
                     
                 dif_exp_own[i,p] = expected_n_prod[i,p] - Y[i,p]
             if dif_exp_own[i,p] >= tresholds[0]:
-                if active_value == 2:
+                if active_value[i] == order_active_high_to_low[0]:
                     cross_sell_target[i,p] = False
                     cross_sell_self[i,p] = True
                     cross_sell_total = True
-                if active_value == 1:
+                if active_value == [1]:
                     cross_sell_target[i,p] = True
                     cross_sell_self[i,p] = False
                     cross_sell_total = True               
