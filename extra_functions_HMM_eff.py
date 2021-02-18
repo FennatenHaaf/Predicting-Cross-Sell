@@ -159,7 +159,6 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
     """case with covariates"""
     if self.covariates == True:
         gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
-
         P_s_given_Z = gamma_0[:,0][:,np.newaxis] + gamma_0[:,1:self.n_covariates+1].dot(np.transpose(Z)) 
         P_s_given_Z = np.vstack( (P_s_given_Z, np.zeros((1,row_Z))) )  #for the base case
         
@@ -195,6 +194,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 
         #P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
         log_sum_exp = logsumexp(P_s_given_r, axis = 1, row_Z = row_Z, n_segments = n_segments, reshape = True)
+        hoi = P_s_given_r
         P_s_given_r = np.exp(P_s_given_r - np.reshape(log_sum_exp, (row_Z,1,n_segments))) #i x s x s
     else:  
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
@@ -209,7 +209,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 #--------------------function for maximisation step---------------------
 
 
-def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, n_segments,
+def joint_event(self, alpha, beta, t, s,
                 P_s_given_Y_Z_ut, P_s_given_r, P_y_given_s):#for all person
     """function to compute P(X_it-1 = s_t-1, X_it = s_t|Y_i, Z_i)"""
     

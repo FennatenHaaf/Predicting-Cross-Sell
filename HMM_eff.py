@@ -99,10 +99,6 @@ class HMM_eff:
                 for p in range(0,self.n_products):
                     beta[s,p,0:self.n_categories[p]-1] =  np.ones((1,self.n_categories[p]-1))                    
             
-            gamma_0 = np.array([[0.2, 0.5, 2]])
-            gamma_sr_0 = np.array([[0.3, 0.5]])
-            gamma_sk_t = np.array([[-0.3, 1.2]])
-            beta = np.array([[[-0.5],[0.3]] , [[0.4],[-0.3]] ])
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
@@ -252,14 +248,29 @@ class HMM_eff:
         """function for the maximization step"""
             
         P_s_given_Y_Z = ef.state_event(self, alpha, beta, n_segments)
-
+        p_js_cons = ef.prob_p_js(self, param_in, shapes, n_segments)
+        P_s_given_Y_Z_ut = np.multiply(alpha, beta)
+        
+        list_P_s_given_r = []
+        list_P_y_given_s = []
+        
+        for t in range(0,self.T):
+            Y = self.list_Y[t]
+            if self.covariates == True:
+                Z = self.list_Z[t]   
+            else: 
+                Z = []
+            P_s_given_r = ef.prob_P_s_given_r(self, param_in, shapes, Z, n_segments)
+            P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js_cons, n_segments)
+            list_P_s_given_r.append(P_s_given_r)
+            list_P_y_given_s.append(P_y_given_s)
+            
         x0 = param_in
             
         """perform the maximization"""
 
         self.maximization_iters = 0
         self.iterprint = False
-
 
         #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
         #xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
@@ -268,9 +279,11 @@ class HMM_eff:
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
         minimize_options = {'disp': True}
 
-        if self.iteration <= -1:
-            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method=max_method,
-                             options= minimize_options)
+
+        if self.iteration <= 99999:
+            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
+                                 , method=max_method,options= minimize_options)
         else:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method='BFGS',
                             options= minimize_options)
@@ -278,13 +291,12 @@ class HMM_eff:
         return param_out
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
     
-    def optimization_function(self, x, alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z):
+    def optimization_function(self, x, alpha, beta, shapes, n_segments, 
+                              P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js, P_s_given_Y_Z_ut):
         """function that has to be minimized"""
                     
         
         p_js_max = ef.prob_p_js(self, x, shapes, n_segments)
-        p_js_cons = ef.prob_p_js(self, param_in, shapes, n_segments)
-        P_s_given_Y_Z_ut = np.multiply(alpha, beta)
 
         """compute function"""
         sum = 0;
@@ -302,8 +314,8 @@ class HMM_eff:
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z + 10**(-300))))
         
         #t=0, term 3
-        P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments) #ixs
-        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s + 10**(-300))))
+        P_y_given_s_0 = list_P_y_given_s[0] #ixs
+        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300))))
         
         
         for t in range(1,self.T):
@@ -316,13 +328,13 @@ class HMM_eff:
             #t=t, term 2
             #for r in range(0,n_segments):
             # These do not depend on the segment - use as input for joint event function
-            P_s_given_r_cons = ef.prob_P_s_given_r(self, param_in, shapes, Z, n_segments)
-            P_y_given_s_cons = ef.prob_P_y_given_s(self, Y, p_js_cons, n_segments)
+            P_s_given_r_cons = list_P_s_given_r[t]
+            P_y_given_s_cons = list_P_y_given_s[t]
             
             P_s_given_r_max = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
             
             for s in range(0,n_segments):
-                P_sr_given_Y_Z = ef.joint_event(self, Y, Z, alpha, beta, param_in, shapes, t, s, n_segments,
+                P_sr_given_Y_Z = ef.joint_event(self, alpha, beta, t, s,
                                                 P_s_given_Y_Z_ut, P_s_given_r_cons, P_y_given_s_cons)
                 #sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
                 sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r_max[:,s,:] + 10**(-300)))  )
