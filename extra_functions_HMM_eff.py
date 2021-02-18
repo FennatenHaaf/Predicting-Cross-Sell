@@ -233,8 +233,9 @@ def joint_event(self, Y, Z, alpha, beta, param, shapes, t, s, n_segments,
 def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
     """function to compute P(X_it = s|Y_i, Z_i)"""
 
-    P_s_given_Y_Z = np.multiply(alpha, beta)
-    P_s_given_Y_Z = np.divide(P_s_given_Y_Z, np.sum(P_s_given_Y_Z, axis = 0))
+    P_s_given_Y_Z = np.multiply(alpha, beta)  #s x i x t
+    P_Y_given_Z = np.sum(P_s_given_Y_Z, axis = 0) 
+    P_s_given_Y_Z = np.divide(P_s_given_Y_Z, P_Y_given_Z)
     
     return P_s_given_Y_Z
 
