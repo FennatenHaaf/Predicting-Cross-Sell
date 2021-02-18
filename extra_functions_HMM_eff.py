@@ -58,10 +58,17 @@ def param_list_to_matrices(self, n_segments, param, shapes):
             param = param.x
             A = param[0:n_A]
         pi = param[n_A:(n_A+n_pi)]
-        b = param[(n_A+n_pi):]
         A = np.reshape(A, shapes[0,0])
-        pi = np.reshape(pi, shapes[1,0])                      
-        b = np.reshape(b, shapes[2,0])       
+        pi = np.reshape(pi, shapes[1,0])  
+        
+        b_param = param[(n_A+n_pi):param.shape[0]]
+        b = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
+        i = 0
+        for s in range(n_segments):
+            for p in range(0,self.n_products):
+                b[s,p,0:self.n_categories[p]-1] = b_param[i:i+self.n_categories[p]-1]
+                i = i + self.n_categories[p]-1
+
         return A, pi, b
         
         
@@ -81,7 +88,15 @@ def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = 
         
         parameters = np.concatenate((gamma_0.flatten(), gamma_sr_0.flatten(), gamma_sk_t.flatten(), beta_vec))
     else:
-        parameters = np.concatenate((A.flatten(), pi.flatten(), b.flatten()))
+        b_vec = np.array([0])
+        
+        for s in range(n_segments):
+            for p in range(0,self.n_products):
+                b_vec = np.concatenate( (b_vec, b[s,p,0:self.n_categories[p]-1]) )
+                
+        b_vec = b_vec[1:b_vec.size]
+        
+        parameters = np.concatenate((A.flatten(), pi.flatten(), b_vec))
     
     return parameters
 
@@ -185,7 +200,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         A = np.vstack((A, np.ones((1, n_segments))))
         
-        #P_s_given_r = np.array([ np.divide(np.exp(A), np.sum(np.exp(A), axis = 0)) ])
+        A = A[np.newaxis, :, :]
         P_s_given_r = np.exp(A - logsumexp(A))
     return P_s_given_r
         

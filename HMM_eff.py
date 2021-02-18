@@ -14,7 +14,8 @@ This code aims to execute a Baum-Welch/forward-backward algorithm to estimate a 
 """
 import extra_functions_HMM_eff as ef
 import numpy as np 
-from scipy.optimize import minimize 
+from scipy.optimize import minimize
+from scipy.optimize import differential_evolution
 import utils
 from tqdm import tqdm
 from time import perf_counter
@@ -106,14 +107,19 @@ class HMM_eff:
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
-            b = np.ones((n_segments, self.n_products, max(self.n_categories))) ##parameters for P(Y| S_t = s)
+            b = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) ##parameters for P(Y| S_t = s)
+            
+            for s in range(n_segments):
+                for p in range(0,self.n_products):
+                    b[s,p,0:self.n_categories[p]-1] = 0.5 * np.ones((1,self.n_categories[p]-1)) 
+            
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, A = A, pi = pi, b = b) #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
 
         #initialise
-        iteration = 0
+        self.iteration = 0
         difference = True
         
         print(f"****Starting EM prodecure, at {utils.get_time()}****")
@@ -123,7 +129,10 @@ class HMM_eff:
         print(f"number of customers: {self.n_customers}")
         
         start_EM = utils.get_time()
-        
+
+        alpha_in = np.zeros((n_segments, self.n_customers, self.T))
+        beta_in = np.zeros((n_segments, self.n_customers, self.T))
+            
         #Start EM procedure
         while difference:
                 
@@ -132,36 +141,45 @@ class HMM_eff:
             start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
-            alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
+            alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
               
             start = utils.get_time() #set start time to time maximisation step
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
             #perform maximisation step 
-            opt_result = self.maximization_step(alpha, beta, param_in, shapes, n_segments, max_method)
+            opt_result = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
             param_out = opt_result.x
             print(param_out)
             
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
-            print(f"Finished iteration {iteration}, duration M step {diff}")
+            print(f"Finished iteration {self.iteration}, duration M step {diff}")
 
-            difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
-            print(f"max difference: {np.max(abs(param_in-param_out))}")
-            if iteration == 0:
+            if self.iteration != 0:
+                difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
+                
+                
+            #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
+            #print(f"max difference: {np.max(abs(param_in-param_out))}")
+            print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
+            print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
+
+            if self.iteration == 1:
                 print('hoi')
                 
-            iteration = iteration + 1 #update iteration
+            alpha_in = alpha_out
+            beta_in = beta_out
+            
+            self.iteration = self.iteration + 1 #update iteration
         
         end_EM = utils.get_time()
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
         if self.covariates == True:
-            return param_out, alpha, shapes
+            return param_out, alpha_out, shapes
         else:
             return param_out, shapes
-
         
         
     #------------Function for the expectation step------------
@@ -243,13 +261,15 @@ class HMM_eff:
         self.maximization_iters = 0
         self.iterprint = False
 
-        minimize_options = {'disp': True, 'fatol': 1e-2, 'xatol': 1}
-        t1 = perf_counter()
+
+        fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
+        # # xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
+        xatol_value = 1
+        # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
+        minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': 2.5*10**4}
+        # minimize_options = {'disp': True}
         param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method=max_method,
                              options= minimize_options)
-        t2 = perf_counter()
-        print('Time for maximization:',t2-t1, 'with ', self.maximization_iters, "number of iterations")
-        pass
 
         return param_out
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
@@ -312,6 +332,7 @@ class HMM_eff:
         if self.iterprint:
             print('function value:', -sum,' at iteration ',self.maximization_iters)
         return -sum
+    
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:
