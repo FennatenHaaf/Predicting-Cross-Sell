@@ -77,7 +77,7 @@ def getGeneratedData():
         own = np.zeros(n_products)
         for j in range(0, n_products):
             if s == 0:
-                prob_own[j] = math.exp(beta[s, j, 0] + beta[1, j, 0])  / (1 + math.exp(beta[s, j, 0]))  +  fixed_random_seed.uniform(low=-0.15, high=0.15)
+                prob_own[j] = math.exp(beta[s, j, 0] + beta[1, j, 0])  / (1 + math.exp(beta[s, j, 0] + beta[1, j, 0]))  +  fixed_random_seed.uniform(low=-0.15, high=0.15)
             else:
                 prob_own[j] = math.exp(beta[s, j, 0]) / (1 + math.exp(beta[s, j, 0]))  +  fixed_random_seed.uniform(low=-0.15, high=0.15)
 

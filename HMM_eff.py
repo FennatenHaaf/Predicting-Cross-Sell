@@ -247,7 +247,7 @@ class HMM_eff:
         """
         """function for the maximization step"""
             
-        P_s_given_Y_Z = ef.state_event(self, alpha, beta, n_segments)
+        P_s_given_Y_Z = ef.state_event(self, alpha, beta)
         p_js_cons = ef.prob_p_js(self, param_in, shapes, n_segments)
         P_s_given_Y_Z_ut = np.multiply(alpha, beta)
         
@@ -314,7 +314,7 @@ class HMM_eff:
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z + 10**(-300))))
         
         #t=0, term 3
-        P_y_given_s_0 = list_P_y_given_s[0] #ixs
+        P_y_given_s_0 = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments)#ixs
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300))))
         
         
@@ -343,11 +343,12 @@ class HMM_eff:
             P_y_given_s_max = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments) #ixs
             P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t]) #ixs
             sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300))))
-
+        
+        sum = -sum 
         self.maximization_iters += 1
         if self.iterprint:
-            print('function value:', -sum,' at iteration ',self.maximization_iters)
-        return -sum
+            print('function value:', sum,' at iteration ',self.maximization_iters)
+        return sum
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:

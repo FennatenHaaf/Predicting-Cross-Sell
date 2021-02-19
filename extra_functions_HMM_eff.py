@@ -124,11 +124,11 @@ def prob_p_js(self, param, shapes, n_segments):
                     log_odds[s,p,c] = 0
                     denominator = denominator + log_odds[s,p,c]
                 else:
-                    if s == n_segments - 1: #last segment is the base
-                        log_odds[s,p,c] = beta[s,p,c-1]
+                    if s == (n_segments-1): #last segment is the base
+                        log_odds[s,p,c] = beta[s,p,(c-1)]
                         denominator = denominator + log_odds[s,p,c]
                     else: 
-                        log_odds[s,p,c] = beta[n_segments-1,p,c-1] + beta[s,p,c-1]
+                        log_odds[s,p,c] = beta[(n_segments-1),p,(c-1)] + beta[s,p,(c-1)]
                         denominator = denominator + log_odds[s,p,c]
             p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,0:self.n_categories[p]] - logsumexp(log_odds[s,p,0:self.n_categories[p]]))
                         
@@ -184,7 +184,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         gamma_sr_0 = np.vstack((gamma_sr_0, np.zeros((1,n_segments))))
         P_s_given_r = np.repeat(gamma_sr_0[np.newaxis,:,:], row_Z, axis = 0)
         
-        mat = np.matmul(gamma_sk_t, np.transpose(Z))
+        mat = np.matmul(gamma_sk_t, np.transpose(Z)) 
         mat = np.vstack((mat, np.zeros((1,row_Z))))
         mat = np.repeat(mat, n_segments, axis = 1)
         mat = np.array_split(mat, row_Z, axis = 1)
@@ -230,7 +230,7 @@ def joint_event(self, alpha, beta, t, s,
     return P_sr_given_Y_Z 
 
 
-def state_event(self, alpha, beta, n_segments): #alpha/beta = s, i, t
+def state_event(self, alpha, beta): #alpha/beta = s, i, t
     """function to compute P(X_it = s|Y_i, Z_i)"""
 
     P_s_given_Y_Z = np.multiply(alpha, beta)  #s x i x t
