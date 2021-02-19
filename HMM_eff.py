@@ -195,34 +195,36 @@ class HMM_eff:
                 v = self.T - t - 1
                 
                 Y_t = np.array([self.list_Y[t][i,:]])
-                Y_v = np.array([self.list_Y[v][i,:]])
 
                 if self.covariates == True:
                     Z_t = np.array([self.list_Z[t][i,:]])
                 else:
                     Z_t = []
                 
-                P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
-                P_y_given_s_v = ef.prob_P_y_given_s(self, Y_v, p_js, n_segments)
-
                 if t == 0:
+                    P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
                     P_s_given_Z_t = ef.prob_P_s_given_Z(self, param, shapes, Z_t, n_segments)
 
                     alpha[:,i,t] = np.multiply(P_y_given_s_t, P_s_given_Z_t).flatten()
                     beta[:,i,v] = np.ones((n_segments))
                 else:
+                    Y_v1 = np.array([self.list_Y[v+1][i,:]])
                     if self.covariates == True:
-                        Z_v = np.array([self.list_Z[v+1][i,:]])
+                        Z_v1 = np.array([self.list_Z[v+1][i,:]])
+                    else:
+                        Z_v1 = []
                         
                     P_s_given_r_t = ef.prob_P_s_given_r(self, param, shapes, Z_t, n_segments)
-                    P_s_given_r_v = ef.prob_P_s_given_r(self, param, shapes, Z_v, n_segments)
-                    P_y_given_s_v = ef.prob_P_y_given_s(self, Y_v, p_js, n_segments)
+                    P_s_given_r_v1 = ef.prob_P_s_given_r(self, param, shapes, Z_v1, n_segments)
+                    
+                    P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
+                    P_y_given_s_v1 = ef.prob_P_y_given_s(self, Y_v1, p_js, n_segments)
 
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
                             sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
-                            sum_beta = sum_beta + beta[r,i,v+1] * P_s_given_r_v[:,r,:] * P_y_given_s_v[:,r] 
+                            sum_beta = sum_beta + beta[r,i,v+1] * P_s_given_r_v1[:,r,:] * P_y_given_s_v1[:,r] 
                             
                     alpha[:,i,t] = sum_alpha
                     beta[:,i,v]  = sum_beta
