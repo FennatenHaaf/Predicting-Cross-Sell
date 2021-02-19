@@ -296,9 +296,9 @@ class HMM_eff:
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                   method=max_method,options= minimize_options)
         else:
-            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), 
-                            method='BFGS', options= minimize_options)
-
+            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                  method='BFGS',options= minimize_options)
         return param_out
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
     

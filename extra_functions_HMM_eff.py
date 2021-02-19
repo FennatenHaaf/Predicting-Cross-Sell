@@ -194,7 +194,6 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 
         #P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
         log_sum_exp = logsumexp(P_s_given_r, axis = 1, row_Z = row_Z, n_segments = n_segments, reshape = True)
-        hoi = P_s_given_r
         P_s_given_r = np.exp(P_s_given_r - np.reshape(log_sum_exp, (row_Z,1,n_segments))) #i x s x s
     else:  
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
