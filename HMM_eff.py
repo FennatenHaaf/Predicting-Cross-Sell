@@ -92,12 +92,12 @@ class HMM_eff:
             param_out = param #set name of parameterlist for the input of the algorithm """
             gamma_0 =   np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
             gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
-            gamma_sk_t = np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
             
             for s in range(n_segments):
                 for p in range(0,self.n_products):
-                    beta[s,p,0:self.n_categories[p]-1] =  np.ones((1,self.n_categories[p]-1))                    
+                    beta[s,p,0:self.n_categories[p]-1] =   np.ones((1,self.n_categories[p]-1))                    
             
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
@@ -194,26 +194,33 @@ class HMM_eff:
             for t in range(0,self.T):
                 v = self.T - t - 1
                 
-                Y = np.array([self.list_Y[t][i,:]])
+                Y_t = np.array([self.list_Y[t][i,:]])
+                Y_v = np.array([self.list_Y[v][i,:]])
+
                 if self.covariates == True:
-                    Z = np.array([self.list_Z[t][i,:]])
+                    Z_t = np.array([self.list_Z[t][i,:]])
+                    Z_v = np.array([self.list_Z[v+1][i,:]])
                 else:
-                    Z = []
+                    Z_t = []
                 
-                P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
-                
+                P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
+                P_y_given_s_v = ef.prob_P_y_given_s(self, Y_v, p_js, n_segments)
+
                 if t == 0:
-                    P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
-                    alpha[:,i,t] = np.multiply(P_y_given_s, P_s_given_Z).flatten()
+                    P_s_given_Z_t = ef.prob_P_s_given_Z(self, param, shapes, Z_t, n_segments)
+                    P_s_given_Z_v = ef.prob_P_s_given_Z(self, param, shapes, Z_v, n_segments)
+
+                    alpha[:,i,t] = np.multiply(P_y_given_s_t, P_s_given_Z_t).flatten()
                     beta[:,i,v] = np.ones((n_segments))
                 else:
-                    P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
-    
+                    P_s_given_r_t = ef.prob_P_s_given_r(self, param, shapes, Z_t, n_segments)
+                    P_s_given_r_v = ef.prob_P_s_given_r(self, param, shapes, Z_v, n_segments)
+
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
-                            sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r[0,:,r], P_y_given_s.flatten())
-                            sum_beta = sum_beta + beta[r,i,v+1] * P_s_given_r[0,r,:] * P_y_given_s[0,r] 
+                            sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
+                            sum_beta = sum_beta + beta[r,i,v+1] * P_s_given_r_v[:,r,:] * P_y_given_s_v[:,r] 
                             
                     alpha[:,i,t] = sum_alpha
                     beta[:,i,v]  = sum_beta
@@ -282,11 +289,11 @@ class HMM_eff:
 
         if self.iteration <= 99999:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
-                                 , method=max_method,options= minimize_options)
+                                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                  method=max_method,options= minimize_options)
         else:
-            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), method='BFGS',
-                            options= minimize_options)
+            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, param_in, shapes, n_segments, P_s_given_Y_Z), 
+                            method='BFGS', options= minimize_options)
 
         return param_out
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
@@ -316,7 +323,6 @@ class HMM_eff:
         #t=0, term 3
         P_y_given_s_0 = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments)#ixs
         sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300))))
-        
         
         for t in range(1,self.T):
             Y = self.list_Y[t]
