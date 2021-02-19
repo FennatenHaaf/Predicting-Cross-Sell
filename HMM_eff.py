@@ -199,7 +199,6 @@ class HMM_eff:
 
                 if self.covariates == True:
                     Z_t = np.array([self.list_Z[t][i,:]])
-                    Z_v = np.array([self.list_Z[v+1][i,:]])
                 else:
                     Z_t = []
                 
@@ -208,13 +207,16 @@ class HMM_eff:
 
                 if t == 0:
                     P_s_given_Z_t = ef.prob_P_s_given_Z(self, param, shapes, Z_t, n_segments)
-                    P_s_given_Z_v = ef.prob_P_s_given_Z(self, param, shapes, Z_v, n_segments)
 
                     alpha[:,i,t] = np.multiply(P_y_given_s_t, P_s_given_Z_t).flatten()
                     beta[:,i,v] = np.ones((n_segments))
                 else:
+                    if self.covariates == True:
+                        Z_v = np.array([self.list_Z[v+1][i,:]])
+                        
                     P_s_given_r_t = ef.prob_P_s_given_r(self, param, shapes, Z_t, n_segments)
                     P_s_given_r_v = ef.prob_P_s_given_r(self, param, shapes, Z_v, n_segments)
+                    P_y_given_s_v = ef.prob_P_y_given_s(self, Y_v, p_js, n_segments)
 
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
