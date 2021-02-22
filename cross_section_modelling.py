@@ -30,12 +30,12 @@ class CrossSectionModels(object):
         #Sort the index and make a deepcopy of the original data
         self.prepared_df = self.input_cross.sort_index( axis=1, key=lambda x: x.str.lower() ).copy()
 
-        #Drop unnecessary columns
+        #Drop unnecessary columns and put personid as index
         list_to_drop = ['valid_to_dateeow', 'valid_from_dateeow',]
-        utils.doListIntersect(list_to_drop,self.prepared_df.columns)
-        self.prepared_df.drop(columns=[], inplace = True)
-
+        self.prepared_df = utils.check_and_drop_columns(self.prepared_df,list_to_drop)
         self.prepared_df.set_index('personid', inplace = True)
+
+
 
     #TODO Add several dummy variables
     #TODO Reduce the number of categories by either selection or perhaps PCA/FA.

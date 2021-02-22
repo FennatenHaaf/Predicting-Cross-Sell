@@ -45,6 +45,8 @@ class HMM_eff:
         
         self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
 
+        self.iterprint = True #Iterprint True or False, will print x and iterations
+
         #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_products))
         for i in range(0,self.T):
@@ -283,7 +285,7 @@ class HMM_eff:
         """perform the maximization"""
 
         self.maximization_iters = 0
-        self.iterprint = False
+
 
         #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
         #xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
@@ -361,6 +363,7 @@ class HMM_eff:
         self.maximization_iters += 1
         if self.iterprint:
             print('function value:', sum,' at iteration ',self.maximization_iters)
+            print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
         return sum
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):

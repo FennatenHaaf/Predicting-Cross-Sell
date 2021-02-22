@@ -171,7 +171,8 @@ class dataProcessor:
             
         print(f"got {len(valid_ids)} useable IDs from the Experian data")
         # Show how many there are of each finergy type
-        dataInsight.plotFinergyCounts(self.df_experian,valid_ids)
+        if self.print_info:
+            dataInsight.plotFinergyCounts(self.df_experian,valid_ids)
         
         #------------------------ GET FINERGY SEGMENT ----------------------
         
@@ -717,7 +718,7 @@ class dataProcessor:
             
             if name == 'business':
                 # See if they have a bookkeeping overlay
-                indicator = df.loc[:,["personid"]][df["accountoverlays"]>0] 
+                indicator = df.loc[:,["personid"]][df["accountoverlays"]>0]
                 indicator["accountoverlay"]=1 # make all of the columns one and give it the name
                 # Sum to find for how many business portfolios there is an 
                 # account overlay
@@ -745,7 +746,8 @@ class dataProcessor:
                                         count_name = "aantal_SBI")
                 df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
-                                  right_on=["personid"],)    
+                                  right_on=["personid"],)
+
                 
                 #Doe precies hetzelfde met de sector 
                 temp = df.loc[:,["personid","SBIsector","SBIsectorName"]]
@@ -761,7 +763,20 @@ class dataProcessor:
                                         count_name = "aantal_types")
                 df_cross= df_cross.merge(indicator, 
                                   how="left", left_on=["personid"],
-                                  right_on=["personid"],)    
+                                  right_on=["personid"],)
+
+                #### Similar method but this time takes the value of sector of largest portfolio####
+                merge_list = ["personid", "SBIname", "SBIsectorName", "businessType", 'saldototaal']
+                name_filter_list = ['Financiële instellingen (geen verzekeringen en pensioenfondsen)',
+                                         'Overige financiële dienstverlening']
+                to_merge = self.aggregate_business_to_one_category(df.loc[:,merge_list].copy(),
+                                                                   column_to_agg_on = 'saldototaal',
+                                                                   filter_threshold_high = 0.85,
+                                                                   filter_threshold_low = 0.15,
+                                                                   filter_string_list = name_filter_list)
+
+                df_cross= df_cross.merge(to_merge,
+                              how="left", left_on=["personid"],right_on=["personid"], suffixes = ["", "_on_saldofraction"])
             
         #----------- Merge remaining variables --------
         
@@ -822,10 +837,59 @@ class dataProcessor:
         
         return indicator
 
+    def aggregate_business_to_one_category( self, data, column_to_agg_on, filter_threshold_high = 0.8,
+                                            filter_threshold_low = 0.15, filter_string_list = [] ):
+
+        if len(filter_string_list) > 0:
+            filter_active = True
+        else:
+            filter_active = False
+        data = data[~( data['SBIname'].isna() & data['SBIname'].isna() & data['SBIname'].isna() )]
+        data = data.drop_duplicates()
+        #calculate the total balance for the person and merge this new value to the data
+        balance_total_per_person = pd.DataFrame( data.groupby('personid')[column_to_agg_on].apply(lambda x: x.abs().sum() ) )
+        balance_total_per_person.reset_index(inplace = True) #ensure that personid stays in dataset and not index
+        data = pd.merge(data, balance_total_per_person, how = "left", on = "personid", suffixes = ["", "_agg"])
+
+        # Create column to create a fraction of total value
+        data[f'{column_to_agg_on}_fraction'] = data[column_to_agg_on].abs() / data[f'{column_to_agg_on}_agg'].abs()
+        # Create a file to merge, start with values which have nan for the column because of 0 division. Create a dataframe for
+        # these values and fill these values with one and grab the first category.
+
+        above_low_threshold_index = data.eval(f"{column_to_agg_on}_fraction >= {filter_threshold_low}")
+        tempindex = data.eval(f"{column_to_agg_on}_fraction >= {filter_threshold_high}")
+
+        to_merge = data[~tempindex].query(f"{column_to_agg_on}_fraction != {column_to_agg_on}_fraction").groupby('personid'
+                                                                                                     ).first().fillna(1).reset_index()
+        to_merge = pd.concat([ data[tempindex], to_merge ], ignore_index =  True)
+
+        #Now merge with values above threshold to create larger merge file
+
+        tempindex = ~(data['personid'].isin(to_merge['personid'])) & above_low_threshold_index #Take every person that is not yet in
+        # the set to merge
+
+        if filter_active:
+            #Choose if you want to filter on financial institutions. Adds extra Values to index on in prev index
+            tempindex2 = tempindex & data.loc[tempindex,'SBIname'].isin(filter_string_list)
+            tempindex2 = tempindex2 | data.loc[tempindex,'SBIsectorName'].isin(filter_string_list)
+            tempindex = tempindex2 | data.loc[tempindex,'businessType'].isin(filter_string_list)
+
+        #Concatenate the large file to merge. Here the row with the highest saldo_fraction will be returned
+        portfolio_sum_per_sector = data[tempindex].groupby(['personid']).apply(lambda x:
+                                                                               x.loc[x[f'{column_to_agg_on}_fraction'].idxmax(),:])
+        to_merge = pd.concat([to_merge, portfolio_sum_per_sector], ignore_index = True)
+
+        #Check if there are values below the threshold value after selecting on certain strings. Return the values from the original
+        # data
+        templist = to_merge['personid'].to_list()
+        portfolio_sum_per_sector2 = data.query("personid != @templist" ).groupby( ['personid'] ).apply( lambda x:x.loc[
+            x[f'{column_to_agg_on}_fraction'].idxmax(),:] )
+        to_merge = pd.concat([to_merge, portfolio_sum_per_sector2], ignore_index =  True)
 
 
+        return to_merge
 
-# =============================================================================
+    # =============================================================================
 # #some helper methods that are used to handle time ===========================
 # =============================================================================
 
