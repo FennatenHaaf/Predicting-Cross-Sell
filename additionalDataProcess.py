@@ -111,8 +111,8 @@ def get_difference_data(this_period,prev_period, log =True,
     # We want the cases where there is an absolute increase in the number of portfolios,
     # And no decrease per type of portfolio. We additionally only look at cases
     # where a person gets only 1 of a particular type of portfolio
-    
-    select_portfoliogain =( (this_period['portfoliototaal']>prev_period['portfoliototaal']) \
+    # WE ALSO INCLUDE PEOPLE WHO DON'T HAVE A CHANGE IN THE NUMBER OF PORTFOLIOS
+    select_portfoliogain =( (this_period['portfoliototaal']>=prev_period['portfoliototaal']) \
                           & (this_period['business_change']>=0) \
                           & (this_period['business_change']<=1) \
                           & (this_period['retail_change']>=0) \
