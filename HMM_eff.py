@@ -19,6 +19,7 @@ from scipy.optimize import differential_evolution
 import utils
 from tqdm import tqdm
 from time import perf_counter
+import numdifftools as nd
 #from geneticalgorithm import geneticalgorithm as ga
 
 #from pyswarm import pso
@@ -145,8 +146,7 @@ class HMM_eff:
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
             #perform maximisation step 
-            opt_result = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
-            param_out = opt_result.x
+            param_out, hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
             print(param_out)
             
             end = utils.get_time()#set start time to time maximisation step
@@ -174,10 +174,11 @@ class HMM_eff:
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
+
         if self.covariates == True:
-            return param_out, alpha_out, shapes
+            return param_out, alpha_out, shapes, hes
         else:
-            return param_out, shapes
+            return param_out, shapes, hes
         
         
     #------------Function for the expectation step------------
@@ -299,8 +300,12 @@ class HMM_eff:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                   method='BFGS',options= minimize_options)
-        return param_out
+            
+        hes = nd.Hessian(self.optimization_function)(param_out.x, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
+        
+        return param_out.x, hes
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
+    
     
     def optimization_function(self, x, alpha, beta, shapes, n_segments, 
                               P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js, P_s_given_Y_Z_ut):

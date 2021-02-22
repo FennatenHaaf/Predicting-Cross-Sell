@@ -101,12 +101,12 @@ n_segments = 2
 test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates, covariates = True)
 # test_cross_sell.data_frame_collection = data_frame_collection
 
-param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
+param_cross, alpha_cross, shapes_cross, hes = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, n_segments, param_cross, shapes_cross)
 p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
 p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
 p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
-
+print(f"Hessian: {hes}")
 #p_jout.to_csv(f"{outdirec}/p_j_out.csv")
 pass
 #cross_sell_target, cross_sell_self, cross_self_total = test_cross_sell.cross_sell_yes_no(param_cross, shapes_cross, n_segments, alpha_cross, active_value, tresholds)      
