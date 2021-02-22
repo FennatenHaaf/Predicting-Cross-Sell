@@ -49,7 +49,7 @@ class HMM_eff:
         self.n_categories = np.zeros((self.n_products))
         for i in range(0,self.T):
             for j in range(0,self.n_products):
-                n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique(); #retrive the number of categories per product, per dataframe
+                n_per_df = self.list_dataframes[i][list_dep_var[j]].fillna(0).nunique(); #retrive the number of categories per product, per dataframe
                 if n_per_df > self.n_categories[j]: #if number of categories is more than previously seen in other dataframes, update number of categories
                     self.n_categories[j] = n_per_df
         self.n_categories = self.n_categories.astype(int)
@@ -91,9 +91,9 @@ class HMM_eff:
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm """
-            gamma_0 =   np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
-            gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
-            gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
+            gamma_0 =    np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            gamma_sr_0 =   np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t =   np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
             
             for s in range(n_segments):
@@ -129,13 +129,15 @@ class HMM_eff:
         
         start_EM = utils.get_time()
 
-        alpha_in = np.zeros((n_segments, self.n_customers, self.T))
-        beta_in = np.zeros((n_segments, self.n_customers, self.T))
+        alpha_out = np.zeros((n_segments, self.n_customers, self.T))
+        beta_out = np.zeros((n_segments, self.n_customers, self.T))
             
         #Start EM procedure
         while difference:
                 
             param_in = param_out #update parameters
+            alpha_in = alpha_out
+            beta_in = beta_out
             
             start1 = utils.get_time() 
             
@@ -148,7 +150,6 @@ class HMM_eff:
             #perform maximisation step 
             param_out, hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
             print(f"Parameters: {param_out}")
-            print(f"Hessian: {hes}")
             
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
@@ -166,8 +167,7 @@ class HMM_eff:
             if self.iteration == 1:
                 print('hoi')
                 
-            alpha_in = alpha_out
-            beta_in = beta_out
+
             
             self.iteration = self.iteration + 1 #update iteration
         
@@ -226,7 +226,7 @@ class HMM_eff:
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
                             sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
-                            sum_beta = sum_beta + beta[r,i,v+1] * P_s_given_r_v1[:,r,:] * P_y_given_s_v1[:,r] 
+                            sum_beta = sum_beta + beta[r,i,v+1] * np.multiply(P_s_given_r_v1[:,r,:], P_y_given_s_v1[:,r])
                             
                     alpha[:,i,t] = sum_alpha
                     beta[:,i,v]  = sum_beta
@@ -290,10 +290,10 @@ class HMM_eff:
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options = {'disp': True, 'adaptive': True}
+        minimize_options = {'disp': True, 'adaptive': True, 'maxiter': 99999999}
 
 
-        if self.iteration <= -1:
+        if self.iteration <= 999999:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                   method=max_method,options= minimize_options)

@@ -77,7 +77,7 @@ for t in range(0,3):
 
 df_per_time = gd.getGeneratedData()
 
-name_dep_var_cross_sell = ['p1','p2']
+name_dep_var_cross_sell = ['p1','p2','p3','p4']
 name_covariates = ['var1','var2']
 name_dep_var_active = ['ac1', 'ac2', 'ac3']
 
@@ -102,8 +102,15 @@ test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariat
 # test_cross_sell.data_frame_collection = data_frame_collection
 
 param_cross, alpha_cross, shapes_cross, hes = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
+
+Y = test_cross_sell.list_Y[0]
+Z = test_cross_sell.list_Z[0]
 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, n_segments, param_cross, shapes_cross)
 p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
+P_y_given_S = ef.prob_P_y_given_s(test_cross_sell, Y, p_js, n_segments)
+P_s_given_Z = ef.prob_P_s_given_Z(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
+P_s_given_r = ef.prob_P_s_given_r(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
+
 p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
 p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
 cov = - np.linalg.inv(hes)
