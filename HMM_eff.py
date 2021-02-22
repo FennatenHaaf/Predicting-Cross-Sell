@@ -45,7 +45,7 @@ class HMM_eff:
         
         self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
 
-        self.iterprint = True #Iterprint True or False, will print x and iterations
+        self.iterprint = False #Iterprint True or False, will print x and iterations
 
         #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_products))
@@ -292,7 +292,7 @@ class HMM_eff:
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options = {'disp': True, 'adaptive': True, 'maxiter': 99999999}
+        minimize_options = {'disp': True, 'adaptive': True, 'maxiter': 99999999} #'xatol': 0.01}
 
 
         if self.iteration <= 999999:
@@ -318,7 +318,7 @@ class HMM_eff:
         p_js_max = ef.prob_p_js(self, x, shapes, n_segments)
 
         """compute function"""
-        sum = 0;
+        logl = 0;
 
         Y = self.list_Y[0]
         if self.covariates == True:
@@ -330,11 +330,13 @@ class HMM_eff:
         
         #t=0, term 1
         P_s_given_Z = ef.prob_P_s_given_Z(self, x, shapes, Z, n_segments)  #i x s
-        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z + 10**(-300))))
+        mult = np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z + 10**(-300)))
+        logl += np.sum(mult)
         
         #t=0, term 3
         P_y_given_s_0 = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments)#ixs
-        sum = sum + np.sum(np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300))))
+        mult = np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300)))
+        logl += np.sum(mult)
         
         for t in range(1,self.T):
             Y = self.list_Y[t]
@@ -352,19 +354,21 @@ class HMM_eff:
             P_s_given_r_max = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
             P_sr_given_Y_Z = ef.joint_event(self, alpha, beta, t, n_segments,
                                                 P_s_given_Y_Z_ut, P_s_given_r_cons, P_y_given_s_cons)
-            sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r_max + 10**(-300)))  )
-
+            mult = np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r_max + 10**(-300)))
+            logl += np.sum(mult)
+            
             #t=t, term 3
             P_y_given_s_max = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments) #ixs
             P_s_given_Y_Z_t = np.transpose(P_s_given_Y_Z[:,:,t]) #ixs
-            sum = sum + np.sum(np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300))))
+            mult = np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300)))
+            logl += np.sum(mult)
         
-        sum = -sum 
+        logl = -logl 
         self.maximization_iters += 1
         if self.iterprint:
-            print('function value:', sum,' at iteration ',self.maximization_iters)
+            print('function value:', logl,' at iteration ',self.maximization_iters)
             print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
-        return sum
+        return logl
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:
