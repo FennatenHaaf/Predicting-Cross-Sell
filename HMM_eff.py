@@ -76,7 +76,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, tolerance = 10**(-4), max_method = "BFGS"):
+    def EM(self, n_segments, tolerance = 10**(-3), max_method = "BFGS"):
         """function to run the EM algorithm
             n_segments: number of segments to use for the estimation of the HMM
             tolerance: convergence tolerance
@@ -293,7 +293,7 @@ class HMM_eff:
         minimize_options = {'disp': True, 'adaptive': True}
 
 
-        if self.iteration <= 99999:
+        if self.iteration <= -1:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                   method=max_method,options= minimize_options)
@@ -348,12 +348,9 @@ class HMM_eff:
             P_y_given_s_cons = list_P_y_given_s[t]
             
             P_s_given_r_max = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
-            
-            for s in range(0,n_segments):
-                P_sr_given_Y_Z = ef.joint_event(self, alpha, beta, t, s,
+            P_sr_given_Y_Z = ef.joint_event(self, alpha, beta, t, n_segments,
                                                 P_s_given_Y_Z_ut, P_s_given_r_cons, P_y_given_s_cons)
-                #sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
-                sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r_max[:,s,:] + 10**(-300)))  )
+            sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r_max + 10**(-300)))  )
 
             #t=t, term 3
             P_y_given_s_max = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments) #ixs

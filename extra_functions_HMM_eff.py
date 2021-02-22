@@ -208,7 +208,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 #--------------------function for maximisation step---------------------
 
 
-def joint_event(self, alpha, beta, t, s,
+def joint_event(self, alpha, beta, t, n_segments,
                 P_s_given_Y_Z_ut, P_s_given_r, P_y_given_s):#for all person
     """function to compute P(X_it-1 = s_t-1, X_it = s_t|Y_i, Z_i)"""
     
@@ -221,12 +221,24 @@ def joint_event(self, alpha, beta, t, s,
     #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, beta[s,:,t])
     #P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.sum(P_s_given_Y_Z[:,:,t], axis = 0))
     
-    P_sr_given_Y_Z = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
-    P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
-    P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixs]
-    P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z_ut[:,:,t], axis = 0)]))
+    #P_sr_given_Y_Z = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
+    #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
+    #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixs]
+    #P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z_ut[:,:,t], axis = 0)])) 
     
+    #new:
+        
+    P_sr_given_Y_Z = np.zeros((self.n_customers, n_segments, n_segments))
+    for s in range(0,n_segments):
+        mat = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
+        mat = np.multiply(mat, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
+        mat = np.multiply(mat, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixr]
+        P_sr_given_Y_Z[:,s,:] = mat
     
+    sum_per_cust = np.sum(np.sum(P_sr_given_Y_Z, axis = 2), axis = 1)
+    P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, sum_per_cust[:,np.newaxis, np.newaxis])
+      
+        
     return P_sr_given_Y_Z 
 
 
