@@ -226,6 +226,7 @@ def joint_event(self, alpha, beta, t, s,
     P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixs]
     P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z_ut[:,:,t], axis = 0)]))
     
+    
     return P_sr_given_Y_Z 
 
 

@@ -33,7 +33,7 @@ def getGeneratedData():
         for i in range(0,n_customers):
             cov[:,i,0] = np.ones(T)
             for c in range(1,n_categories+1):
-                cov[:,i,c] = np.random.random((1,T))
+                cov[:,i,c] = 10 * np.random.random((1,T))
               
         return cov
     

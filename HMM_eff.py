@@ -147,7 +147,8 @@ class HMM_eff:
 
             #perform maximisation step 
             param_out, hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
-            print(param_out)
+            print(f"Parameters: {param_out}")
+            print(f"Hessian: {hes}")
             
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
@@ -289,7 +290,7 @@ class HMM_eff:
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options = {'disp': True}
+        minimize_options = {'disp': True, 'adaptive': True}
 
 
         if self.iteration <= 99999:
@@ -395,15 +396,14 @@ class HMM_eff:
             return prediction
 
     def active_value(self, param, shapes, n_segments):
-        if self.covariates == False:
-            Y = self.list_Y[self.T-1]
+        Y = self.list_Y[self.T-1]
 
-            p_js = ef.prob_p_js(self, param, shapes, n_segments)
-            P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
+        p_js = ef.prob_p_js(self, param, shapes, n_segments)
+        P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
 
-            active_value = np.argmax(P_Y_given_S, axis=1)
+        active_value = np.argmax(P_Y_given_S, axis=1)
 
-            return active_value
+        return active_value
 
 
     def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value, tresholds, order_active_high_to_low = [0,1,2]):

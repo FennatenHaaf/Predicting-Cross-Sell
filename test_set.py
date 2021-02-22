@@ -106,7 +106,8 @@ gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sel
 p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
 p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
 p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
-print(f"Hessian: {hes}")
+cov = - np.linalg.inv(hes)
+print(f"Covariance: {cov}")
 #p_jout.to_csv(f"{outdirec}/p_j_out.csv")
 pass
 #cross_sell_target, cross_sell_self, cross_self_total = test_cross_sell.cross_sell_yes_no(param_cross, shapes_cross, n_segments, alpha_cross, active_value, tresholds)      
