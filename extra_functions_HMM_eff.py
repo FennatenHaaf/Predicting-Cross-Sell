@@ -148,7 +148,7 @@ def prob_P_y_given_s(self, Y, p_js, n_segments):
 
     return P_y_given_s
 
-def prob_P_s_given_Z(self, param, shapes, Z, n_segments):  
+def prob_P_s_given_Z(self, param, shapes, Z, n_segments):   
     """function to compute P(X_i0 = s| Z_i0) with parameters gamma_0"""
     
     row_Z = len(Z)
