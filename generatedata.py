@@ -18,13 +18,13 @@ def getGeneratedData():
     p_trans = np.array([[0.9, 0.1], [0.2,0.8]])
     T = 2
     n_customers = 500
-    n_products = 2
+    n_products = 4
     n_segments = 2
     n_categories = 2
     gamma0 = np.array([[0.2, 0.5, 2]])
     gamma_sr_0 = np.array([[0.3, 0.5]])
     gamma_sr_t = np.array([[-0.3, 1.2]])
-    beta = np.array([[[-0.5],[0.3]] , [[0.4],[-0.3]] ])
+    beta = np.array([ [[-0.5],[0.3],[0.4],[-0.4]] , [[0.4],[-0.3],[-0.5],[0.3]] ])
     fixed_random_seed = np.random.RandomState(978391)
     
     
@@ -33,7 +33,7 @@ def getGeneratedData():
         for i in range(0,n_customers):
             cov[:,i,0] = np.ones(T)
             for c in range(1,n_categories+1):
-                cov[:,i,c] = np.random.random((1,T))
+                cov[:,i,c] = fixed_random_seed.uniform(low=0, high=10, size = (T))
               
         return cov
     
@@ -87,6 +87,7 @@ def getGeneratedData():
                 own[j] = 0
         return own
     
+    
     def outputdata (beta, n_segments, n_products ,T, cov, gamma0, gamma_sr_0, gamma_sr_t):
         data = np.zeros((T, n_customers,n_products))
         for n in range(0,n_customers):
@@ -98,7 +99,7 @@ def getGeneratedData():
         return data
     
     output = outputdata(beta, n_segments, n_products ,T, cov, gamma0, gamma_sr_0, gamma_sr_t)
-    name_columns = ['p1','p2','var1','var2']
+    name_columns = ['p1','p2','p3','p4','var1','var2']
 
     df_gen_data = []
     

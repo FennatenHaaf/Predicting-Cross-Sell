@@ -19,6 +19,7 @@ from scipy.optimize import differential_evolution
 import utils
 from tqdm import tqdm
 from time import perf_counter
+import numdifftools as nd
 #from geneticalgorithm import geneticalgorithm as ga
 
 #from pyswarm import pso
@@ -43,6 +44,8 @@ class HMM_eff:
         self.T = len(list_dataframes) #initialise the number of dataframes, thus the timeperiod
         
         self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
+
+        self.iterprint = True #Iterprint True or False, will print x and iterations
 
         #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_products))
@@ -75,7 +78,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, tolerance = 10**(-4), max_method = "BFGS"):
+    def EM(self, n_segments, tolerance = 10**(-3), max_method = "BFGS"):
         """function to run the EM algorithm
             n_segments: number of segments to use for the estimation of the HMM
             tolerance: convergence tolerance
@@ -90,9 +93,9 @@ class HMM_eff:
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm """
-            gamma_0 =   np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
-            gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
-            gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
+            gamma_0 =    np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            gamma_sr_0 =   np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t =   np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
             
             for s in range(n_segments):
@@ -128,13 +131,15 @@ class HMM_eff:
         
         start_EM = utils.get_time()
 
-        alpha_in = np.zeros((n_segments, self.n_customers, self.T))
-        beta_in = np.zeros((n_segments, self.n_customers, self.T))
+        alpha_out = np.zeros((n_segments, self.n_customers, self.T))
+        beta_out = np.zeros((n_segments, self.n_customers, self.T))
             
         #Start EM procedure
         while difference:
                 
             param_in = param_out #update parameters
+            alpha_in = alpha_out
+            beta_in = beta_out
             
             start1 = utils.get_time() 
             
@@ -145,9 +150,8 @@ class HMM_eff:
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
             #perform maximisation step 
-            opt_result = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
-            param_out = opt_result.x
-            print(param_out)
+            param_out, hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
+            print(f"Parameters: {param_out}")
             
             
             end = utils.get_time()#set start time to time maximisation step
@@ -166,8 +170,7 @@ class HMM_eff:
             if self.iteration == 10:
                 print('hoi')
                 
-            alpha_in = alpha_out
-            beta_in = beta_out
+
             
             self.iteration = self.iteration + 1 #update iteration
         
@@ -175,10 +178,11 @@ class HMM_eff:
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
+
         if self.covariates == True:
-            return param_out, alpha_out, shapes
+            return param_out, alpha_out, shapes, hes
         else:
-            return param_out, shapes
+            return param_out, shapes, hes
         
         
     #------------Function for the expectation step------------
@@ -225,7 +229,7 @@ class HMM_eff:
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
                             sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
-                            sum_beta = sum_beta + beta[r,i,v+1] * P_s_given_r_v1[:,r,:] * P_y_given_s_v1[:,r] 
+                            sum_beta = sum_beta + beta[r,i,v+1] * np.multiply(P_s_given_r_v1[:,r,:], P_y_given_s_v1[:,r])
                             
                     alpha[:,i,t] = sum_alpha
                     beta[:,i,v]  = sum_beta
@@ -282,17 +286,17 @@ class HMM_eff:
         """perform the maximization"""
 
         self.maximization_iters = 0
-        self.iterprint = False
+
 
         #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
         #xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options = {'disp': True}
+        minimize_options = {'disp': True, 'adaptive': True, 'maxiter': 99999999}
 
 
-        if self.iteration <= 99999:
+        if self.iteration <= 999999:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                   method=max_method,options= minimize_options)
@@ -300,8 +304,12 @@ class HMM_eff:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                   method='BFGS',options= minimize_options)
-        return param_out
+            
+        hes = nd.Hessian(self.optimization_function)(param_out.x, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
+        
+        return param_out.x, hes
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
+    
     
     def optimization_function(self, x, alpha, beta, shapes, n_segments, 
                               P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js, P_s_given_Y_Z_ut):
@@ -343,12 +351,9 @@ class HMM_eff:
             P_y_given_s_cons = list_P_y_given_s[t]
             
             P_s_given_r_max = ef.prob_P_s_given_r(self, x, shapes, Z, n_segments)
-            
-            for s in range(0,n_segments):
-                P_sr_given_Y_Z = ef.joint_event(self, alpha, beta, t, s,
+            P_sr_given_Y_Z = ef.joint_event(self, alpha, beta, t, n_segments,
                                                 P_s_given_Y_Z_ut, P_s_given_r_cons, P_y_given_s_cons)
-                #sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r[:,s,r]))  )
-                sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r_max[:,s,:] + 10**(-300)))  )
+            sum = sum + np.sum( np.multiply(P_sr_given_Y_Z, np.log(P_s_given_r_max + 10**(-300)))  )
 
             #t=t, term 3
             P_y_given_s_max = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments) #ixs
@@ -359,6 +364,7 @@ class HMM_eff:
         self.maximization_iters += 1
         if self.iterprint:
             print('function value:', sum,' at iteration ',self.maximization_iters)
+            print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
         return sum
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
@@ -391,15 +397,14 @@ class HMM_eff:
             return prediction
 
     def active_value(self, param, shapes, n_segments):
-        if self.covariates == False:
-            Y = self.list_Y[self.T-1]
+        Y = self.list_Y[self.T-1]
 
-            p_js = ef.prob_p_js(self, param, shapes, n_segments)
-            P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
+        p_js = ef.prob_p_js(self, param, shapes, n_segments)
+        P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
 
-            active_value = np.argmax(P_Y_given_S, axis=1)
+        active_value = np.argmax(P_Y_given_S, axis=1)
 
-            return active_value
+        return active_value
 
 
     def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value, tresholds, order_active_high_to_low = [0,1,2]):
