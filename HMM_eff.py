@@ -48,7 +48,7 @@ class HMM_eff:
         self.n_categories = np.zeros((self.n_products))
         for i in range(0,self.T):
             for j in range(0,self.n_products):
-                n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique(); #retrive the number of categories per product, per dataframe
+                n_per_df = self.list_dataframes[i][list_dep_var[j]].fillna(0).nunique(); #retrive the number of categories per product, per dataframe
                 if n_per_df > self.n_categories[j]: #if number of categories is more than previously seen in other dataframes, update number of categories
                     self.n_categories[j] = n_per_df
         self.n_categories = self.n_categories.astype(int)
@@ -149,6 +149,7 @@ class HMM_eff:
             param_out = opt_result.x
             print(param_out)
             
+            
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
@@ -162,7 +163,7 @@ class HMM_eff:
             print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
             print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
 
-            if self.iteration == 1:
+            if self.iteration == 10:
                 print('hoi')
                 
             alpha_in = alpha_out

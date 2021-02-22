@@ -1,5 +1,6 @@
 data/
 largeData/
+fulldata/
 output/
 __pycache__/
 otherStuff.py

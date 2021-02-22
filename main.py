@@ -32,7 +32,7 @@ if __name__ == "__main__":
     start_date = "2018-01-01" # From which moment onwards do we want to use
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    subsample = False # Do we want to take a subsample
+    subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
     finergy_segment = None # The finergy segment that we want to be in the sample
     # e.g.: "B04"
@@ -44,8 +44,8 @@ if __name__ == "__main__":
     cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
-    saldo_data = True # Do we want to create the dataset for predicting saldo
-    run_hmm = False
+    saldo_data = False # Do we want to create the dataset for predicting saldo
+    run_hmm = True
     
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     #----------------MAKE CROSS-SECTIONAL DATASETS-------------------
     if cross_sec:
         # Make the base cross-section
-        df_cross, cross_date = processor.create_base_cross_section(date_string="2020-12", 
+        df_cross, cross_date = processor.create_base_cross_section(date_string="2020-12-31", 
                             next_period = False, outname = "cross_experian")
         # Now aggregate all of the information per portfolio
         df_cross_link = processor.create_cross_section_perportfolio(df_cross, cross_date, 
@@ -289,6 +289,9 @@ if __name__ == "__main__":
                                                                           shapes_cross)
         
         p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
+        #P_y_given_S = ef.prob_P_y_given_s(test_cross_sell, Y, p_js, n_segments)
+        #P_s_given_Z = ef.prob_P_s_given_Z(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
+        #P_s_given_r = ef.prob_P_s_given_r(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
     
         endmodel = utils.get_time()
         diff = utils.get_time_diff(startmodel,endmodel)
