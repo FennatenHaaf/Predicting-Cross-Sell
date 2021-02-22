@@ -151,8 +151,14 @@ class HMM_eff:
 
             #perform maximisation step 
             param_out, hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
-            print(f"Parameters: {param_out}")
             
+            if self.covariates:
+                gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
+                print(f"Gamma_0: {gamma_0}")
+                print(f"Gamma_sr_0: {gamma_sr_0}")
+                print(f"Gamma_sk_t: {gamma_sk_t}")
+                print(f"Beta: {beta}")
+
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")

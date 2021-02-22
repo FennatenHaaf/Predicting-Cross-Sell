@@ -61,8 +61,8 @@ for t in range(0,3):
     #variables for cross-sell
 
 
-    integers1 = fixed_random_seed.randint(2, size=(n_of_obs, 2))
-    integers2 = fixed_random_seed.randint(3, size=(n_of_obs, 1))
+    integers1 = fixed_random_seed.randint(2, size=(n_of_obs, 1))
+    integers2 = fixed_random_seed.randint(3, size=(n_of_obs, 2))
     continu = fixed_random_seed.uniform(low=0, high=5, size=(n_of_obs,2))
     binary = fixed_random_seed.randint(2, size=(n_of_obs, 4))
 
