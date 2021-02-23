@@ -141,13 +141,13 @@ class HMM_eff:
             alpha_in = alpha_out
             beta_in = beta_out
             
-            start = utils.get_time() 
+            start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
             alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
               
-            #start1 = utils.get_time() #set start time to time maximisation step
-            #print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
+            start = utils.get_time() #set start time to time maximisation step
+            print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
             #perform maximisation step 
             param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference)
@@ -181,7 +181,7 @@ class HMM_eff:
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
-        hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference)
+        hes = self.maximization_step(alpha_out, beta_out, param_out, shapes, n_segments, max_method, difference)
 
         if self.covariates == True:
             return param_out, alpha_out, shapes, hes
@@ -295,7 +295,7 @@ class HMM_eff:
             #max_iter_value = 2.5*10**4
             # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
             #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-            minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2)}# 'maxiter': 99999999} 
+            minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999999}# 'maxiter': 99999999} 
             minimize_options_BFGS = {'disp': True, 'xatol': 10**(-3), 'fatol': 10**(-2)}# 'maxiter': 99999999} 
     
     
@@ -312,7 +312,7 @@ class HMM_eff:
         
         #if EM is completed, get Hessian
         else:  
-            hes = nd.Hessian(self.optimization_function)(param_out.x, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
+            hes = nd.Hessian(self.optimization_function)(param_in, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
             return hes
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
     
