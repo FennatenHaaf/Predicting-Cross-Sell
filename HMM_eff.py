@@ -137,21 +137,30 @@ class HMM_eff:
         #Start EM procedure
         while difference:
                 
-            param_in = param_out #update parameters
+            #update parameters
+            param_in = param_out 
             alpha_in = alpha_out
             beta_in = beta_out
             
-            start = utils.get_time() 
+        
+            start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
             alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
               
-            #start1 = utils.get_time() #set start time to time maximisation step
-            #print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
+            start = utils.get_time() #set start time to time maximisation step
+            print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
+
+            if self.iteration != 0:
+               difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
+               #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
+               #print(f"max difference: {np.max(abs(param_in-param_out))}")
+               print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
+               print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
+
 
             #perform maximisation step 
             param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference)
-            
             if self.covariates:
                 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
                 print(f"Gamma_0: {gamma_0}")
@@ -160,17 +169,10 @@ class HMM_eff:
                 print(f"Beta: {beta}")
                 print(f"param_out")
 
-            end = utils.get_time()#set start time to time maximisation step
+            end = utils.get_time()#set end time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
 
-
-            if self.iteration != 0:
-                difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
-            #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
-            #print(f"max difference: {np.max(abs(param_in-param_out))}")
-            print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
-            print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
 
             if self.iteration == 1:
                 print('hoi')
@@ -185,7 +187,7 @@ class HMM_eff:
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
-        hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference)
+        hes = self.maximization_step(alpha_in, beta_in, param_in, shapes, n_segments, max_method, difference)
 
         if self.covariates == True:
             return param_out, alpha_out, shapes, hes
@@ -246,7 +248,6 @@ class HMM_eff:
       
     def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method, difference):
         """
-        
 
         Parameters
         ----------
@@ -291,8 +292,7 @@ class HMM_eff:
             
         x0 = param_in
             
-        """perform the maximization"""
-
+        #if EM is not yet completed, perform maximization
         if difference:
             self.maximization_iters = 0
     
@@ -301,7 +301,7 @@ class HMM_eff:
             #max_iter_value = 2.5*10**4
             # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
             #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-            minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2)}# 'maxiter': 99999999} 
+            minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999999}# 'maxiter': 99999999} 
             minimize_options_BFGS = {'disp': True, 'xatol': 10**(-3), 'fatol': 10**(-2)}# 'maxiter': 99999999} 
     
     
@@ -316,8 +316,9 @@ class HMM_eff:
         
             return param_out.x
         
+        #if EM is completed, get Hessian
         else:  
-            hes = nd.Hessian(self.optimization_function)(param_out.x, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
+            hes = nd.Hessian(self.optimization_function)(param_in, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
             return hes
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
     
