@@ -298,17 +298,18 @@ class HMM_eff:
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options = {'disp': True, 'adaptive': True, 'maxiter': 99999999} #'xatol': 0.01}
+        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-3), 'fatol': 10**(-3)}# 'maxiter': 99999999} 
+        minimize_options_BFGS = {'disp': True, 'xatol': 10**(-3), 'fatol': 10**(-3)}# 'maxiter': 99999999} 
 
 
         if self.iteration <= 99999:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                                  method=max_method,options= minimize_options)
+                                  method=max_method,options= minimize_options_NM)
         else:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                                  method='BFGS',options= minimize_options)
+                                  method='BFGS',options= minimize_options_BFGS)
             
         hes = nd.Hessian(self.optimization_function)(param_out.x, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
         
