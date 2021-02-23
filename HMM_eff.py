@@ -242,7 +242,6 @@ class HMM_eff:
       
     def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method, difference):
         """
-        
 
         Parameters
         ----------
@@ -287,8 +286,7 @@ class HMM_eff:
             
         x0 = param_in
             
-        """perform the maximization"""
-
+        #if EM is not yet completed, perform maximization
         if difference:
             self.maximization_iters = 0
     
@@ -312,6 +310,7 @@ class HMM_eff:
         
             return param_out.x
         
+        #if EM is completed, get Hessian
         else:  
             hes = nd.Hessian(self.optimization_function)(param_out.x, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
             return hes
