@@ -99,7 +99,7 @@ class CrossSectionModels(object):
             has_joint_ret_prtf = lambda x: x.has_bus_prtf * x.has_joint_prtf
         )
 
-        
+
         self.transform_for_change_in_variables()
         self.transform_for_cross_data()
         print(f"Finished preparing data at {utils.get_time()}")
