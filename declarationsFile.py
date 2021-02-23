@@ -255,10 +255,25 @@ def getConvertDict():
      'sbisectorname': "category",
      'sbisectorname_on_saldofraction': "category"}
 
+    additional_dataprocess_dict = {
+        'aantalproducten_totaal': "uint8",
+         'aantalproducten_totaal_business': "uint8",
+         'aantalproducten_totaal_joint': "uint8",
+         'aantalproducten_totaal_retail': "uint8",
+         'aantaltransacties_totaal': "uint8",
+         'aantaltransacties_totaal_business': "uint16",
+         'aantaltransacties_totaal_joint': "uint16",
+         'aantaltransacties_totaal_retail': "uint16",
+         'logins_totaal': "uint8",
+         'logins_totaal_business': "uint8",
+         'logins_totaal_joint': "uint8",
+         'logins_totaal_retail': "uint8"
+    }
+
 
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, **df_lpp_dict, **df_exp_dict,
             **df_cor_dict, **df_pin_dict, **time_sets_new, **time_set_new2, **final_df_dict, **final_df_dict2,
-            **lowercase_input_df_dict}
+            **lowercase_input_df_dict, **additional_dataprocess_dict}
 
 
 
@@ -631,6 +646,8 @@ def getPersonAggregateDict():
 
  ###-----------CROSS_SECTION ---------------------------####
 
+
+
 def get_cross_section_aggregation(list_to_get):
     count_list = [
     'aantal_sbi' ,
@@ -656,7 +673,15 @@ def get_cross_section_aggregation(list_to_get):
      'aantalpostransacties_retail',
      'aantaltegenrekeningenlaatsteq_business',
      'aantaltegenrekeningenlaatsteq_joint',
-     'aantaltegenrekeningenlaatsteq_retail'
+     'aantaltegenrekeningenlaatsteq_retail',
+        'aantaltransacties_totaal',
+        'aantaltransacties_totaal_business',
+        'aantaltransacties_totaal_joint',
+        'aantaltransacties_totaal_retail',
+        'logins_totaal',
+        'logins_totaal_business',
+        'logins_totaal_joint',
+        'logins_totaal_retail'
     ]
 
     balance = [

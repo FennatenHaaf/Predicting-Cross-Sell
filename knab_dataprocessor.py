@@ -648,7 +648,7 @@ class dataProcessor:
                                              & (df_cross_link["enofyn"]==0)]
         df_cross_link_dict['joint'] = df_cross_link[(df_cross_link["type"]=="Private Portfolio")\
                                              & (df_cross_link["enofyn"]==1)]
-        
+
         for name, df in df_cross_link_dict.items():
             
             #---------- variables for portfolio types ------------
@@ -766,18 +766,24 @@ class dataProcessor:
                                   right_on=["personid"],)
 
                 #### Similar method but this time takes the value of sector of largest portfolio####
-                merge_list = ["personid", "SBIname","SBIcode" ,"SBIsector", "SBIsectorName", "businessType", 'saldototaal']
+                columns_to_use = ["SBIname","SBIcode" ,"SBIsector", "SBIsectorName", "businessType"]
+                column_to_agg_on = 'saldototaal'
+                merge_list = ["personid"] + columns_to_use + [column_to_agg_on]
                 name_filter_list = ['Financiële instellingen (geen verzekeringen en pensioenfondsen)',
                                          'Overige financiële dienstverlening']
-                to_merge = self.aggregate_business_to_one_category(df.loc[:,merge_list].copy(),
-                                                                   column_to_agg_on = 'saldototaal',
-                                                                   filter_threshold_high = 0.85,
-                                                                   filter_threshold_low = 0.15,
-                                                                   filter_string_list = name_filter_list)
+                to_merge = self.aggregate_business_to_one_category_per_person(df.loc[:, merge_list].copy(),
+                                                                              column_to_agg_on = column_to_agg_on,
+                                                                              columns_to_use =  columns_to_use,
+                                                                              filter_threshold_high = 0.85,
+                                                                              filter_threshold_low = 0.15,
+                                                                              filter_string_list = name_filter_list)
 
                 df_cross= df_cross.merge(to_merge,
                               how="left", left_on=["personid"],right_on=["personid"], suffixes = ["", "_on_saldofraction"])
-            
+
+        #Fill NA values for business, joint and retail
+        df_cross[['business', 'joint', 'retail']] = df_cross[['business', 'joint', 'retail']].fillna(value = 0)
+
         #----------- Merge remaining variables --------
         
         # Get the personid and birthyear which were stored in crosslink 
@@ -797,7 +803,8 @@ class dataProcessor:
         df_cross= df_cross.merge(characteristics[["personid","birthyear","geslacht"]], 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],) 
-        
+
+
         # TODO: eventueel nog duration variables toevoegen, zoals de tijd sinds
         # de meest recente transaction, tijd sinds klant worden
                 
@@ -837,15 +844,19 @@ class dataProcessor:
         
         return indicator
 
-    def aggregate_business_to_one_category( self, data, column_to_agg_on, filter_threshold_high = 0.8,
-                                            filter_threshold_low = 0.15, filter_string_list = [] ):
-
+    def aggregate_business_to_one_category_per_person( self, data, column_to_agg_on,columns_to_use, filter_threshold_high = 0.8,
+                                                       filter_threshold_low = 0.15, filter_string_list = [] ):
         if len(filter_string_list) > 0:
             filter_active = True
         else:
             filter_active = False
-        data = data[~( data['SBIname'].isna() & data['SBIname'].isna() & data['SBIname'].isna() )]
+
+
+        for column in columns_to_use:
+            # data = data[~( data['SBIname'].isna() & data['SBIname'].isna() & data['SBIname'].isna() )]
+            tempindex = data[column].notna()
         data = data.drop_duplicates()
+
         #calculate the total balance for the person and merge this new value to the data
         balance_total_per_person = pd.DataFrame( data.groupby('personid')[column_to_agg_on].apply(lambda x: x.abs().sum() ) )
         balance_total_per_person.reset_index(inplace = True) #ensure that personid stays in dataset and not index
@@ -868,13 +879,13 @@ class dataProcessor:
         tempindex = ~(data['personid'].isin(to_merge['personid'])) & above_low_threshold_index #Take every person that is not yet in
         # the set to merge
 
+
         if filter_active:
-            #Choose if you want to filter on financial institutions. Adds extra Values to index on in prev index
-            tempindex2 = tempindex & data.loc[tempindex,'SBIname'].isin(filter_string_list)
-            tempindex2 = tempindex2 | data.loc[tempindex, 'SBIcode'].isin(filter_string_list)
-            tempindex2 = tempindex2 | data.loc[tempindex,'SBIsectorName'].isin(filter_string_list)
-            tempindex2 = tempindex2 | data.loc[tempindex, 'SBIsector'].isin(filter_string_list)
-            tempindex = tempindex2 | data.loc[tempindex,'businessType'].isin(filter_string_list)
+            # Choose if you want to filter on financial institutions. Adds extra Values to index on in prev index
+            tempindex2 = tempindex
+            for column in columns_to_use:
+                tempindex2 = tempindex2 & data.loc[tempindex,column].isin(filter_string_list)
+            tempindex = tempindex2
 
         #Concatenate the large file to merge. Here the row with the highest saldo_fraction will be returned
         portfolio_sum_per_sector = data[tempindex].groupby(['personid']).apply(lambda x:
@@ -1420,8 +1431,6 @@ class dataProcessor:
         port_no_link_cr = portid_no_link_cr[~portid_no_link_cr.isin(portid_link_cr)]
 
 
-        # TODO VEEL PORTFOLIOS DIE ALS EEN PERSOON STAAN HEBBEN WEL ALLEEN MAN OF VROUW ER BIJ
-        # Methods used to look into the data
         ztest3a1 = "dataInsight.mostCommon(df_pin['enofyn'] == 0], 'geslacht',5)"
         ztest3a2 = "dataInsight.mostCommon(df_pin['enofyn'] == 1], 'geslacht',5)"
         ztest3a3 = """only_man_female_pin = df_pin[pd.eval("df_pin['geslacht'] != 'Man' & df_pin['geslacht'] != 'Vrouw'")]"""
