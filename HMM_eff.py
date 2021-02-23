@@ -301,7 +301,7 @@ class HMM_eff:
         minimize_options = {'disp': True, 'adaptive': True, 'maxiter': 99999999} #'xatol': 0.01}
 
 
-        if self.iteration <= 999999:
+        if self.iteration <= 99999:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                   method=max_method,options= minimize_options)
@@ -375,6 +375,12 @@ class HMM_eff:
             print('function value:', logl,' at iteration ',self.maximization_iters)
             print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
         return logl
+    
+    
+    
+    
+    
+    
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:
