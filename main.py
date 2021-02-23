@@ -278,7 +278,7 @@ if __name__ == "__main__":
         
         test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
                                      name_covariates, covariates = True,
-                                     iterprint = False)
+                                     iterprint = True)
 
         
         param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, 
