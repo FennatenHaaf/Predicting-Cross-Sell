@@ -158,6 +158,7 @@ class HMM_eff:
                 print(f"Gamma_sr_0: {gamma_sr_0}")
                 print(f"Gamma_sk_t: {gamma_sk_t}")
                 print(f"Beta: {beta}")
+                print(f"param_out")
 
             end = utils.get_time()#set start time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
@@ -173,7 +174,10 @@ class HMM_eff:
 
             if self.iteration == 1:
                 print('hoi')
-            
+                
+            if self.iteration == 20:
+                print('breakpoint')
+                
             self.iteration = self.iteration + 1 #update iteration
         
     
@@ -371,12 +375,13 @@ class HMM_eff:
             mult = np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300)))
             logl += np.sum(mult)
         
+        
         logl = -logl 
         self.maximization_iters += 1
         if self.iterprint:
             if (self.maximization_iters % 1000 == 0):  # print alleen elke 1000 iterations
                 print('function value:', logl,' at iteration ',self.maximization_iters)
-                print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
+                #print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
         return logl
     
     
