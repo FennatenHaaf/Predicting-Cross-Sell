@@ -66,7 +66,7 @@ def param_list_to_matrices(self, n_segments, param, shapes):
         i = 0
         for s in range(n_segments):
             for p in range(0,self.n_products):
-                b[s,p,0:self.n_categories[p]-1] = b_param[i:i+self.n_categories[p]-1]
+                b[s,p,0:self.n_categories[p]-1] = b_param[i:(i+self.n_categories[p]-1)]
                 i = i + self.n_categories[p]-1
 
         return A, pi, b
@@ -84,7 +84,7 @@ def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = 
         for s in range(n_segments):
             for p in range(0,self.n_products):
                 beta_vec = np.concatenate( (beta_vec, beta[s,p,0:self.n_categories[p]-1]) )
-        beta_vec = beta_vec[1:beta_vec.size]
+        beta_vec = beta_vec[1:]
         
         parameters = np.concatenate((gamma_0.flatten(), gamma_sr_0.flatten(), gamma_sk_t.flatten(), beta_vec))
     else:
@@ -118,18 +118,15 @@ def prob_p_js(self, param, shapes, n_segments):
     
     for s in range(0,n_segments):
         for p in range(0,self.n_products):
-            denominator = 0
             for c in range(0,self.n_categories[p]):
                 if c == 0: #first category (zero ownership of product) is the base
                     log_odds[s,p,c] = 0
-                    denominator = denominator + log_odds[s,p,c]
                 else:
-                    if s == (n_segments-1): #last segment is the base
-                        log_odds[s,p,c] = beta[s,p,(c-1)]
-                        denominator = denominator + log_odds[s,p,c]
-                    else: 
-                        log_odds[s,p,c] = beta[(n_segments-1),p,(c-1)] + beta[s,p,(c-1)]
-                        denominator = denominator + log_odds[s,p,c]
+                    #if s == (n_segments-1): #last segment is the base
+                    log_odds[s,p,c] = beta[s,p,(c-1)]
+                    #else: 
+                        #log_odds[s,p,c] = beta[(n_segments-1),p,(c-1)] + beta[s,p,(c-1)]
+                        #denominator = denominator + log_odds[s,p,c]
             p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,0:self.n_categories[p]] - logsumexp(log_odds[s,p,0:self.n_categories[p]]))
                         
     return p_js
@@ -193,8 +190,8 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         P_s_given_r = P_s_given_r + mat
 
         #P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
-        log_sum_exp = logsumexp(P_s_given_r, axis = 1, row_Z = row_Z, n_segments = n_segments, reshape = True)
-        P_s_given_r = np.exp(P_s_given_r - np.reshape(log_sum_exp, (row_Z,1,n_segments))) #i x s x s
+        log_sum_exp = logsumexp(P_s_given_r, axis = 1, reshape = True)
+        P_s_given_r = np.exp(P_s_given_r - log_sum_exp[:,np.newaxis,:]) #i x s x s
     else:  
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         A = np.vstack((A, np.ones((1, n_segments))))
@@ -252,14 +249,14 @@ def state_event(self, alpha, beta): #alpha/beta = s, i, t
     return P_s_given_Y_Z
 
 
-def logsumexp(x, axis = 0, row_Z = 1, n_segments = 1, reshape = False):
+def logsumexp(x, axis = 0, row_Z = 1, reshape = False):
     
     c = x.max(axis = axis)
     
     if reshape == False:
         diff = x - c 
     else:
-        diff = x - np.reshape(c, (row_Z,1,n_segments))
+        diff = x - c[:,np.newaxis,:]
         
     return c + np.log(np.sum(np.exp(diff), axis = axis))
 
