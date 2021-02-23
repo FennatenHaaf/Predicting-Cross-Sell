@@ -277,7 +277,8 @@ if __name__ == "__main__":
         #print(f"****Running HMM at {startmodel}****")
         
         test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
-                                     name_covariates, covariates = True)
+                                     name_covariates, covariates = True,
+                                     iterprint = False)
 
         
         param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, 

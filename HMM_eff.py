@@ -27,7 +27,7 @@ import numdifftools as nd
 class HMM_eff:
     
     def __init__(self, list_dataframes, list_dep_var, 
-                   list_covariates = [], covariates = False):
+                   list_covariates = [], covariates = False, iterprint =True):
         """Initialisation of a HMM object
            list_dataframes: list consisting of the timeperiod-specific dataframes
            list_dep_var: list consisting of all the names of the variables we use as dependent variables
@@ -45,7 +45,7 @@ class HMM_eff:
         
         self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
 
-        self.iterprint = False #Iterprint True or False, will print x and iterations
+        self.iterprint = iterprint #Iterprint True or False, will print x and iterations
 
         #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_products))
