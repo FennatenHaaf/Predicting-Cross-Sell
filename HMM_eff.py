@@ -141,13 +141,13 @@ class HMM_eff:
             alpha_in = alpha_out
             beta_in = beta_out
             
-            start1 = utils.get_time() 
+            start = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
             alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
               
-            start = utils.get_time() #set start time to time maximisation step
-            print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
+            #start1 = utils.get_time() #set start time to time maximisation step
+            #print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
             #perform maximisation step 
             param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference)
