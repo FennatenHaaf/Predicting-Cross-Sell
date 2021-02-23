@@ -766,7 +766,7 @@ class dataProcessor:
                                   right_on=["personid"],)
 
                 #### Similar method but this time takes the value of sector of largest portfolio####
-                merge_list = ["personid", "SBIname", "SBIsectorName", "businessType", 'saldototaal']
+                merge_list = ["personid", "SBIname","SBIcode" ,"SBIsector", "SBIsectorName", "businessType", 'saldototaal']
                 name_filter_list = ['Financiële instellingen (geen verzekeringen en pensioenfondsen)',
                                          'Overige financiële dienstverlening']
                 to_merge = self.aggregate_business_to_one_category(df.loc[:,merge_list].copy(),
@@ -871,7 +871,9 @@ class dataProcessor:
         if filter_active:
             #Choose if you want to filter on financial institutions. Adds extra Values to index on in prev index
             tempindex2 = tempindex & data.loc[tempindex,'SBIname'].isin(filter_string_list)
+            tempindex2 = tempindex2 | data.loc[tempindex, 'SBIcode'].isin(filter_string_list)
             tempindex2 = tempindex2 | data.loc[tempindex,'SBIsectorName'].isin(filter_string_list)
+            tempindex2 = tempindex2 | data.loc[tempindex, 'SBIsector'].isin(filter_string_list)
             tempindex = tempindex2 | data.loc[tempindex,'businessType'].isin(filter_string_list)
 
         #Concatenate the large file to merge. Here the row with the highest saldo_fraction will be returned

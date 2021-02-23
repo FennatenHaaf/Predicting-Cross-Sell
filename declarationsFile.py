@@ -231,8 +231,34 @@ def getConvertDict():
      'saldototaal_retail': 'int32'
      }
 
+    final_df_dict2 = {'SBIname_on_saldofraction': "category",
+     'SBIsectorName_on_saldofraction' : "category",
+     'businessType_on_saldofraction': "category",
+     'saldototaal_agg': 'int32',
+     'saldototaal_fraction': 'float8',
+                      'SBIcode_on_saldofraction':"uint8",
+                     'SBIsector_on_saldofraction': "category",
+                      'period_obs': "datetime64"
+    }
+
+    lowercase_input_df_dict = {
+        'aantal_sbi':"uint8",
+     'businessageinyears': "float16",
+     'businesstype': "category",
+     'businesstype_on_saldofraction': "category",
+     'sbicode': "uint8",
+     'sbicode_on_saldofraction': "uint8",
+     'sbiname': "category",
+     'sbiname_on_saldofraction': "category",
+     'sbisector': "category",
+     'sbisector_on_saldofraction': "category",
+     'sbisectorname': "category",
+     'sbisectorname_on_saldofraction': "category"}
+
+
     return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, **df_lpp_dict, **df_exp_dict,
-            **df_cor_dict, **df_pin_dict, **time_sets_new, **time_set_new2, **final_df_dict}
+            **df_cor_dict, **df_pin_dict, **time_sets_new, **time_set_new2, **final_df_dict, **final_df_dict2,
+            **lowercase_input_df_dict}
 
 
 
@@ -604,4 +630,105 @@ def getPersonAggregateDict():
             **df_lpp_dict, **df_exp_dict, **df_cor_dict, **df_pin_dict, **df_bhk_dict, **time_sets_new, **time_sets_new}
 
  ###-----------CROSS_SECTION ---------------------------####
+
+def get_cross_section_aggregation(list_to_get):
+    count_list = [
+    'aantal_sbi' ,
+     'aantal_sector' ,
+     'aantal_types',
+     'aantalatmtransacties_business' ,
+     'aantalatmtransacties_joint',
+     'aantalatmtransacties_retail',
+     'aantalbetaaltransacties_business',
+     'aantalbetaaltransacties_joint',
+     'aantalbetaaltransacties_retail',
+     'aantalfueltransacties_business',
+     'aantalfueltransacties_joint',
+     'aantalfueltransacties_retail',
+     'aantalloginsapp_business',
+     'aantalloginsapp_joint',
+     'aantalloginsapp_retail',
+     'aantalloginsweb_business',
+     'aantalloginsweb_joint' ,
+     'aantalloginsweb_retail' ,
+     'aantalpostransacties_business',
+     'aantalpostransacties_joint',
+     'aantalpostransacties_retail',
+     'aantaltegenrekeningenlaatsteq_business',
+     'aantaltegenrekeningenlaatsteq_joint',
+     'aantaltegenrekeningenlaatsteq_retail'
+    ]
+
+    balance = [
+    'saldototaal',
+    'saldototaal_agg',
+    'saldototaal_business',
+    'saldototaal_fraction',
+    'saldototaal_joint',
+    'saldototaal_retail'
+         ]
+
+    categorical = [
+        'accountoverlay'
+        'activitystatus_business'
+        'activitystatus_joint',
+        'activitystatus_retail',
+        'age_hh',
+         'businesstype',
+         'businesstype_on_saldofraction'
+         'birthyear',
+        'business',
+        'educat4',
+        'finergy_tp',
+        'geslacht',
+        'geslacht_joint',
+        'sbicode',
+        'sbicode_on_saldofraction',
+        'sbiname',
+        'sbiname_on_saldofraction',
+        'sbisector',
+        'sbisector_on_saldofraction',
+        'sbisectorname',
+        'sbisectorname_on_saldofraction',
+        'lfase',
+        'hh_child',
+        'hh_size',
+        'housetype',
+        'huidigewaarde_klasse',
+        'income',
+         ]
+
+    indicators = ['betalenyn_business',
+     'betalenyn_joint',
+     'betalenyn_retail',
+     'depositoyn_business',
+     'depositoyn_joint',
+     'depositoyn_retail',
+     'flexibelsparenyn_business',
+     'flexibelsparenyn_joint',
+     'flexibelsparenyn_retail',
+     'kwartaalsparenyn_business',
+     'kwartaalsparenyn_joint',
+     'kwartaalsparenyn_retail'
+     ]
+
+
+    remainder_dict = {
+                               'joint': 'max',
+               'retail': 'max',
+               'businessageinyears': 'first'
+                }
+
+    if list_to_get == "count_list":
+        return count_list
+    elif list_to_get == "balance":
+        return balance
+    elif list_to_get == "categorical":
+        return categorical
+    elif list_to_get == "indicators":
+        return indicators
+    elif list_to_get == "remainder_dict":
+        remainder_dict
+    else:
+        print("Invalid value for list_to_get")
 
