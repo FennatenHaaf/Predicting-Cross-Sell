@@ -137,10 +137,12 @@ class HMM_eff:
         #Start EM procedure
         while difference:
                 
-            param_in = param_out #update parameters
+            #update parameters
+            param_in = param_out 
             alpha_in = alpha_out
             beta_in = beta_out
             
+        
             start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
@@ -149,9 +151,16 @@ class HMM_eff:
             start = utils.get_time() #set start time to time maximisation step
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
+            if self.iteration != 0:
+               difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
+               #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
+               #print(f"max difference: {np.max(abs(param_in-param_out))}")
+               print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
+               print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
+
+
             #perform maximisation step 
             param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference)
-            
             if self.covariates:
                 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
                 print(f"Gamma_0: {gamma_0}")
@@ -159,17 +168,10 @@ class HMM_eff:
                 print(f"Gamma_sk_t: {gamma_sk_t}")
                 print(f"Beta: {beta}")
 
-            end = utils.get_time()#set start time to time maximisation step
+            end = utils.get_time()#set end time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
 
-
-            if self.iteration != 0:
-                difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
-            #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
-            #print(f"max difference: {np.max(abs(param_in-param_out))}")
-            print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
-            print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
 
             if self.iteration == 1:
                 print('hoi')
@@ -181,7 +183,7 @@ class HMM_eff:
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
-        hes = self.maximization_step(alpha_out, beta_out, param_out, shapes, n_segments, max_method, difference)
+        hes = self.maximization_step(alpha_in, beta_in, param_in, shapes, n_segments, max_method, difference)
 
         if self.covariates == True:
             return param_out, alpha_out, shapes, hes
