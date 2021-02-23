@@ -141,13 +141,13 @@ class HMM_eff:
             alpha_in = alpha_out
             beta_in = beta_out
             
-            start1 = utils.get_time() 
+            start = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
             alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
               
-            start = utils.get_time() #set start time to time maximisation step
-            print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
+            #start1 = utils.get_time() #set start time to time maximisation step
+            #print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
             #perform maximisation step 
             param_out, hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
@@ -309,8 +309,7 @@ class HMM_eff:
         else:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                                  method='BFGS',options= minimize_options_BFGS)
-            
+                                  method='BFGS',options= minimize_options_BFGS)    
         hes = nd.Hessian(self.optimization_function)(param_out.x, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
         
         return param_out.x, hes
