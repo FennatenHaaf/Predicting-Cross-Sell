@@ -188,6 +188,15 @@ def doDictIntersect(small_set, full_dict : dict, exclusion_list = []):
         end_dict[value] = full_dict[value]
     return end_dict
 
-def doListIntersect(columns, full_list : list, exclusion_list = []):
-    result = ( set(columns) & set(full_list) ) - set(exclusion_list)
+def doListIntersect(list_to_check, full_list : list, exclusion_list = []):
+    result = ( set(list_to_check) & set(full_list) ) - set(exclusion_list)
     return list(result)
+
+def check_and_drop_columns(data: pd.DataFrame, columns_to_drop):
+    drop_list = doListIntersect(data.columns, columns_to_drop)
+    data.drop(drop_list, inplace = True)
+    return data
+
+def check_and_select_columns(data: pd.DataFrame, columns_to_select):
+    select_list = doListIntersect(columns_to_select, data.columns)
+    return data

@@ -66,7 +66,7 @@ def param_list_to_matrices(self, n_segments, param, shapes):
         i = 0
         for s in range(n_segments):
             for p in range(0,self.n_products):
-                b[s,p,0:self.n_categories[p]-1] = b_param[i:i+self.n_categories[p]-1]
+                b[s,p,0:self.n_categories[p]-1] = b_param[i:(i+self.n_categories[p]-1)]
                 i = i + self.n_categories[p]-1
 
         return A, pi, b
@@ -84,7 +84,7 @@ def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = 
         for s in range(n_segments):
             for p in range(0,self.n_products):
                 beta_vec = np.concatenate( (beta_vec, beta[s,p,0:self.n_categories[p]-1]) )
-        beta_vec = beta_vec[1:beta_vec.size]
+        beta_vec = beta_vec[1:]
         
         parameters = np.concatenate((gamma_0.flatten(), gamma_sr_0.flatten(), gamma_sk_t.flatten(), beta_vec))
     else:
@@ -111,26 +111,23 @@ def prob_p_js(self, param, shapes, n_segments):
     
     """case with covariates"""
     if self.covariates == True:
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param,shapes)
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
     else:
-        A, pi, b = param_list_to_matrices(self, n_segments, param,shapes)
+        A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         beta = b
     
     for s in range(0,n_segments):
         for p in range(0,self.n_products):
-            denominator = 0
             for c in range(0,self.n_categories[p]):
                 if c == 0: #first category (zero ownership of product) is the base
                     log_odds[s,p,c] = 0
-                    denominator = denominator + log_odds[s,p,c]
                 else:
-                    if s == (n_segments-1): #last segment is the base
-                        log_odds[s,p,c] = beta[s,p,(c-1)]
-                        denominator = denominator + log_odds[s,p,c]
-                    else: 
-                        log_odds[s,p,c] = beta[(n_segments-1),p,(c-1)] + beta[s,p,(c-1)]
-                        denominator = denominator + log_odds[s,p,c]
-            p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,0:self.n_categories[p]] - logsumexp(log_odds[s,p,0:self.n_categories[p]]))
+                    #if s == (n_segments-1): #last segment is the base
+                    log_odds[s,p,c] = beta[s,p,(c-1)]
+                    #else: 
+                        #log_odds[s,p,c] = beta[(n_segments-1),p,(c-1)] + beta[s,p,(c-1)]
+                        #denominator = denominator + log_odds[s,p,c]
+            p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,:self.n_categories[p]] - logsumexp(log_odds[s,p,:self.n_categories[p]]))
                         
     return p_js
         
@@ -151,7 +148,7 @@ def prob_P_y_given_s(self, Y, p_js, n_segments):
 
     return P_y_given_s
 
-def prob_P_s_given_Z(self, param, shapes, Z, n_segments):  
+def prob_P_s_given_Z(self, param, shapes, Z, n_segments):   
     """function to compute P(X_i0 = s| Z_i0) with parameters gamma_0"""
     
     row_Z = len(Z)
@@ -193,8 +190,8 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         P_s_given_r = P_s_given_r + mat
 
         #P_s_given_r = np.divide(P_s_given_r, np.reshape(np.sum(P_s_given_r,1), (row_Z,1,n_segments)))
-        log_sum_exp = logsumexp(P_s_given_r, axis = 1, row_Z = row_Z, n_segments = n_segments, reshape = True)
-        P_s_given_r = np.exp(P_s_given_r - np.reshape(log_sum_exp, (row_Z,1,n_segments))) #i x s x s
+        log_sum_exp = logsumexp(P_s_given_r, axis = 1, reshape = True)
+        P_s_given_r = np.exp(P_s_given_r - log_sum_exp[:,np.newaxis,:]) #i x s x s
     else:  
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         A = np.vstack((A, np.ones((1, n_segments))))
@@ -208,7 +205,7 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 #--------------------function for maximisation step---------------------
 
 
-def joint_event(self, alpha, beta, t, s,
+def joint_event(self, alpha, beta, t, n_segments,
                 P_s_given_Y_Z_ut, P_s_given_r, P_y_given_s):#for all person
     """function to compute P(X_it-1 = s_t-1, X_it = s_t|Y_i, Z_i)"""
     
@@ -221,11 +218,24 @@ def joint_event(self, alpha, beta, t, s,
     #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, beta[s,:,t])
     #P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.sum(P_s_given_Y_Z[:,:,t], axis = 0))
     
-    P_sr_given_Y_Z = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
-    P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
-    P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixs]
-    P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z_ut[:,:,t], axis = 0)]))
+    #P_sr_given_Y_Z = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
+    #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
+    #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixs]
+    #P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z_ut[:,:,t], axis = 0)])) 
     
+    #new:
+        
+    P_sr_given_Y_Z = np.zeros((self.n_customers, n_segments, n_segments))
+    for s in range(0,n_segments):
+        mat = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
+        mat = np.multiply(mat, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
+        mat = np.multiply(mat, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixr]
+        P_sr_given_Y_Z[:,s,:] = mat
+    
+    sum_per_cust = np.sum(np.sum(P_sr_given_Y_Z, axis = 2), axis = 1)
+    P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, sum_per_cust[:,np.newaxis, np.newaxis])
+      
+        
     return P_sr_given_Y_Z 
 
 
@@ -239,14 +249,14 @@ def state_event(self, alpha, beta): #alpha/beta = s, i, t
     return P_s_given_Y_Z
 
 
-def logsumexp(x, axis = 0, row_Z = 1, n_segments = 1, reshape = False):
+def logsumexp(x, axis = 0, row_Z = 1, reshape = False):
     
     c = x.max(axis = axis)
     
     if reshape == False:
         diff = x - c 
     else:
-        diff = x - np.reshape(c, (row_Z,1,n_segments))
+        diff = x - c[:,np.newaxis,:]
         
     return c + np.log(np.sum(np.exp(diff), axis = axis))
 
