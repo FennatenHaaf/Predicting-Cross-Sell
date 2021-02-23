@@ -15,19 +15,7 @@ def param_list_to_matrices(self, n_segments, param, shapes):
     """change the shape of the parameters to separate matrices"""
 
     if self.covariates == True:
-        """n_gamma_0 = shapes[0,1]
-        n_gamma_sr_0  = shapes[1,1]   
-        n_gamma_sk_t = shapes[2,1]
-        gamma_0 = param[0:n_gamma_0]
-        gamma_sr_0 = param[n_gamma_0:(n_gamma_0+n_gamma_sr_0)]
-        gamma_sk_t = param[(n_gamma_0+n_gamma_sr_0):(n_gamma_0+n_gamma_sr_0+n_gamma_sk_t)]
-        beta = param[(n_gamma_0+n_gamma_sr_0+n_gamma_sk_t):param.shape[0]]
-        gamma_0 = np.reshape(gamma_0, shapes[0,0])
-        gamma_sr_0 = np.reshape(gamma_sr_0, shapes[1,0])                        
-        gamma_sk_t = np.reshape(gamma_sk_t, shapes[2,0])                        
-        beta = np.reshape(beta, shapes[3,0])
-        return gamma_0, gamma_sr_0, gamma_sk_t, beta"""
-        
+
         n_gamma_0 = shapes[0,1]
         n_gamma_sr_0  = shapes[1,1]   
         n_gamma_sk_t = shapes[2,1]
@@ -76,9 +64,7 @@ def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = 
     """transform parameter matrices to one vector"""
 
     if self.covariates == True:
-        """
-        parameters = np.concatenate((gamma_0.flatten(), gamma_sr_0.flatten(), gamma_sk_t.flatten(), beta.flatten()))
-        """
+        
         beta_vec = np.array([0])
         
         for s in range(n_segments):

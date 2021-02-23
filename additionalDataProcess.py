@@ -226,7 +226,7 @@ def transform_variables(df, separate_types = False):
     for name in (["business","retail","joint","accountoverlay"]):
         df[f"{name}_max"] = df[f"{name}"]
 
-        df.loc[(df[f"{name}"]>3),f"{name}_max"] = "3"   # Should I make it a string or make it a number?
+        df.loc[(df[f"{name}"]>3),f"{name}_max"] = 3   # Should I make it a string or make it a number?
         # This only relevant for business and joint since retail does not have >1
         
     # TODO also put a max on the total number of products???? or take the log??
