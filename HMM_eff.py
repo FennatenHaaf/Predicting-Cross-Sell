@@ -195,8 +195,8 @@ class HMM_eff:
 
         p_js = ef.prob_p_js(self, param, shapes, n_segments)
         
-        alpha = np.zeros((n_segments, self.n_customers, self.T))
-        beta = np.zeros((n_segments, self.n_customers, self.T))
+        alpha_return = np.zeros((n_segments, self.n_customers, self.T))
+        beta_return = np.zeros((n_segments, self.n_customers, self.T))
         
     
         for i in range(0,self.n_customers):
@@ -214,8 +214,8 @@ class HMM_eff:
                     P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
                     P_s_given_Z_t = ef.prob_P_s_given_Z(self, param, shapes, Z_t, n_segments)
 
-                    alpha[:,i,t] = np.multiply(P_y_given_s_t, P_s_given_Z_t).flatten()
-                    beta[:,i,v] = np.ones((n_segments))
+                    alpha_return[:,i,t] = np.multiply(P_y_given_s_t, P_s_given_Z_t).flatten()
+                    beta_return[:,i,v] = np.ones((n_segments))
                 else:
                     Y_v1 = np.array([self.list_Y[v+1][i,:]])
                     if self.covariates == True:
@@ -232,13 +232,13 @@ class HMM_eff:
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
-                            sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
-                            sum_beta = sum_beta + beta[r,i,v+1] * np.multiply(P_s_given_r_v1[:,r,:], P_y_given_s_v1[:,r])
+                            sum_alpha = sum_alpha + alpha_return[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
+                            sum_beta = sum_beta + beta_return[r,i,v+1] * np.multiply(P_s_given_r_v1[:,r,:], P_y_given_s_v1[:,r])
                             
-                    alpha[:,i,t] = sum_alpha
-                    beta[:,i,v]  = sum_beta
+                    alpha_return[:,i,t] = sum_alpha
+                    beta_return[:,i,v]  = sum_beta
                 
-        return alpha, beta
+        return alpha_return, beta_return
       
     def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method, difference):
         """
@@ -374,8 +374,9 @@ class HMM_eff:
         logl = -logl 
         self.maximization_iters += 1
         if self.iterprint:
-            print('function value:', logl,' at iteration ',self.maximization_iters)
-            print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
+            if (self.maximization_iters % 1000 == 0):  # print alleen elke 1000 iterations
+                print('function value:', logl,' at iteration ',self.maximization_iters)
+                print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
         return logl
     
     
