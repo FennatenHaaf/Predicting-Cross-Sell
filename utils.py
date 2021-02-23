@@ -69,7 +69,7 @@ def infer_date_frequency(date):
         if re.match(allowed_period,date):
             return allowed_period_set[allowed_period]
 
-    print(f"No valid value found for parsed date : {date}")
+    raise print(f"No valid value found for parsed date : {date}")
 
 """
 EXPORTING FUNCTIONS

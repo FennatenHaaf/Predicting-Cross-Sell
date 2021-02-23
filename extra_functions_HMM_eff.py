@@ -111,9 +111,9 @@ def prob_p_js(self, param, shapes, n_segments):
     
     """case with covariates"""
     if self.covariates == True:
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param,shapes)
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
     else:
-        A, pi, b = param_list_to_matrices(self, n_segments, param,shapes)
+        A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         beta = b
     
     for s in range(0,n_segments):
@@ -127,7 +127,7 @@ def prob_p_js(self, param, shapes, n_segments):
                     #else: 
                         #log_odds[s,p,c] = beta[(n_segments-1),p,(c-1)] + beta[s,p,(c-1)]
                         #denominator = denominator + log_odds[s,p,c]
-            p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,0:self.n_categories[p]] - logsumexp(log_odds[s,p,0:self.n_categories[p]]))
+            p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,:self.n_categories[p]] - logsumexp(log_odds[s,p,:self.n_categories[p]]))
                         
     return p_js
         
