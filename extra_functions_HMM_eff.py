@@ -122,11 +122,10 @@ def prob_p_js(self, param, shapes, n_segments):
                 if c == 0: #first category (zero ownership of product) is the base
                     log_odds[s,p,c] = 0
                 else:
-                    #if s == (n_segments-1): #last segment is the base
-                    log_odds[s,p,c] = beta[s,p,(c-1)]
-                    #else: 
-                        #log_odds[s,p,c] = beta[(n_segments-1),p,(c-1)] + beta[s,p,(c-1)]
-                        #denominator = denominator + log_odds[s,p,c]
+                    if s == (n_segments-1): #last segment is the base
+                        log_odds[s,p,c] = beta[s,p,(c-1)]
+                    else: 
+                        log_odds[s,p,c] = beta[(n_segments-1),p,(c-1)] + beta[s,p,(c-1)]
             p_js[s,p,0:self.n_categories[p]] = np.exp(log_odds[s,p,:self.n_categories[p]] - logsumexp(log_odds[s,p,:self.n_categories[p]]))
                         
     return p_js
@@ -156,7 +155,7 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
     """case with covariates"""
     if self.covariates == True:
         gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
-        P_s_given_Z = gamma_0[:,0][:,np.newaxis] + gamma_0[:,1:self.n_covariates+1].dot(np.transpose(Z)) 
+        P_s_given_Z = gamma_0[:,0][:,np.newaxis] + gamma_0[:,1:].dot(np.transpose(Z)) 
         P_s_given_Z = np.vstack( (P_s_given_Z, np.zeros((1,row_Z))) )  #for the base case
         
         P_s_given_Z = np.transpose( np.exp( P_s_given_Z - logsumexp(P_s_given_Z) ))   

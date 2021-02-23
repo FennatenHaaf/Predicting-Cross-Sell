@@ -27,7 +27,7 @@ import numdifftools as nd
 class HMM_eff:
     
     def __init__(self, list_dataframes, list_dep_var, 
-                   list_covariates = [], covariates = False, iterprint =True):
+                   list_covariates = [], covariates = False, iterprint =False):
         """Initialisation of a HMM object
            list_dataframes: list consisting of the timeperiod-specific dataframes
            list_dep_var: list consisting of all the names of the variables we use as dependent variables
@@ -137,10 +137,12 @@ class HMM_eff:
         #Start EM procedure
         while difference:
                 
-            param_in = param_out #update parameters
+            #update parameters
+            param_in = param_out 
             alpha_in = alpha_out
             beta_in = beta_out
             
+        
             start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
@@ -149,9 +151,16 @@ class HMM_eff:
             start = utils.get_time() #set start time to time maximisation step
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
+            if self.iteration != 0:
+               difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
+               #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
+               #print(f"max difference: {np.max(abs(param_in-param_out))}")
+               print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
+               print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
+
+
             #perform maximisation step 
-            param_out, hes = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method)
-            
+            param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference)
             if self.covariates:
                 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
                 print(f"Gamma_0: {gamma_0}")
@@ -159,30 +168,22 @@ class HMM_eff:
                 print(f"Gamma_sk_t: {gamma_sk_t}")
                 print(f"Beta: {beta}")
 
-            end = utils.get_time()#set start time to time maximisation step
+            end = utils.get_time()#set end time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
 
-            if self.iteration != 0:
-                difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
-                
-                
-            #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
-            #print(f"max difference: {np.max(abs(param_in-param_out))}")
-            print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
-            print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
 
             if self.iteration == 1:
                 print('hoi')
-                
-
             
             self.iteration = self.iteration + 1 #update iteration
         
+    
         end_EM = utils.get_time()
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
+        hes = self.maximization_step(alpha_in, beta_in, param_in, shapes, n_segments, max_method, difference)
 
         if self.covariates == True:
             return param_out, alpha_out, shapes, hes
@@ -196,8 +197,8 @@ class HMM_eff:
 
         p_js = ef.prob_p_js(self, param, shapes, n_segments)
         
-        alpha = np.zeros((n_segments, self.n_customers, self.T))
-        beta = np.zeros((n_segments, self.n_customers, self.T))
+        alpha_return = np.zeros((n_segments, self.n_customers, self.T))
+        beta_return = np.zeros((n_segments, self.n_customers, self.T))
         
     
         for i in range(0,self.n_customers):
@@ -215,8 +216,8 @@ class HMM_eff:
                     P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
                     P_s_given_Z_t = ef.prob_P_s_given_Z(self, param, shapes, Z_t, n_segments)
 
-                    alpha[:,i,t] = np.multiply(P_y_given_s_t, P_s_given_Z_t).flatten()
-                    beta[:,i,v] = np.ones((n_segments))
+                    alpha_return[:,i,t] = np.multiply(P_y_given_s_t, P_s_given_Z_t).flatten()
+                    beta_return[:,i,v] = np.ones((n_segments))
                 else:
                     Y_v1 = np.array([self.list_Y[v+1][i,:]])
                     if self.covariates == True:
@@ -233,17 +234,16 @@ class HMM_eff:
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
                     for r in range(0,n_segments):
-                            sum_alpha = sum_alpha + alpha[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
-                            sum_beta = sum_beta + beta[r,i,v+1] * np.multiply(P_s_given_r_v1[:,r,:], P_y_given_s_v1[:,r])
+                            sum_alpha = sum_alpha + alpha_return[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
+                            sum_beta = sum_beta + beta_return[r,i,v+1] * np.multiply(P_s_given_r_v1[:,r,:], P_y_given_s_v1[:,r])
                             
-                    alpha[:,i,t] = sum_alpha
-                    beta[:,i,v]  = sum_beta
+                    alpha_return[:,i,t] = sum_alpha
+                    beta_return[:,i,v]  = sum_beta
                 
-        return alpha, beta
+        return alpha_return, beta_return
       
-    def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method):
+    def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method, difference):
         """
-        
 
         Parameters
         ----------
@@ -288,31 +288,34 @@ class HMM_eff:
             
         x0 = param_in
             
-        """perform the maximization"""
-
-        self.maximization_iters = 0
-
-
-        #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
-        #xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
-        #max_iter_value = 2.5*10**4
-        # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
-        #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options = {'disp': True, 'adaptive': True, 'maxiter': 99999999} #'xatol': 0.01}
-
-
-        if self.iteration <= 99999:
-            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                                  method=max_method,options= minimize_options)
-        else:
-            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                                  method='BFGS',options= minimize_options)
-            
-        hes = nd.Hessian(self.optimization_function)(param_out.x, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
+        #if EM is not yet completed, perform maximization
+        if difference:
+            self.maximization_iters = 0
+    
+            #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
+            #xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
+            #max_iter_value = 2.5*10**4
+            # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
+            #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
+            minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999999}# 'maxiter': 99999999} 
+            minimize_options_BFGS = {'disp': True, 'xatol': 10**(-3), 'fatol': 10**(-2)}# 'maxiter': 99999999} 
+    
+    
+            if self.iteration <= 99999:
+                param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                                      n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                      method=max_method,options= minimize_options_NM)
+            else:
+                param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                                      n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                      method='BFGS',options= minimize_options_BFGS)
         
-        return param_out.x, hes
+            return param_out.x
+        
+        #if EM is completed, get Hessian
+        else:  
+            hes = nd.Hessian(self.optimization_function)(param_in, alpha, beta, shapes, n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut)
+            return hes
         #param_out = pso(self.optimization_function, args=(alpha, beta, param_in, shapes, n_segments))
     
     
@@ -372,8 +375,9 @@ class HMM_eff:
         logl = -logl 
         self.maximization_iters += 1
         if self.iterprint:
-            print('function value:', logl,' at iteration ',self.maximization_iters)
-            print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
+            if (self.maximization_iters % 1000 == 0):  # print alleen elke 1000 iterations
+                print('function value:', logl,' at iteration ',self.maximization_iters)
+                print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
         return logl
     
     

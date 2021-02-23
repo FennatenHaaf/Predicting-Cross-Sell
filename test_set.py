@@ -77,7 +77,7 @@ for t in range(0,3):
 
 #df_per_time = gd.getGeneratedData()
 
-name_dep_var_cross_sell = ['p1','p2']
+name_dep_var_cross_sell = ['p1','p2','p3']
 name_covariates = ['var1','var2']
 name_dep_var_active = ['ac1', 'ac2', 'ac3']
 
