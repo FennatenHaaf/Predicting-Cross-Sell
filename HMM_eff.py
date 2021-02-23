@@ -27,7 +27,7 @@ import numdifftools as nd
 class HMM_eff:
     
     def __init__(self, list_dataframes, list_dep_var, 
-                   list_covariates = [], covariates = False, iterprint =True):
+                   list_covariates = [], covariates = False, iterprint =False):
         """Initialisation of a HMM object
            list_dataframes: list consisting of the timeperiod-specific dataframes
            list_dep_var: list consisting of all the names of the variables we use as dependent variables
