@@ -51,7 +51,8 @@ class HMM_eff:
         self.n_categories = np.zeros((self.n_products))
         for i in range(0,self.T):
             for j in range(0,self.n_products):
-                n_per_df = self.list_dataframes[i][list_dep_var[j]].fillna(0).nunique(); #retrive the number of categories per product, per dataframe
+                self.list_dataframes[i][list_dep_var[j]] = self.list_dataframes[i][list_dep_var[j]].fillna(0)
+                n_per_df = self.list_dataframes[i][list_dep_var[j]].nunique(); #retrive the number of categories per product, per dataframe
                 if n_per_df > self.n_categories[j]: #if number of categories is more than previously seen in other dataframes, update number of categories
                     self.n_categories[j] = n_per_df
         self.n_categories = self.n_categories.astype(int)
@@ -183,8 +184,10 @@ class HMM_eff:
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
+        print(f"Calculating Hessian at {utils.get_time()}")
         hes = nd.Hessian(self.loglikelihood)(param_in,  shapes, n_segments)
-
+        print(f"Done calculating at {utils.get_time()}!")
+        
         if self.covariates == True:
             return param_out, alpha_out, shapes, hes
         else:
@@ -295,7 +298,8 @@ class HMM_eff:
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2)}
+                               #,'maxfev': 99999999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'xatol': 10**(-3), 'fatol': 10**(-2)}# 'maxiter': 99999999} 
     
     

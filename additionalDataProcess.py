@@ -231,10 +231,13 @@ def transform_variables(df, separate_types = False):
         
     # TODO also put a max on the total number of products???? or take the log??
     
-    # make geslacht into a dummy
-    df["geslacht_dummy"] =1
-    df.loc[(df["geslacht"]=="vrouw"),"geslacht_dummy"] = 0
+    # handle it if there are still multiple categories in the gender
+    df.loc[(df["geslacht"]=="Mannen"), "geslacht"]="Man"
+    df.loc[(df["geslacht"]=="Vrouwen"), "geslacht"]="Vrouw"
     
+    # make geslacht into a dummy??
+    #df["geslacht_dummy"] =1
+    #df.loc[(df["geslacht"]=="vrouw"),"geslacht_dummy"] = 0
     
     # make age into years (-> create categories?)
     today = date.today() 
@@ -267,4 +270,5 @@ def make_dummies(df, dummieslist, drop_first = False):
     else:
         dummiesdf = pd.get_dummies(dummiesdf, prefix = dummieslist)
         
+    
     return dummiesdf, list(dummiesdf.columns.values)

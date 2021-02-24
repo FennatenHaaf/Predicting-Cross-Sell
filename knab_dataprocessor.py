@@ -122,9 +122,7 @@ class dataProcessor:
           We also take a subsample, if this is so specified."""
 
         print("Getting valid ids from the experian and the linking data")
-        #TODO ook de optie geven om bijvoorbeeld mensen uit een specifieke 
-        # sector te selecteren?
-        
+
         # read in the experian data, which will be used as a base for everything
         self.df_experian = pd.read_csv(f"{self.indir}/experian.csv")
         # don't need this variable
@@ -792,6 +790,7 @@ class dataProcessor:
                           keep='first', inplace=False) 
         
         characteristics.loc[(characteristics["geslacht"]=="Mannen"), "geslacht"]="Man"
+        characteristics.loc[(characteristics["geslacht"]=="Vrouwen"), "geslacht"]="Vrouw"
         
         # Now merge back with df_cross                              
         df_cross= df_cross.merge(characteristics[["personid","birthyear","geslacht"]], 
@@ -891,8 +890,8 @@ class dataProcessor:
 
         return to_merge
 
-    # =============================================================================
-# #some helper methods that are used to handle time ===========================
+# =============================================================================
+# Some helper methods that are used to handle time ============================
 # =============================================================================
 
 
