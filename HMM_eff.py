@@ -79,7 +79,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, tolerance = 10**(-3), max_method = "BFGS"):
+    def EM(self, n_segments, tolerance = 10**(-4), max_method = "BFGS"):
         """function to run the EM algorithm
             n_segments: number of segments to use for the estimation of the HMM
             tolerance: convergence tolerance
@@ -87,20 +87,21 @@ class HMM_eff:
         
         if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
        
-            gamma_0 =    np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
-            gamma_sr_0 =   np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
-            gamma_sk_t =   np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
+            gamma_0 =  20*  np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            gamma_sr_0 = 20*  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t = 20*  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
             
             for s in range(n_segments):
                 for p in range(0,self.n_products):
-                    beta[s,p,0:self.n_categories[p]-1] =   np.ones((1,self.n_categories[p]-1))                    
+                    beta[s,p,0:self.n_categories[p]-1] = 20*  np.ones((1,self.n_categories[p]-1))                    
             
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
-            
+
+             
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
@@ -165,7 +166,7 @@ class HMM_eff:
                 print(f"Gamma_sr_0: {gamma_sr_0}")
                 print(f"Gamma_sk_t: {gamma_sk_t}")
                 print(f"Beta: {beta}")
-                print(f"{param_out}")
+                #print(f"{param_out}")
 
             logl = self.loglikelihood(param_out, shapes, n_segments)
             print(f"LogLikelihood value: {logl}")
@@ -185,7 +186,7 @@ class HMM_eff:
         print(f"Total EM duration: {diffEM}")
         
         print(f"Calculating Hessian at {utils.get_time()}")
-        hes = nd.Hessian(self.loglikelihood)(param_in,  shapes, n_segments)
+        hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
         print(f"Done calculating at {utils.get_time()}!")
         
         if self.covariates == True:
@@ -303,7 +304,7 @@ class HMM_eff:
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
     
-        if self.iteration <= 50:
+        if self.iteration <= 100:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                              method=max_method,options= minimize_options_NM)
@@ -387,43 +388,49 @@ class HMM_eff:
         logl = 0
         logl_i = np.zeros(self.n_customers)
         
-        
-        for i in range(0,self.n_customers):
-            likelihood_i = 0
+                    
+        for t in range(0,self.T):
+            Y = self.list_Y[t]
+            if self.covariates == True:
+                Z = self.list_Z[t]
+            else:
+                Z = []
+                        
+            if t == 0:
+                P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments) #[ixs]
+                P_s_given_Z = P_s_given_Z[:,np.newaxis,:]
+                
+                P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
+                P_Y_given_S = np.eye(n_segments) * P_Y_given_S[:,np.newaxis,:]
+
+                likelihood = np.matmul(P_s_given_Z, P_Y_given_S)
+                    
+            elif t == (self.T - 1):
+                P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments) #[sxs]
+                P_s_given_r = P_s_given_r.swapaxes(1,2)
+
+                P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments) 
+                P_Y_given_S = P_Y_given_S[:,:,np.newaxis]
+
+                
+                mat = np.matmul(P_s_given_r, P_Y_given_S) 
+                likelihood = np.matmul(likelihood, mat)
+            else: 
+                P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments) #[sxs]
+                P_s_given_r = P_s_given_r.swapaxes(1,2)
+                
+                P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments) 
+                P_Y_given_S = np.eye(n_segments) * P_Y_given_S[:,np.newaxis,:]
+
+                mat = np.matmul(P_s_given_r, P_Y_given_S)
+                likelihood = np.matmul(likelihood, mat)
+                    
+        logl_i = np.log(likelihood)
             
-            for t in range(0,self.T):
-                Y = np.array([self.list_Y[t][i,:]])
-                if self.covariates == True:
-                    Z = np.array([self.list_Z[t][i,:]])
-                else:
-                    Z = []
-                    
-                if t == 0:
-                    P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments) #[ixs]
-                    P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments) 
-                    likelihood_i = np.matmul( P_s_given_Z, np.diag(P_Y_given_S.flatten()) )
-                    
-                elif t == (self.T - 1):
-                    P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments) #[sxs]
-                    P_s_given_r = np.transpose(np.reshape(P_s_given_r, (n_segments, n_segments)))
-                    P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments) 
-                    
-                    mat = np.matmul(P_s_given_r, np.transpose(P_Y_given_S)) 
-                    likelihood_i = np.matmul(likelihood_i, mat)
-                else: 
-                    P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments) #[sxs]
-                    P_s_given_r = np.transpose(np.reshape(P_s_given_r, (n_segments, n_segments)))
-                    P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments) 
-                    
-                    mat = np.matmul(P_s_given_r, np.diag(P_Y_given_S.flatten()))
-                    likelihood_i = np.matmul(likelihood_i, mat)
-                    
-            logl_i[i] = np.log(likelihood_i)
-            
-        logl = -np.sum(logl_i)
+        logl = - np.sum(logl_i)
         
         return logl
-            
+
             
         
         

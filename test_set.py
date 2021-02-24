@@ -76,12 +76,10 @@ for t in range(0,3):
 """
 #df_per_time = gd.getGeneratedData()
 
-"""
 df_per_time = []
 for i in range(0,3):
     df = pd.read_excel (r'C:/Users/matth/OneDrive/Documenten/seminar 2021/Code/df_per_time constant.xlsx', sheet_name=f"Blad{i+1}")
     df_per_time.append(df)
-"""
 
 name_dep_var_cross_sell = ['p1','p2','p3']
 name_covariates = ['var1','var2']
