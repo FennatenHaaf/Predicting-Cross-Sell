@@ -25,19 +25,19 @@ if __name__ == "__main__":
     outdirec = "./output"
     interdir = "./interdata"
     
-    save_intermediate_results = False # Save the intermediate outputs
+    save_intermediate_results = True # Save the intermediate outputs
     # save_intermediate_results = True # Save the intermediate outputs
     print_information = False # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
-    start_date = "2018-01-01" # From which moment onwards do we want to use
+    start_date = "2020-01-01" # From which moment onwards do we want to use
     # start_date = "2017-10-01" # From which moment onwards do we want to use
 
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    # end_date = "2020-12-27" # Until which moment do we want to use the information
+    end_date = "2020-12-27" # Until which moment do we want to use the information
     subsample = False # Do we want to take a subsample
-    subsample = True # Do we want to take a subsample
+    # subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
     finergy_segment = None # The finergy segment that we want to be in the sample
     # e.g.: "B04"

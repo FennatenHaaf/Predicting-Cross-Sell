@@ -648,11 +648,9 @@ def getPersonAggregateDict():
 
 
 
-def get_cross_section_aggregation(list_to_get):
+def get_cross_section_agg( list_to_get ):
     count_list = [
-    'aantal_sbi' ,
-     'aantal_sector' ,
-     'aantal_types',
+
      'aantalatmtransacties_business' ,
      'aantalatmtransacties_joint',
      'aantalatmtransacties_retail',
@@ -684,14 +682,18 @@ def get_cross_section_aggregation(list_to_get):
         'logins_totaal_retail'
     ]
 
-    balance = [
+    balance_at_moment = [
     'saldototaal',
-    'saldototaal_agg',
     'saldototaal_business',
-    'saldototaal_fraction',
     'saldototaal_joint',
     'saldototaal_retail'
          ]
+
+    moment_counts = [
+    'aantal_sbi' ,
+    'aantal_sector' ,
+    'aantal_types'
+        ]
 
     categorical = [
         'accountoverlay'
@@ -721,6 +723,7 @@ def get_cross_section_aggregation(list_to_get):
         'housetype',
         'huidigewaarde_klasse',
         'income',
+
          ]
 
     indicators = ['betalenyn_business',
@@ -741,19 +744,24 @@ def get_cross_section_aggregation(list_to_get):
     remainder_dict = {
                                'joint': 'max',
                'retail': 'max',
-               'businessageinyears': 'first'
+               'businessageinyears': 'first',
+                'saldototaal_fraction': 'last'
                 }
 
     if list_to_get == "count_list":
         return count_list
-    elif list_to_get == "balance":
-        return balance
+    elif list_to_get == "balance_at_moment":
+        return balance_at_moment
+    elif list_to_get == "moment_counts":
+        return moment_counts
     elif list_to_get == "categorical":
         return categorical
     elif list_to_get == "indicators":
         return indicators
     elif list_to_get == "remainder_dict":
         remainder_dict
+    elif list_to_get == 'all':
+        count_list + balance_at_moment + moment_counts + categorical + remainder_dict
     else:
         print("Invalid value for list_to_get")
 
