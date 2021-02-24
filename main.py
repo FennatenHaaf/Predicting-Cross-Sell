@@ -21,9 +21,12 @@ if __name__ == "__main__":
 # =============================================================================
 
     # Define where our input, output and intermediate data is stored
-    indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/data"
-    outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
-    interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
+    indirec = "./data"
+    outdirec = "./output"
+    interdir = "./interdata"
+    # indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/data"
+    # outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
+    # interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
     
     save_intermediate_results = True # Save the intermediate outputs
     # save_intermediate_results = True # Save the intermediate outputs
@@ -207,13 +210,14 @@ if __name__ == "__main__":
            
             
     #----------------AGGREGATE & TRANSFORM THE DATA-------------------
+    additdata = AD.AdditionalDataProcess
     if transform:    
        print(f"****Transforming datasets & adding some variables at {utils.get_time()}****")
        
        for i, df in enumerate(dflist):    
             df = dflist[i]
-            df = AD.aggregate_portfolio_types(df)
-            dflist[i]= AD.transform_variables(df) 
+            df = additdata.aggregate_portfolio_types(df)
+            dflist[i]= additdata.transform_variables(df)
     
     
     #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
@@ -228,7 +232,7 @@ if __name__ == "__main__":
         dummies.extend(activity_dummies) # get activity status
         
         # Run the data creation
-        predictdata = AD.create_saldo_data(dflist, interdir,
+        predictdata = additdata.create_saldo_data(dflist, interdir,
                                         filename= "saldopredict",
                                         select_variables = selection,
                                         dummy_variables = dummies)
@@ -254,7 +258,7 @@ if __name__ == "__main__":
         # MAKE ACTIVITY VARIABLES
         for i, df in enumerate(dflist):            
             df = dflist[i]
-            dummies, activitynames =  AD.make_dummies(df,
+            dummies, activitynames =  additdata.make_dummies(df,
                                                  activity_dummies,
                                                  drop_first = True)
             df[activitynames] = dummies[activitynames]
@@ -268,7 +272,7 @@ if __name__ == "__main__":
         # we don't use all experian variables yet
         dummies_personal = ["income","age_bins","geslacht"] 
         for i, df in enumerate(dflist):   
-            dummies, dummynames =  AD.make_dummies(df,
+            dummies, dummynames =  additdata.make_dummies(df,
                                                  dummies_personal,
                                                  drop_first = False)
             df[dummynames] = dummies[dummynames]
