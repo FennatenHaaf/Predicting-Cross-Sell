@@ -21,9 +21,9 @@ if __name__ == "__main__":
 # =============================================================================
 
     # Define where our input, output and intermediate data is stored
-    indirec = "./data"
-    outdirec = "./output"
-    interdir = "./interdata"
+    indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/data"
+    outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
+    interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
     
     save_intermediate_results = False # Save the intermediate outputs
     # save_intermediate_results = True # Save the intermediate outputs
