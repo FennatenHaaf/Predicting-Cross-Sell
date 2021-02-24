@@ -215,40 +215,35 @@ def transform_variables(df, separate_types = False):
     for var in (["saldototaal","logins_totaal","aantaltransacties_totaal"]):
         if (separate_types):
             for name in (["business","retail","joint"]):                
-                #df[f"log_{var}_{name}"] =  np.log(df[f"{var}_{name}"]+1)
                 df[f"log_{var}_{name}"] = getlogs(df[f"{var}_{name}"])
 
-        #df[f"log_{var}"] =  np.log(df[f"{var}"]+1) 
         df[f"log_{var}"] =  getlogs(df[f"{var}"]) 
         
     
     # Put a MAX on the business, portfolio, joint variables (3 per type max)
+    # also make a dummy
     for name in (["business","retail","joint","accountoverlay"]):
         df[f"{name}_max"] = df[f"{name}"]
-
         df.loc[(df[f"{name}"]>3),f"{name}_max"] = 3   # Should I make it a string or make it a number?
         # This only relevant for business and joint since retail does not have >1
+        
+        df[f"{name}_dummy"] = df[f"{name}"]
+        df.loc[(df[f"{name}"]>0),f"{name}_dummy"] = 1
         
     # TODO also put a max on the total number of products???? or take the log??
     
     # handle it if there are still multiple categories in the gender
     df.loc[(df["geslacht"]=="Mannen"), "geslacht"]="Man"
     df.loc[(df["geslacht"]=="Vrouwen"), "geslacht"]="Vrouw"
-    
-    # make geslacht into a dummy??
-    #df["geslacht_dummy"] =1
-    #df.loc[(df["geslacht"]=="vrouw"),"geslacht_dummy"] = 0
-    
-    # make age into years (-> create categories?)
+        
+    # make age into years 
     today = date.today() 
     df["age"] = today.year - df["birthyear"]
-    #df["agebins"] = pd.cut(df["age"], bins=6, labels=False)
-    # can also define bins ourself: 
+    # Create bins out of the ages
     bins = pd.IntervalIndex.from_tuples([ (0, 18), (18, 30), 
                                          (30, 45), (45, 60),
                                          (60, 75), (75, 200)])
     df["age_bins"] = pd.cut(df["age"], bins, labels=False)
-    
     
     # also make bins out of the business age! mostly range between 0 and 30
     bbins = pd.IntervalIndex.from_tuples([ (-1, 2), (2, 5), 
