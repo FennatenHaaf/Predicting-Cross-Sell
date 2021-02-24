@@ -78,6 +78,7 @@ class AdditionalDataProcess(object):
         # of that (if there is any??)
 
         # Get the total number of portfolios in each period (excluding overlay)
+        #TODO wat zijn de benodigdheden om dit te runnen
         this_period['portfoliototaal']= this_period[["business","retail",
                                             "joint"]].sum(axis=1)
         prev_period['portfoliototaal']= prev_period[["business","retail",
@@ -302,18 +303,32 @@ class AdditionalDataProcess(object):
     create the base data needed to use this algorithm however. 
     """
 
-    def transform_to_different_sets( self, transform_command = "all" ):
+    def transform_to_different_sets( self, transform_command = "all", first_date = "", last_date = "" ):
+        if first_date == "":
+            use_standard_period = True
+        else:
+            use_standard_period = False
 
         if transform_command in ['cross', 'all']:
-            self.prepare_before_transform("2019Q1", "2019Q4")
+            if use_standard_period:
+                first_date, last_date = "2019Q1","2019Q4"
+            self.prepare_before_transform(first_date, last_date)
             self.transform_for_cross_data()
 
+        if transform_command in ['cross_long', 'all']:
+            if use_standard_period:
+                first_date, last_date = "2017Q4","2019Q4"
+            self.prepare_before_transform(first_date, last_date)
+            self.transform_for_cross_data("2019Q4")
+            self.add_longterm_change(benchmark_period = "2017Q4")
+
         if transform_command in ['panel_chained', 'all']:
-            self.prepare_before_transform("2017Q3", "2019Q4")
+            if use_standard_period:
+                first_date, last_date = "2017Q3","2019Q4"
+            self.prepare_before_transform(first_date, last_date)
             self.transform_for_chained_change_in_variables()
 
-        if transform_command in ['cross_with_change', 'all']:
-            self.prepare_before_transform("2017Q4", "2019Q4")
+
 
     def set_dates( self, first_date, last_date ):
         "Method for safely changing dates in this class"
@@ -364,7 +379,6 @@ class AdditionalDataProcess(object):
         rename_dict = {
             'retail'  : 'has_ret_prtf',
             'joint'   : 'has_jnt_prtf',
-            'business': 'experian_business'
         }
 
         rename_dict = utils.doDictIntersect(self.input_cross_df.columns, rename_dict)
@@ -383,6 +397,9 @@ class AdditionalDataProcess(object):
         print(f"Finished preparing data at {utils.get_time()}")
 
     def transform_for_cross_data( self, date_for_slice = "2019Q4" ):
+        """
+        Method to imp
+        """
         columns_to_use_list = utils.doListIntersect(self.input_cross_df.columns, declarationsFile.get_cross_section_agg('count_list'))
         columns_to_use_list = columns_to_use_list + \
                               utils.doListIntersect(self.input_cross_df.columns, declarationsFile.get_cross_section_agg(
@@ -511,6 +528,47 @@ class AdditionalDataProcess(object):
 
         print(f"Finished transforming data for cross section {utils.get_time()}")
 
+    def add_longterm_change(self, benchmark_period):
+        """"
+        Uses cross section, however does add variables which compare a certain historical point with
+        the latest date.
+        """
+        product_counts_list = [
+            'aantalproducten_totaal',
+            'aantalproducten_totaal_business',
+            'aantalproducten_totaal_joint',
+            'aantalproducten_totaal_retail',
+            'accountoverlay'
+        ]
+
+        benchmark_period = pd.to_datetime(benchmark_period).to_period(self.current_freq)
+
+        benchmark_slice = self.input_cross_df.query(f"period_obs == @benchmark_period")
+        benchmark_slice = benchmark_slice[ ( ['personid'] + product_counts_list) ]
+
+        self.cross_long = self.cross_df[(['personid'] + product_counts_list)].copy()
+        self.cross_long.set_index('personid'), benchmark_slice.set_index('personid')
+
+        self.cross_long.set_index('personid', inplace = True)
+        benchmark_slice.set_index('personid', inplace = True)
+        self.cross_long.sort_index(inplace = True)
+        benchmark_slice.sort_index(inplace = True)
+
+        indicator_df1 = self.cross_long - benchmark_slice
+
+        indicator_df2 = indicator_df1.where(indicator_df1 > 0, 0)
+        indicator_df2 = indicator_df2.where(indicator_df1 == 0, 1)
+
+        indicator_df1 = indicator_df1.add_prefix('delta_')
+        indicator_df2 = indicator_df2.add_prefix('increased_')
+        benchmark_slice = benchmark_slice.add_prefix('benchmark_')
+
+        df_to_merge = pd.concat([indicator_df1,indicator_df2,benchmark_slice], axis = 1)
+        self.cross_long = pd.merge(self.cross_df,df_to_merge, left_on = 'personid', right_index =  True)
+
+
+        pass
+
     def transform_for_chained_change_in_variables( self ):
         """
         Calculates how much selected variables have changed and creates an indicator if this change is positive.
@@ -544,7 +602,7 @@ class AdditionalDataProcess(object):
 
         self.panel_chained_df = pd.merge(self.input_cross_df, new_delta_frame, on = ['period_obs', 'personid'],
                                          suffixes = ["", "_delta"])
-        # Todo change period to +1
+
         print("number of positively changed variables is :\n", self.panel_chained_df.iloc[:, -4:].sum(), f"\nFrom a total of" \
                                                                                                          f" {self.panel_chained_df.shape[0]} observations")
         print(f"Finished aggregating data for change in products at {utils.get_time()}")
@@ -568,6 +626,12 @@ class AdditionalDataProcess(object):
         pass
 
     def create_subfolder_for_cross( self, first_date, last_date, subfolder = "", folder_name_addition = "" ):
+        """
+        Creates a subfolder for a certain time period that has been processed.
+        -Need to fill in a first_date, last_date.
+        -Also possible to go to a subfolder or add an additional stirng to the folder name
+        First checks if the folder exists to backup previously saved files.
+        """
         if not subfolder == "":
             subfolder_path = f"{subfolder}/"
         else:
@@ -593,7 +657,8 @@ class AdditionalDataProcess(object):
                     shutil.copy2(f"{subfolder_path}{item}", f"{folder_string}/{item}")
                     break
 
-    def replace_time_period( first_date, last_date, subfolder ):
+    def replace_time_period(self, first_date, last_date, subfolder ):
+        "Replaces all the files for the final_df with another time period"
         os.listdir(subfolder)
         remove_list = ('final_df', 'valid_id', 'portfoliolink', 'base_experian', 'base_linkinfo')
         for item in os.listdir(subfolder):
@@ -603,7 +668,7 @@ class AdditionalDataProcess(object):
                     break
 
         if not first_date == "":
-            new_folder = f"{subfolder}/{first_date}-{last_date}"
+            new_folder = f"{subfolder}/{first_date}_{last_date}"
             for item in os.listdir(new_folder):
                 shutil.copy2(f"{new_folder}/{item}", f"{subfolder}")
 
