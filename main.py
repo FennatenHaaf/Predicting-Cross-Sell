@@ -25,19 +25,19 @@ if __name__ == "__main__":
     outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
     interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
     
-    save_intermediate_results = False # Save the intermediate outputs
+    save_intermediate_results = True # Save the intermediate outputs
     # save_intermediate_results = True # Save the intermediate outputs
     print_information = False # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
-    start_date = "2018-01-01" # From which moment onwards do we want to use
+    start_date = "2020-01-01" # From which moment onwards do we want to use
     # start_date = "2017-10-01" # From which moment onwards do we want to use
 
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    # end_date = "2020-12-27" # Until which moment do we want to use the information
+    end_date = "2020-12-27" # Until which moment do we want to use the information
     subsample = False # Do we want to take a subsample
-    subsample = True # Do we want to take a subsample
+    # subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
     finergy_segment = None # The finergy segment that we want to be in the sample
     # e.g.: "B04"
@@ -139,10 +139,7 @@ if __name__ == "__main__":
         "businessAgeInYears_bins",
         "businessType",
         ]
-    
-    # TODO the dummies all  need to be tranformed later ! 
-    # use: pd.get_dummies(df['col'], prefix=['col'])
-    
+        
     # also possible to get: logins web & logins app separately
     # & the transaction information separately
     
@@ -246,58 +243,79 @@ if __name__ == "__main__":
 # RUN HMM MODEL
 # =============================================================================
     
-    # Hier code om het HMM model te runnen?
-    # Definieer een lijst van characteristics om te gebruiken voor het
-    # model!
     if (run_hmm & transform):
         
+        #---------------- SELECT VARIABLES ---------------
         print(f"****Defining variables to use at {utils.get_time()}****")
         
         # Define the dependent variable
         name_dep_var_cross_sell = crosssell_types_max_nooverlay
         
-        # Just need to get the dummies for activity status for now
+        # MAKE ACTIVITY VARIABLES
         for i, df in enumerate(dflist):            
             df = dflist[i]
-            dummies, dummynames =  AD.make_dummies(df,
+            dummies, activitynames =  AD.make_dummies(df,
                                                  activity_dummies,
                                                  drop_first = True)
-            df[dummynames] = dummies[dummynames]
-        
-        activity_variables = dummynames #activity status 1.0 is de base case
+            df[activitynames] = dummies[activitynames]
+        print("Dummy variables made:")
+        print(activitynames)
+        activity_variables = activitynames #activity status 1.0 is de base case
         activity_variables.extend(activity_total)
         
+
+        #MAKE PERSONAL VARIABLES
+        # we don't use all experian variables yet
+        dummies_personal = ["income","age_bins","geslacht"] 
+        for i, df in enumerate(dflist):   
+            dummies, dummynames =  AD.make_dummies(df,
+                                                 dummies_personal,
+                                                 drop_first = False)
+            df[dummynames] = dummies[dummynames]
+        print("Dummy variables made:")
+        print(dummynames)
+        # get the dummy names without base cases        
+        base_cases = ['income_1.0','age_bins_(18, 30]','geslacht_Man']
+        personal_variables = [e for e in dummynames if e not in base_cases]
+        
         # Say which covariates we are going to use
-        name_covariates = activity_variables
+        name_covariates = personal_variables
         
         # take a subset of the number of periods, just to test
-        df_periods  = dflist[:3] # only use 3 periods
+        df_periods  = dflist[:5] # only use 5 periods for now?
         
         #Define number of segments
-        n_segments = 4
+        n_segments = 6
         
         #---------------- RUN THE HMM MODEL ---------------
         
         startmodel = utils.get_time()
-        #print(f"****Running HMM at {startmodel}****")
+        print(f"****Running HMM at {startmodel}****")
+        print(f"covariates: {name_covariates}")
+        print(f"number of periods: {len(df_periods)}")
+        print(f"number of segments: {n_segments}")
         
         test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
                                      name_covariates, covariates = True,
                                      iterprint = True)
-
         
+        # Run the EM algorithm
         param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, 
                                                                     max_method = 'Nelder-Mead')
        
+        # Transform the output back to the specific parameter matrices
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, 
                                                                           n_segments, 
                                                                           param_cross, 
                                                                           shapes_cross)
         
+        # See what the results are in terms of probabilities, for the first period
+        Y = test_cross_sell.list_Y[0]
+        Z = test_cross_sell.list_Z[0]
         p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
-        #P_y_given_S = ef.prob_P_y_given_s(test_cross_sell, Y, p_js, n_segments)
-        #P_s_given_Z = ef.prob_P_s_given_Z(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
-        #P_s_given_r = ef.prob_P_s_given_r(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
+        P_y_given_S = ef.prob_P_y_given_s(test_cross_sell, Y, p_js, n_segments)
+        P_s_given_Z = ef.prob_P_s_given_Z(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
+        P_s_given_r = ef.prob_P_s_given_r(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
     
         endmodel = utils.get_time()
         diff = utils.get_time_diff(startmodel,endmodel)
