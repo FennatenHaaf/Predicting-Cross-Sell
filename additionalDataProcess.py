@@ -135,6 +135,11 @@ def get_difference_data(this_period,prev_period, log =True,
     data = data.reset_index(drop=True)
     previous_period = prev_period.loc[select_portfoliogain].reset_index(drop=True)
     
+    # Add dummies for if we had business, retail or joint already in the last period
+    for name in ["business","retail","joint"]:
+        data[f"prev_{name}_dummy"] = previous_period[f"{name}_dummy"]
+    
+    # Add other dummies from the previous period which we gave as input
     if select_variables is not None:
          data[select_variables] = previous_period[select_variables]
           
