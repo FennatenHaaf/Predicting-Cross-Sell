@@ -807,10 +807,10 @@ class dataProcessor:
         # de meest recente transaction, tijd sinds klant worden
         
         #------------------------ SORT DATASET -------------------------
-        df_cross = df_cross.sort_values("personid")        
+        df_cross = df_cross.sort_values("personid")   
+        df_cross.reset_index(drop=True, inplace=True)
         
         #------------------------ SAVE & RETURN -------------------------
-        
         if save:
             utils.save_df_to_csv(df_cross, self.interdir, 
                                  outname, add_time = False )      
