@@ -166,7 +166,7 @@ class HMM_eff:
                 print(f"Gamma_sr_0: {gamma_sr_0}")
                 print(f"Gamma_sk_t: {gamma_sk_t}")
                 print(f"Beta: {beta}")
-                #print(f"{param_out}")
+                print(f"{param_out}")
 
             logl = self.loglikelihood(param_out, shapes, n_segments)
             print(f"LogLikelihood value: {logl}")
@@ -300,7 +300,7 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
 
-        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2)}#, 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
     
