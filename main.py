@@ -198,14 +198,12 @@ if __name__ == "__main__":
     #----------------MAKE TIME SERIES DATASETS-------------------
     if time_series:
         print(f"final name:{final_name}")
-        
         dflist = processor.time_series_from_cross(outname = final_name)
         
     else:
-        name = "final_df_n500"
+        name = "final_df_n500" # adjust this name to specify which files to read
         if (path.exists(f"{interdir}/{name}_2018Q1.csv")):
             print("****Reading df list of time series data from file****")
-            
             
             dflist = [pd.read_csv(f"{interdir}/{name}_2018Q1.csv"),
                         pd.read_csv(f"{interdir}/{name}_2018Q2.csv"),

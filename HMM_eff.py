@@ -307,19 +307,23 @@ class HMM_eff:
         minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2)}#, 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
-    
-        if self.iteration <= -1:
-            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                             method=max_method,options= minimize_options_NM)
-            param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+        if (max_method == "Nelder-Mead"):
+            if self.iteration <= 999999:
+                param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                                      n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                  method=max_method,options= minimize_options_NM)
+                # param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+                #                      method=max_method,options= minimize_options_NM)
+            else:
+                param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                                     n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                     method='BFGS',options= minimize_options_BFGS)
+                #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+                                   #  method='BFGS',options= minimize_options_BFGS)
         else:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-             #                     n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-              #                   method='BFGS',options= minimize_options_BFGS)
-            #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
-                               #  method='BFGS',options= minimize_options_BFGS)
+                                     n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                     method='BFGS',options= minimize_options_BFGS)
         return param_out.x
         
     
