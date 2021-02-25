@@ -50,7 +50,7 @@ if __name__ == "__main__":
 # =============================================================================
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
-    time_series = True # Do we want to run the code for getting time series data
+    time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
     run_hmm = True
@@ -210,7 +210,7 @@ if __name__ == "__main__":
            
             
     #----------------AGGREGATE & TRANSFORM THE DATA-------------------
-    additdata = AD.AdditionalDataProcess
+    additdata = AD.AdditionalDataProcess(indirec,interdir,outdirec)
     if transform:    
        print(f"****Transforming datasets & adding some variables at {utils.get_time()}****")
        

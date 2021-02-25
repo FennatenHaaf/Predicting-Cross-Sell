@@ -28,7 +28,7 @@ class AdditionalDataProcess(object):
         ##Declare variables to provide checks for being empty
         self.input_cross = pd.DataFrame()
         self.input_cross_df = pd.DataFrame()
-        self.panel_chained_df = pd.DataFrame()
+        self.panel_df = pd.DataFrame()
         self.cross_df = pd.DataFrame()
         self.cross_compared_df = pd.DataFrame()
 
@@ -78,7 +78,16 @@ class AdditionalDataProcess(object):
         # of that (if there is any??)
 
         # Get the total number of portfolios in each period (excluding overlay)
+
+        #TODO wellicht dat dit het oplost?
+        this_period.sort_values('personid', inplace = True)
+        prev_period.sort_values('personid', inplace = True)
+        this_period.reset_index(drop = True, inplace =  True)
+        prev_period.reset_index(drop = True, inplace =  True)
+
+
         #TODO wat zijn de benodigdheden om dit te runnen
+        #TODO schrijf dit om zodat dit verscihl per personid wordt gepakt
         this_period['portfoliototaal']= this_period[["business","retail",
                                             "joint"]].sum(axis=1)
         prev_period['portfoliototaal']= prev_period[["business","retail",
@@ -151,6 +160,7 @@ class AdditionalDataProcess(object):
         # get some extra variables of interest from the preceding period
 
         data = data.reset_index(drop=True)
+
         previous_period = prev_period.loc[select_portfoliogain].reset_index(drop=True)
 
         # Add dummies for if we had business, retail or joint already in the last period
@@ -168,9 +178,7 @@ class AdditionalDataProcess(object):
                                                dummy_variables) # use dummy variables as prefix
             data[dummynames] = dummies[dummynames]
 
-
         return data.reset_index(drop=True)
-
 
 
 
@@ -309,24 +317,24 @@ class AdditionalDataProcess(object):
         else:
             use_standard_period = False
 
-        if transform_command in ['cross', 'all']:
+        if transform_command in ['cross_df', 'all']:
             if use_standard_period:
                 first_date, last_date = "2019Q1","2019Q4"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_cross_data()
 
-        if transform_command in ['cross_long', 'all']:
+        if transform_command in ['cross_long_df', 'all']:
             if use_standard_period:
                 first_date, last_date = "2017Q4","2019Q4"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_cross_data("2019Q4")
             self.add_longterm_change(benchmark_period = "2017Q4")
 
-        if transform_command in ['panel_chained', 'all']:
+        if transform_command in ['panel_df', 'all']:
             if use_standard_period:
                 first_date, last_date = "2017Q3","2019Q4"
             self.prepare_before_transform(first_date, last_date)
-            self.transform_for_chained_change_in_variables()
+            self.transform_for_panel()
 
 
 
@@ -362,7 +370,15 @@ class AdditionalDataProcess(object):
 
         for i, df in enumerate(self.input_cross_list):
             new_df = self.aggregate_portfolio_types(df)
-            self.input_cross_list[i] = df
+            new_df = self.transform_variables(new_df)
+            # if i > 0:
+            #     diffdata = self.get_difference_data(new_df, self.input_cross_list[i-1], log = False)
+            #     new_df = pd.concat([new_df, diffdata], axis = 1)
+            #     new_df.reset_index()
+            self.input_cross_list[i] = new_df
+
+        # hoc = self.get_difference_data(self.input_crosFdudus_list[1], self.input_cross_list[0], log = False)
+
         self.input_cross_df = pd.concat(self.input_cross_list, ignore_index = True)
 
         # Make lowercase names
@@ -374,11 +390,14 @@ class AdditionalDataProcess(object):
         self.input_cross_df.drop(list_to_drop, axis = 1, inplace = True)
         self.input_cross_df[['business', 'joint', 'retail', 'accountoverlay']] = self.input_cross_df[['business', 'joint',
                                                                                                       'retail',
-                                                                                                      'accountoverlay']].fillna(
-            value = 0)
+                                                                                                      'accountoverlay']].fillna(value = 0)
         rename_dict = {
-            'retail'  : 'has_ret_prtf',
-            'joint'   : 'has_jnt_prtf',
+            'retail_dummy'  : 'has_ret_prtf',
+            'joint_dummy'   : 'has_jnt_prtf',
+            'business_dummy': 'has_bus_prtf',
+            'business': 'bus_prtf_counts',
+            'joint' : 'jnt_prtf_counts',
+            'retail': 'ret_prtf_counts'
         }
 
         rename_dict = utils.doDictIntersect(self.input_cross_df.columns, rename_dict)
@@ -387,8 +406,9 @@ class AdditionalDataProcess(object):
             period_q2 = lambda x: np.where(x.period_obs.dt.quarter == 2, 1, 0),
             period_q3 = lambda x: np.where(x.period_obs.dt.quarter == 3, 1, 0),
             period_q4 = lambda x: np.where(x.period_obs.dt.quarter == 4, 1, 0),
-            has_bus_prtf = lambda x: np.where(x.aantalproducten_totaal_business > 0, 1, 0),
-            has_bus_jnt_prtf = lambda x: x.has_bus_prtf * x.has_jnt_prtf,
+            # has_bus_prtf = lambda x: np.where(x.aantalproducten_totaal_business > 0, 1, 0),
+            # has_bus_jnt_prtf = lambda x: x.has_bus_prtf * x.has_jnt_prtf,
+            portfolio_totals = lambda x: x.bus_prtf_counts + x.jnt_prtf_counts + x.ret_prtf_counts,
             has_bus_ret_prtf = lambda x: x.has_bus_prtf * x.has_ret_prtf,
             has_jnt_ret_prtf = lambda x: x.has_ret_prtf * x.has_jnt_prtf
         )
@@ -398,7 +418,9 @@ class AdditionalDataProcess(object):
 
     def transform_for_cross_data( self, date_for_slice = "2019Q4" ):
         """
-        Method to imp
+        Method to perform some transformations to prepare a cross-section.
+        Selected variables are chosen to be take a mean over the year.
+        Method to impute missing values to more correctly balance
         """
         columns_to_use_list = utils.doListIntersect(self.input_cross_df.columns, declarationsFile.get_cross_section_agg('count_list'))
         columns_to_use_list = columns_to_use_list + \
@@ -538,7 +560,8 @@ class AdditionalDataProcess(object):
             'aantalproducten_totaal_business',
             'aantalproducten_totaal_joint',
             'aantalproducten_totaal_retail',
-            'accountoverlay'
+            'accountoverlay',
+            'h'
         ]
 
         benchmark_period = pd.to_datetime(benchmark_period).to_period(self.current_freq)
@@ -546,15 +569,15 @@ class AdditionalDataProcess(object):
         benchmark_slice = self.input_cross_df.query(f"period_obs == @benchmark_period")
         benchmark_slice = benchmark_slice[ ( ['personid'] + product_counts_list) ]
 
-        self.cross_long = self.cross_df[(['personid'] + product_counts_list)].copy()
-        self.cross_long.set_index('personid'), benchmark_slice.set_index('personid')
+        self.cross_long_df = self.cross_df[(['personid'] + product_counts_list)].copy()
+        self.cross_long_df.set_index('personid'), benchmark_slice.set_index('personid')
 
-        self.cross_long.set_index('personid', inplace = True)
+        self.cross_long_df.set_index('personid', inplace = True)
         benchmark_slice.set_index('personid', inplace = True)
-        self.cross_long.sort_index(inplace = True)
+        self.cross_long_df.sort_index(inplace = True)
         benchmark_slice.sort_index(inplace = True)
 
-        indicator_df1 = self.cross_long - benchmark_slice
+        indicator_df1 = self.cross_long_df - benchmark_slice
 
         indicator_df2 = indicator_df1.where(indicator_df1 > 0, 0)
         indicator_df2 = indicator_df2.where(indicator_df1 == 0, 1)
@@ -564,12 +587,12 @@ class AdditionalDataProcess(object):
         benchmark_slice = benchmark_slice.add_prefix('benchmark_')
 
         df_to_merge = pd.concat([indicator_df1,indicator_df2,benchmark_slice], axis = 1)
-        self.cross_long = pd.merge(self.cross_df,df_to_merge, left_on = 'personid', right_index =  True)
+        self.cross_long_df = pd.merge(self.cross_df, df_to_merge, left_on = 'personid', right_index =  True)
 
 
         pass
 
-    def transform_for_chained_change_in_variables( self ):
+    def transform_for_panel( self ):
         """
         Calculates how much selected variables have changed and creates an indicator if this change is positive.
         First loops over the different time periods and creates change variables compared to the previous period.
@@ -581,9 +604,13 @@ class AdditionalDataProcess(object):
             'aantalproducten_totaal_business',
             'aantalproducten_totaal_joint',
             'aantalproducten_totaal_retail',
-            'accountoverlay'
-
+            'accountoverlay',
+            'bus_prtf_counts',
+            'jnt_prtf_counts',
+            'ret_prtf_counts',
+            'portfolio_totaal'
         ]
+
         delta_df = self.input_cross_df[templist].copy()
         delta_df = delta_df.set_index(['period_obs', 'personid'])
         delta_df.sort_index(inplace = True)
@@ -600,11 +627,11 @@ class AdditionalDataProcess(object):
         templist = list(set(new_delta_frame.columns) - set(['period_obs', 'personid']))
         new_delta_frame[templist] = np.where(new_delta_frame[templist] > 1, 1, 0)
 
-        self.panel_chained_df = pd.merge(self.input_cross_df, new_delta_frame, on = ['period_obs', 'personid'],
-                                         suffixes = ["", "_delta"])
+        self.panel_df = pd.merge(self.input_cross_df, new_delta_frame, on = ['period_obs', 'personid'],
+                                 suffixes = ["", "_delta"])
 
-        print("number of positively changed variables is :\n", self.panel_chained_df.iloc[:, -4:].sum(), f"\nFrom a total of" \
-                                                                                                         f" {self.panel_chained_df.shape[0]} observations")
+        print("number of positively changed variables is :\n", self.panel_df.iloc[:, -4:].sum(), f"\nFrom a total of" \
+                                                                                                         f" {self.panel_df.shape[0]} observations")
         print(f"Finished aggregating data for change in products at {utils.get_time()}")
 
     def import_data( self, import_string: str, first_date: str, last_date = "", addition_to_file_name = "" ):
