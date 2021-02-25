@@ -35,6 +35,7 @@ class AdditionalDataProcess(object):
         self.cross_df = pd.DataFrame()
         self.cross_compared_df = pd.DataFrame()
 
+
     def create_saldo_data(self,dflist, interdir, filename ="saldodiff",
                           select_variables = None, dummy_variables = None ):
         """Make saldo data out of a df list"""
@@ -151,7 +152,8 @@ class AdditionalDataProcess(object):
                               & (this_period['joint_change']>=0) \
                               & (this_period['joint_change']<=1))
 
-        data = this_period.loc[select_portfoliogain, ["percdiff", "portfolio_change",
+        data = this_period.loc[select_portfoliogain, ["personid", "percdiff", 
+                                                      "portfolio_change",
                                                       "business_change",
                                                       "retail_change","joint_change",
                                                       "business_change_dummy",
