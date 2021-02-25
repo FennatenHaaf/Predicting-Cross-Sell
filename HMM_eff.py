@@ -124,6 +124,7 @@ class HMM_eff:
         print(f"****Starting EM prodecure, at {utils.get_time()}****")
         print(f"tolerance: {tolerance}")
         print(f"number of parameters: {len(param_out)}")
+        print(f"maximization method: {max_method}")
         
         alpha_out = np.zeros((n_segments, self.n_customers, self.T))
         beta_out = np.zeros((n_segments, self.n_customers, self.T))

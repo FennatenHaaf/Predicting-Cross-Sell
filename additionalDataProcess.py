@@ -8,6 +8,7 @@ Erasmus School of Economics
 import pandas as pd
 import numpy as np
 from datetime import date
+from datetime import datetime
 import utils
 import os
 import shutil
@@ -33,6 +34,7 @@ class AdditionalDataProcess(object):
         self.panel_df = pd.DataFrame()
         self.cross_df = pd.DataFrame()
         self.cross_compared_df = pd.DataFrame()
+
 
     def create_saldo_data(self,dflist, interdir, filename ="saldodiff",
                           select_variables = None, dummy_variables = None ):
@@ -150,7 +152,8 @@ class AdditionalDataProcess(object):
                               & (this_period['joint_change']>=0) \
                               & (this_period['joint_change']<=1))
 
-        data = this_period.loc[select_portfoliogain, ["percdiff", "portfolio_change",
+        data = this_period.loc[select_portfoliogain, ["personid", "percdiff", 
+                                                      "portfolio_change",
                                                       "business_change",
                                                       "retail_change","joint_change",
                                                       "business_change_dummy",
@@ -669,56 +672,25 @@ class AdditionalDataProcess(object):
     def export_data( self ):
         pass
 
-    def create_subfolder_for_cross( self, first_date, last_date, subfolder = "", folder_name_addition = "" ):
-        """
-        Creates a subfolder for a certain time period that has been processed.
-        -Need to fill in a first_date, last_date.
-        -Also possible to go to a subfolder or add an additional stirng to the folder name
-        First checks if the folder exists to backup previously saved files.
-        """
-        if not subfolder == "":
-            subfolder_path = f"{subfolder}/"
+    def folder_operations(self, folder_command, first_date = None, last_date = None, keywords_list = None, **extra_args):
+        if (first_date == None) and (folder_command in ['create_sub_and_import','replace_time']):
+            first_date = self.first_date
+            last_date = self.last_date
         else:
-            subfolder_path = ""
+            if last_date == None:
+                last_date = first_date
 
-        folder_string = f"{subfolder_path}{first_date}_{last_date}{folder_name_addition}"
-        if os.path(folder_string).exists:
-            print('Folder already exists, proceeding to backup old folder')
-            iter = 1
-            while os.path(folder_string).exists:
-                new_folder_string = f"{folder_string}_{iter}"
-                iter += 1
-            os.mkdir(new_folder_string)
-            for item in os.listdir(folder_string):
-                shutil.copy2(f"{folder_string}/{item}", new_folder_string)
-            shutil.rmtree(folder_string)
+        if keywords_list == None:
+            keywords_list = ['final_df', 'valid_id', 'portfoliolink', 'base_experian', 'base_linkinfo']
 
-        find_list = ('final_df', 'valid_id', 'portfoliolink', 'base_experian', 'base_linkinfo')
-        for item in os.listdir(subfolder_path):
-            os.mkdir(folder_string)
-            for string_to_find in find_list:
-                if string_to_find in item:
-                    shutil.copy2(f"{subfolder_path}{item}", f"{folder_string}/{item}")
-                    break
-
-    def replace_time_period(self,first_date = "", last_date= "",subfolder = None ):
-        "Replaces all the files for the final_df with another time period"
-        if subfolder != None:
-            subfolder = f"{subfolder}/"
-        os.listdir(subfolder)
-        remove_list = ('final_df', 'valid_id', 'portfoliolink', 'base_experian', 'base_linkinfo')
-        for item in os.listdir(subfolder):
-            for string_to_delete in remove_list:
-                if string_to_delete in item:
-                    os.remove(f"{subfolder}{item}")
-                    break
-
-        if not first_date == "":
-            new_folder = f"{subfolder}{first_date}_{last_date}"
-            for item in os.listdir(new_folder):
-                shutil.copy2(f"{new_folder}/{item}", f"{subfolder}")
-
-
+        if folder_command == "create_sub_and_import":
+            utils.create_subfolder_and_import_files(first_date =  first_date,last_date = last_date,subfolder = self.interdir,
+                                                    find_list = keywords_list ,**extra_args)
+        elif folder_command == "replace_time":
+            utils.replace_time_period_folder(first_date =  first_date, last_date = last_date, subfolder = self.interdir,
+                                             remove_list = keywords_list,**extra_args)
+        elif folder_command == 'clean_folder':
+            utils.replace_time_period_folder(subfolder = self.interdir,remove_list = keywords_list,**extra_args)
 
     def debug_in_class( self ):
         "Method to be able to perform operations as if debugging in class method"

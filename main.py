@@ -61,9 +61,9 @@ if __name__ == "__main__":
 # =============================================================================
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
-    time_series = True # Do we want to run the code for getting time series data
+    time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
-    saldo_data = False # Do we want to create the dataset for predicting saldo
+    saldo_data = True # Do we want to create the dataset for predicting saldo
     run_hmm = False
     
 # =============================================================================
@@ -201,7 +201,7 @@ if __name__ == "__main__":
         dflist = processor.time_series_from_cross(outname = final_name)
         
     else:
-        name = "final_df_n500" # adjust this name to specify which files to read
+        name = "final_df" # adjust this name to specify which files to read
         if (path.exists(f"{interdir}/{name}_2018Q1.csv")):
             print("****Reading df list of time series data from file****")
             
@@ -323,6 +323,7 @@ if __name__ == "__main__":
         print(f"number of periods: {len(df_periods)}")
         print(f"number of segments: {n_segments}")
         
+        # Note: the input datasets have to be sorted!
         test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
                                      name_covariates, covariates = True,
                                      iterprint = True)
