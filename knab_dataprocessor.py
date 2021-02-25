@@ -803,10 +803,12 @@ class dataProcessor:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],) 
 
-
         # TODO: eventueel nog duration variables toevoegen, zoals de tijd sinds
         # de meest recente transaction, tijd sinds klant worden
-                
+        
+        #------------------------ SORT DATASET -------------------------
+        df_cross = df_cross.sort_values("personid")        
+        
         #------------------------ SAVE & RETURN -------------------------
         
         if save:
@@ -816,6 +818,10 @@ class dataProcessor:
             print("===============================================")
         return df_cross
         
+    
+    
+    
+    
         
 
     def aggregateBusinessPerPerson(self, temp, count_name):

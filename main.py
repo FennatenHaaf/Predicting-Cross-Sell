@@ -28,32 +28,43 @@ if __name__ == "__main__":
     # outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
     # interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
     
-    save_intermediate_results = True # Save the intermediate outputs
-    # save_intermediate_results = True # Save the intermediate outputs
+    save_intermediate_results = False # Save the intermediate outputs
     print_information = False # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
-    start_date = "2020-01-01" # From which moment onwards do we want to use
-    # start_date = "2017-10-01" # From which moment onwards do we want to use
+    #start_date = "2020-01-01" # From which moment onwards do we want to use
+    start_date = "2018-01-01" # From which moment onwards do we want to use
 
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    end_date = "2020-12-27" # Until which moment do we want to use the information
+    #end_date = "2020-12-27" # Until which moment do we want to use the information
     subsample = False # Do we want to take a subsample
-    # subsample = True # Do we want to take a subsample
+    #subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
     finergy_segment = None # The finergy segment that we want to be in the sample
     # e.g.: "B04"
+    
+    # How to save the final result
+    if (finergy_segment != None):
+        if subsample:
+            final_name = f"final_df_fin{finergy_segment}_n{sample_size}"
+        else:
+            final_name = f"final_df_fin{finergy_segment}"
+    else:
+        if subsample:
+            final_name = f"final_df_n{sample_size}"
+        else:
+            final_name = "final_df"
     
 # =============================================================================
 # DEFINE WHAT TO RUN
 # =============================================================================
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
-    time_series = False # Do we want to run the code for getting time series data
+    time_series = True # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
-    run_hmm = True
+    run_hmm = False
     
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -182,28 +193,32 @@ if __name__ == "__main__":
                                               outname = "df_cross_portfoliolink")
         # Aggregate all of the portfolio information per person ID
         df_out = processor.create_cross_section_perperson(df_cross, df_cross_link,
-                                            cross_date, outname = "final_df_quarterly")
+                                            cross_date, outname = final_name)
     
     #----------------MAKE TIME SERIES DATASETS-------------------
     if time_series:
-        dflist = processor.time_series_from_cross(outname = "final_df")
+        print(f"final name:{final_name}")
+        
+        dflist = processor.time_series_from_cross(outname = final_name)
         
     else:
-        if (path.exists(f"{interdir}/final_df_2018Q1.csv")):
+        name = "final_df_n500"
+        if (path.exists(f"{interdir}/{name}_2018Q1.csv")):
             print("****Reading df list of time series data from file****")
             
-            dflist = [pd.read_csv(f"{interdir}/final_df_2018Q1.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2018Q2.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2018Q3.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2018Q4.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2019Q1.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2019Q2.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2019Q3.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2019Q4.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2020Q1.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2020Q2.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2020Q3.csv"),
-                        pd.read_csv(f"{interdir}/final_df_2020Q4.csv")]
+            
+            dflist = [pd.read_csv(f"{interdir}/{name}_2018Q1.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2018Q2.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2018Q3.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2018Q4.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2019Q1.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2019Q2.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2019Q3.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2019Q4.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2020Q1.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2020Q2.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2020Q3.csv"),
+                        pd.read_csv(f"{interdir}/{name}_2020Q4.csv")]
             
             print(f"sample size: {len(dflist[0])}")
             print(f"number of periods: {len(dflist)}")
@@ -219,6 +234,17 @@ if __name__ == "__main__":
             df = additdata.aggregate_portfolio_types(df)
             dflist[i]= additdata.transform_variables(df)
     
+       print("Doing a check that the ID columns are the same")
+       for i, df in enumerate(dflist):    
+           if (i==0): 
+               dfold = dflist[i]
+           else:
+               dfnew = dflist[i]
+               if (dfold["personid"].equals(dfnew["personid"])):
+                   print("check")
+               else:
+                   print("noooooooooooo")
+               dfold = dfnew
     
     #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
     if (saldo_data & transform):
@@ -289,7 +315,7 @@ if __name__ == "__main__":
         df_periods  = dflist[:5] # only use 5 periods for now?
         
         #Define number of segments
-        n_segments = 6
+        n_segments = 5
         
         #---------------- RUN THE HMM MODEL ---------------
         
