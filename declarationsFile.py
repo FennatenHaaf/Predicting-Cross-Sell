@@ -679,14 +679,18 @@ def get_cross_section_agg( list_to_get ):
         'logins_totaal',
         'logins_totaal_business',
         'logins_totaal_joint',
-        'logins_totaal_retail'
+        'logins_totaal_retail',
+        'log_aantaltransacties_totaal',
+        'log_logins_totaal',
+
     ]
 
     balance_at_moment = [
     'saldototaal',
     'saldototaal_business',
     'saldototaal_joint',
-    'saldototaal_retail'
+    'saldototaal_retail',
+        'log_saldototaal',
          ]
 
     moment_counts = [
@@ -723,7 +727,14 @@ def get_cross_section_agg( list_to_get ):
         'housetype',
         'huidigewaarde_klasse',
         'income',
-
+        'activitystatus',
+        'activitystatus_business',
+        'activitystatus_joint',
+        'age',
+        'age_bins',
+        'birthyear',
+        'businessageinyears_bins',
+        'businesstype_on_saldofraction',
          ]
 
     indicators = ['betalenyn_business',
@@ -737,9 +748,30 @@ def get_cross_section_agg( list_to_get ):
      'flexibelsparenyn_retail',
      'kwartaalsparenyn_business',
      'kwartaalsparenyn_joint',
-     'kwartaalsparenyn_retail'
+     'kwartaalsparenyn_retail',
      ]
 
+    dependent_variables = [
+        'retail_max',
+        'retail_prtf_counts'
+        'portfolio_total_counts',
+        'has_bus_prtf',
+        'has_bus_ret_prtf',
+        'has_jnt_prtf',
+        'has_jnt_ret_prtf',
+        'has_ret_prtf',
+        'joint_max',
+        'joint_prtf_counts',
+        'business_max',
+        'business_prtf_counts',
+        'accountoverlay',
+        'accountoverlay_dummy',
+        'accountoverlay_max',
+        'aantalproducten_totaal',
+        'aantalproducten_totaal_business',
+        'aantalproducten_totaal_joint',
+        'aantalproducten_totaal_retail',
+    ]
 
     remainder_dict = {
                                'joint': 'max',
@@ -759,9 +791,12 @@ def get_cross_section_agg( list_to_get ):
     elif list_to_get == "indicators":
         return indicators
     elif list_to_get == "remainder_dict":
-        remainder_dict
+        return remainder_dict
+    elif list_to_get == "dependent_variables":
+        return dependent_variables
     elif list_to_get == 'all':
-        count_list + balance_at_moment + moment_counts + categorical + remainder_dict
+        return count_list + balance_at_moment + moment_counts + categorical + indicators + dependent_variables + list(set(
+            remainder_dict))
     else:
         print("Invalid value for list_to_get")
 

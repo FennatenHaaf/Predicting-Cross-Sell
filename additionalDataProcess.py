@@ -19,15 +19,17 @@ import declarationsFile
 # Methods for making saldo prediction dataset
 # =============================================================================
 class AdditionalDataProcess(object):
-    def __init__(self,indir, interdir, outdir):
+    def __init__(self,indir, interdir, outdir, automatic_folder_change = False):
         self.indir = indir
         self.interdir = interdir
         self.outdir = outdir
         self.seed = 978391
 
+        #Variable to change data folder based on selected first and last date
+        self.automatic_folder_change = automatic_folder_change
         ##Declare variables to provide checks for being empty
         self.input_cross = pd.DataFrame()
-        self.input_cross_df = pd.DataFrame()
+        self.input_cross = pd.DataFrame()
         self.panel_df = pd.DataFrame()
         self.cross_df = pd.DataFrame()
         self.cross_compared_df = pd.DataFrame()
@@ -80,6 +82,7 @@ class AdditionalDataProcess(object):
         # Get the total number of portfolios in each period (excluding overlay)
 
         #TODO wellicht dat dit het oplost?
+        #Andere Oplossing is om de personid als index te nemen
         this_period.sort_values('personid', inplace = True)
         prev_period.sort_values('personid', inplace = True)
         this_period.reset_index(drop = True, inplace =  True)
@@ -302,14 +305,22 @@ class AdditionalDataProcess(object):
 
 
 
-    """"
-    sdfsdf"""
-
     """
     Methods for data creation for general cross-section data and machine learning methods.
     To correctly run, just provide which transformation is warranted. It does not yet call upon the dataprocessor to 
     create the base data needed to use this algorithm however. 
     """
+    def test_values_static(self, first_date = "", last_date = ""):
+        """
+        Test different variables to explore splits of different variables or other possible
+        variable transformations.
+        This analysis  is done on the basis of the long cross data for these static variables.
+
+        Starts with a decision tree to decide where a variable could be split to reduce
+        """
+        self.transform_to_different_sets(transform_command = "cross_long_df", first_date = first_date, last_date = last_date)
+
+        pass
 
     def transform_to_different_sets( self, transform_command = "all", first_date = "", last_date = "" ):
         if first_date == "":
@@ -357,6 +368,9 @@ class AdditionalDataProcess(object):
             self.multiple_periods_imported = True
             print(f"Period set from {self.first_date} to {self.last_date} with frequency {self.current_freq}")
 
+        if self.automatic_folder_change:
+            self.replace_time_period(self.first_date,self.last_date, self.interdir)
+
     ###------LAST TRANSFORMATION TO DATA BEFORE MODELLING ----------###
     def prepare_before_transform( self, first_date = "", last_date = "" ):
         print(f"Starting preparing data at {utils.get_time()}")
@@ -379,40 +393,40 @@ class AdditionalDataProcess(object):
 
         # hoc = self.get_difference_data(self.input_crosFdudus_list[1], self.input_cross_list[0], log = False)
 
-        self.input_cross_df = pd.concat(self.input_cross_list, ignore_index = True)
+        self.input_cross = pd.concat(self.input_cross_list, ignore_index = True)
 
         # Make lowercase names
-        self.input_cross_df.rename(str.lower, axis = 'columns', inplace = True)
+        self.input_cross.rename(str.lower, axis = 'columns', inplace = True)
 
         # Drop unnecessary columns
         list_to_drop = ['valid_to_dateeow', 'valid_from_dateeow', 'valid_from_min', 'valid_to_max']
-        list_to_drop = utils.doListIntersect(list_to_drop, self.input_cross_df.columns)
-        self.input_cross_df.drop(list_to_drop, axis = 1, inplace = True)
-        self.input_cross_df[['business', 'joint', 'retail', 'accountoverlay']] = self.input_cross_df[['business', 'joint',
+        list_to_drop = utils.doListIntersect(list_to_drop, self.input_cross.columns)
+        self.input_cross.drop(list_to_drop, axis = 1, inplace = True)
+        self.input_cross[['business', 'joint', 'retail', 'accountoverlay']] = self.input_cross[['business', 'joint',
                                                                                                       'retail',
                                                                                                       'accountoverlay']].fillna(value = 0)
         rename_dict = {
             'retail_dummy'  : 'has_ret_prtf',
             'joint_dummy'   : 'has_jnt_prtf',
             'business_dummy': 'has_bus_prtf',
-            'business': 'bus_prtf_counts',
-            'joint' : 'jnt_prtf_counts',
-            'retail': 'ret_prtf_counts'
+            'business': 'business_prtf_counts',
+            'joint' : 'joint_prtf_counts',
+            'retail': 'retail_prtf_counts'
         }
 
-        rename_dict = utils.doDictIntersect(self.input_cross_df.columns, rename_dict)
-        self.input_cross_df.rename(rename_dict, axis = 1, inplace = True)
-        self.input_cross_df = self.input_cross_df.assign(
+        rename_dict = utils.doDictIntersect(self.input_cross.columns, rename_dict)
+        self.input_cross.rename(rename_dict, axis = 1, inplace = True)
+        self.input_cross = self.input_cross.assign(
             period_q2 = lambda x: np.where(x.period_obs.dt.quarter == 2, 1, 0),
             period_q3 = lambda x: np.where(x.period_obs.dt.quarter == 3, 1, 0),
             period_q4 = lambda x: np.where(x.period_obs.dt.quarter == 4, 1, 0),
             # has_bus_prtf = lambda x: np.where(x.aantalproducten_totaal_business > 0, 1, 0),
             # has_bus_jnt_prtf = lambda x: x.has_bus_prtf * x.has_jnt_prtf,
-            portfolio_totals = lambda x: x.bus_prtf_counts + x.jnt_prtf_counts + x.ret_prtf_counts,
+            portfolio_total_counts = lambda x: x.business_prtf_counts + x.joint_prtf_counts + x.retail_prtf_counts,
             has_bus_ret_prtf = lambda x: x.has_bus_prtf * x.has_ret_prtf,
             has_jnt_ret_prtf = lambda x: x.has_ret_prtf * x.has_jnt_prtf
         )
-        self.input_cross_df.sort_index(inplace = True, axis = 1)
+        self.input_cross.sort_index(inplace = True, axis = 1)
 
         print(f"Finished preparing data at {utils.get_time()}")
 
@@ -422,14 +436,14 @@ class AdditionalDataProcess(object):
         Selected variables are chosen to be take a mean over the year.
         Method to impute missing values to more correctly balance
         """
-        columns_to_use_list = utils.doListIntersect(self.input_cross_df.columns, declarationsFile.get_cross_section_agg('count_list'))
+        columns_to_use_list = utils.doListIntersect(self.input_cross.columns, declarationsFile.get_cross_section_agg('count_list'))
         columns_to_use_list = columns_to_use_list + \
-                              utils.doListIntersect(self.input_cross_df.columns, declarationsFile.get_cross_section_agg(
+                              utils.doListIntersect(self.input_cross.columns, declarationsFile.get_cross_section_agg(
                                   'balance_at_moment'))
         indicators_list = ['has_bus_prtf', 'has_jnt_prtf', 'has_ret_prtf']
         columns_to_use_list = ['personid', 'period_obs'] + indicators_list + columns_to_use_list
 
-        cross_df = self.input_cross_df[columns_to_use_list].copy()
+        cross_df = self.input_cross[columns_to_use_list].copy()
         time_conv_dict = {"Q": 4, "M": 12, "W": 52, "Y": 1}
         period_list = pd.period_range(end = date_for_slice, periods = time_conv_dict[self.current_freq], freq = self.current_freq)
         cross_df = cross_df[cross_df.period_obs.isin(period_list)]
@@ -543,9 +557,9 @@ class AdditionalDataProcess(object):
         gc.collect()
 
         cross_df = cross_df.groupby("personid").mean().reset_index()
-        remaining_vars = list(set(self.input_cross_df) - set(cross_df))
+        remaining_vars = list(set(self.input_cross) - set(cross_df))
         remaining_vars = ['personid'] + remaining_vars
-        partial_input_cross = self.input_cross_df.loc[self.input_cross_df.period_obs == period_list[-1], remaining_vars]
+        partial_input_cross = self.input_cross.loc[self.input_cross.period_obs == period_list[-1], remaining_vars]
         self.cross_df = pd.merge(cross_df, partial_input_cross, on = 'personid')
 
         print(f"Finished transforming data for cross section {utils.get_time()}")
@@ -561,12 +575,15 @@ class AdditionalDataProcess(object):
             'aantalproducten_totaal_joint',
             'aantalproducten_totaal_retail',
             'accountoverlay',
-            'h'
+            'portfolio_total_counts',
+            'business_prtf_counts',
+            'joint_prtf_counts',
+             'retail_prtf_counts',
         ]
 
         benchmark_period = pd.to_datetime(benchmark_period).to_period(self.current_freq)
 
-        benchmark_slice = self.input_cross_df.query(f"period_obs == @benchmark_period")
+        benchmark_slice = self.input_cross.query(f"period_obs == @benchmark_period")
         benchmark_slice = benchmark_slice[ ( ['personid'] + product_counts_list) ]
 
         self.cross_long_df = self.cross_df[(['personid'] + product_counts_list)].copy()
@@ -611,7 +628,7 @@ class AdditionalDataProcess(object):
             'portfolio_totaal'
         ]
 
-        delta_df = self.input_cross_df[templist].copy()
+        delta_df = self.input_cross[templist].copy()
         delta_df = delta_df.set_index(['period_obs', 'personid'])
         delta_df.sort_index(inplace = True)
 
@@ -627,7 +644,7 @@ class AdditionalDataProcess(object):
         templist = list(set(new_delta_frame.columns) - set(['period_obs', 'personid']))
         new_delta_frame[templist] = np.where(new_delta_frame[templist] > 1, 1, 0)
 
-        self.panel_df = pd.merge(self.input_cross_df, new_delta_frame, on = ['period_obs', 'personid'],
+        self.panel_df = pd.merge(self.input_cross, new_delta_frame, on = ['period_obs', 'personid'],
                                  suffixes = ["", "_delta"])
 
         print("number of positively changed variables is :\n", self.panel_df.iloc[:, -4:].sum(), f"\nFrom a total of" \
