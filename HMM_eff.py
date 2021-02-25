@@ -102,6 +102,7 @@ class HMM_eff:
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
 
+  
             
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
@@ -177,7 +178,7 @@ class HMM_eff:
 
 
             if self.iteration == 1:
-                print('hoi')
+                print('breakpoint')
                 
             if self.iteration == 20:
                 print('breakpoint')
@@ -354,7 +355,7 @@ class HMM_eff:
         P_y_given_s_0 = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments)#ixs
         mult = np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300)))
         logl += np.sum(mult)
-        print('hallo')
+        
         for t in range(1,self.T):
             Y = self.list_Y[t]
             if self.covariates == True:
