@@ -87,22 +87,32 @@ class HMM_eff:
         
         if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
        
-            gamma_0 =    np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            gamma_0 =   np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
             gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
             gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
             
             for s in range(n_segments):
                 for p in range(0,self.n_products):
-                    beta[s,p,0:self.n_categories[p]-1] =   np.ones((1,self.n_categories[p]-1))                    
+                    beta[s,p,0:self.n_categories[p]-1] = np.ones((1,self.n_categories[p]-1))                    
             
-          
+            param_out = np.array([1.07522994e-01,  2.27985041e-01,  2.22316992e-01, -6.47189523e+00, 1.94250701e+00,  2.10456805e+00, -7.49939134e+00,  2.21437966e+00,2.08468750e+00, -2.75599106e+02, -6.44510330e+02, -6.42908099e+01,
+                                  1.62581857e+02, -7.08055014e+02, -3.69790870e+02, -1.27247423e+02,
+                                  -4.95410950e+01, -7.19181934e+02, -3.68426426e+02, -1.26280498e+02,
+                                  -9.83832480e+01,  5.09792853e+02,  2.11733996e+02,  3.00420782e+02,
+                                  3.98647358e+02,  3.00794099e+02,  3.98354341e+02,  1.33385863e+01,
+                                  1.52115254e+00,  1.62676443e+01,  1.57599444e+01,  2.42071606e+00,
+                                  1.37236240e+01,  2.81547535e+01,  4.28670289e+01,  1.51533801e+01,
+                                  1.96672777e+00,  1.40270767e+01, -4.21406896e+00,  1.68091154e+01,
+                                  5.53932743e+00,  1.09413116e+00, -1.33816156e+01, -1.85563306e+00,
+                                  -1.69799971e+01, -1.49262412e+01, -1.83903809e+00])
+            
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
 
-    
+            
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
@@ -173,7 +183,7 @@ class HMM_eff:
             print(f"LogLikelihood value: {logl_out}")
             print(f"Difference LogLikelihood value: {logl_out - logl_in}")
 
-            #difference = abs(logl_out - logl_in) > tolerance
+            difference = abs(logl_out - logl_in) > tolerance
 
 
             if self.iteration == 1:
@@ -304,20 +314,20 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
 
-        minimize_options_NM = {'disp': True, 'adaptive': True }#'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
     
-        if self.iteration <= -1:
-            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                             method=max_method,options= minimize_options_NM)
+        if self.iteration <= 999:
+           # param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                    #              n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                      #     method=max_method,options= minimize_options_NM)
             param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
-                                 method=max_method,options= minimize_options_NM)
+                               method=max_method,options= minimize_options_NM)
         else:
             param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-             #                     n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-              #                   method='BFGS',options= minimize_options_BFGS)
+                                 n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                method='BFGS',options= minimize_options_BFGS)
             #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                #  method='BFGS',options= minimize_options_BFGS)
         return param_out.x

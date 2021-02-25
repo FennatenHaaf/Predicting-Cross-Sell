@@ -21,9 +21,9 @@ if __name__ == "__main__":
 # =============================================================================
 
     # Define where our input, output and intermediate data is stored
-    indirec = "./data"
-    outdirec = "./output"
-    interdir = "./interdata"
+    indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021//data"
+    outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021//output"
+    interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021//interdata"
     # indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/data"
     # outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
     # interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
@@ -50,10 +50,10 @@ if __name__ == "__main__":
 # =============================================================================
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
-    time_series = False # Do we want to run the code for getting time series data
+    time_series = True # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
-    run_hmm = True
+    run_hmm = False
     
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
