@@ -336,17 +336,16 @@ class AdditionalDataProcess(object):
 
         if transform_command in ['cross_long_df', 'all']:
             if use_standard_period:
-                first_date, last_date = "2017Q4","2019Q4"
+                first_date, last_date = "2018Q1","2019Q4"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_cross_data("2019Q4")
             self.add_longterm_change(benchmark_period = "2017Q4")
 
         if transform_command in ['panel_df', 'all']:
             if use_standard_period:
-                first_date, last_date = "2017Q3","2019Q4"
+                first_date, last_date = "2018Q1","2020Q"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_panel()
-
 
 
     def set_dates( self, first_date, last_date ):
@@ -420,6 +419,7 @@ class AdditionalDataProcess(object):
             period_q2 = lambda x: np.where(x.period_obs.dt.quarter == 2, 1, 0),
             period_q3 = lambda x: np.where(x.period_obs.dt.quarter == 3, 1, 0),
             period_q4 = lambda x: np.where(x.period_obs.dt.quarter == 4, 1, 0),
+            period_year = lambda x: x.period_obs.dt.year,
             # has_bus_prtf = lambda x: np.where(x.aantalproducten_totaal_business > 0, 1, 0),
             # has_bus_jnt_prtf = lambda x: x.has_bus_prtf * x.has_jnt_prtf,
             portfolio_total_counts = lambda x: x.business_prtf_counts + x.joint_prtf_counts + x.retail_prtf_counts,
@@ -494,7 +494,7 @@ class AdditionalDataProcess(object):
 
             incomplete_df_slice = incomplete_df[incomplete_df.personid.isin(persons)]
             incomplete_df_slice_persons = incomplete_df_slice.groupby(['personid'], as_index = False).apply(lambda x: x.loc[
-                x[indic] == 1, 'period_obs'].min())
+                x[indic] == 1, 'period_obs'].max())
             incomplete_df_slice_persons = incomplete_df_slice_persons.rename({None: "benchmark_period"}, axis = 1)
             incomplete_df_slice = pd.merge(incomplete_df, incomplete_df_slice_persons, on = 'personid')
 
@@ -701,18 +701,20 @@ class AdditionalDataProcess(object):
                     shutil.copy2(f"{subfolder_path}{item}", f"{folder_string}/{item}")
                     break
 
-    def replace_time_period(self, first_date, last_date, subfolder ):
+    def replace_time_period(self,first_date = "", last_date= "",subfolder = None ):
         "Replaces all the files for the final_df with another time period"
+        if subfolder != None:
+            subfolder = f"{subfolder}/"
         os.listdir(subfolder)
         remove_list = ('final_df', 'valid_id', 'portfoliolink', 'base_experian', 'base_linkinfo')
         for item in os.listdir(subfolder):
             for string_to_delete in remove_list:
                 if string_to_delete in item:
-                    os.remove(f"{subfolder}/{item}")
+                    os.remove(f"{subfolder}{item}")
                     break
 
         if not first_date == "":
-            new_folder = f"{subfolder}/{first_date}_{last_date}"
+            new_folder = f"{subfolder}{first_date}_{last_date}"
             for item in os.listdir(new_folder):
                 shutil.copy2(f"{new_folder}/{item}", f"{subfolder}")
 
