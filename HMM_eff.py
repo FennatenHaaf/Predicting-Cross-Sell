@@ -87,14 +87,14 @@ class HMM_eff:
         
         if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
        
-            gamma_0 =   np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
-            gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
-            gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
+            gamma_0 = 10* np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            gamma_sr_0 =  10*np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t = 10* np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
             beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
             
             for s in range(n_segments):
                 for p in range(0,self.n_products):
-                    beta[s,p,0:self.n_categories[p]-1] = np.ones((1,self.n_categories[p]-1))                    
+                    beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1))                    
          
             
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
@@ -102,7 +102,6 @@ class HMM_eff:
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
 
-  
             
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
@@ -310,11 +309,11 @@ class HMM_eff:
     
         if (max_method == "Nelder-Mead"):
             if self.iteration <= 999999:
-                param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                          n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                 #                        n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                  #                   method=max_method,options= minimize_options_NM)
+                param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                      method=max_method,options= minimize_options_NM)
-                    # param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
-                    #                      method=max_method,options= minimize_options_NM)
             else:
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                          n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
@@ -436,7 +435,7 @@ class HMM_eff:
                 mat = np.matmul(P_s_given_r, P_Y_given_S)
                 likelihood = np.matmul(likelihood, mat)
                     
-        logl_i = np.log(likelihood)
+        logl_i = np.log(likelihood + 10**(-300))
             
         logl = - np.sum(logl_i)
         
