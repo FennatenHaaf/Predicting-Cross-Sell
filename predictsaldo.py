@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 """
-Created on Wed Feb 17 16:57:40 2021
+Method to predict an increase in saldo for Knab Customers
 
-@author: Maudji
+Written for the Quantitative Marketing & Business Analytics seminar
+Erasmus School of Economics
 """
 
 import numpy as np 
@@ -13,17 +13,38 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from sklearn.model_selection import train_test_split 
 
+
+# =============================================================================
+# SELECT DATA
+# =============================================================================
+
+
 interdir = "./interdata"
-data = pd.read_csv(r'C:\Users\Maudji\Documents\GitHub\Predicting-Cross-Sell\interdata\saldopredict.csv')
+#data = pd.read_csv(r'C:\Users\Maudji\Documents\GitHub\Predicting-Cross-Sell\interdata\saldopredict.csv')
+data = pd.read_csv(f'{interdir}/saldopredict.csv')
 
-# set base dummies
+
+#data['geslacht_Man'] = data['geslacht_Man'] + data['geslacht_Mannen'] niet meer nodig, is al gefixt in de dataset
+
+
+# Select our dependent variable
 y = data['percdiff']
+X = data.drop(columns = ['percdiff'])
+
+              
+#Drop some of the variables that we do not use from x
+X = X.drop(columns = ['personid','portfolio_change','saldo_prev','business_change','retail_change','joint_change', 
+                      'retail_change_dummy', 'business_change_dummy','joint_change_dummy' ,
+                      'saldo_now','saldo_prev'])
+
+# Drop the base cases
+X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 'huidigewaarde_klasse_1.0', 
+                      'age_bins_(18, 30]', 'geslacht_Man','activitystatus_1.0' ])
+# Drop lfase as well
+X = X.drop(columns = [ 'lfase_2.0', 'lfase_3.0', 'lfase_4.0', 'lfase_5.0', 'lfase_6.0', 'lfase_7.0', 'lfase_8.0',])
 
 
-
-data['geslacht_Man'] = data['geslacht_Man'] + data['geslacht_Mannen']
-X = data.drop(columns = [ 'percdiff', 'portfolio_change','saldo_prev', 'business_change', 'retail_change','joint_change','retail_change_dummy',  'business_change_dummy', 'joint_change_dummy' ,'saldo_now', 'income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 'huidigewaarde_klasse_1.0', 'age_bins_(18, 30]', 'geslacht_Man', 'activitystatus_1.0', 'geslacht_Mannen' ])
-X = X.drop(columns = [ 'lfase_2.0', 'lfase_3.0', 'lfase_4.0', 'lfase_5.0'])
+# Create cross-effects dummies
 X['business_retail_joint'] = data['business_change_dummy']* data['retail_change_dummy']*data['joint_change_dummy']
 X['business_retail'] = data['business_change_dummy']* data['retail_change_dummy']*(1 - data['joint_change_dummy'])
 X['business'] = data['business_change_dummy']* (1 - data['retail_change_dummy'])*(1 - data['joint_change_dummy'])
@@ -32,6 +53,14 @@ X['joint'] = (1 - data['business_change_dummy'])* (1 - data['retail_change_dummy
 X['retail_joint'] = (1-data['business_change_dummy'])* (data['retail_change_dummy'])*(data['joint_change_dummy'])
 X['retail'] = (1-data['business_change_dummy'])* (data['retail_change_dummy'])*(1 -data['joint_change_dummy'])
 X['constant'] = [1]* X.shape[0]
+
+
+
+
+
+# =============================================================================
+# TRAIN MODEL
+# =============================================================================
 
 x_train, x_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0) 
 
