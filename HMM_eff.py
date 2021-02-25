@@ -95,17 +95,7 @@ class HMM_eff:
             for s in range(n_segments):
                 for p in range(0,self.n_products):
                     beta[s,p,0:self.n_categories[p]-1] = np.ones((1,self.n_categories[p]-1))                    
-            
-            param_out = np.array([1.07522994e-01,  2.27985041e-01,  2.22316992e-01, -6.47189523e+00, 1.94250701e+00,  2.10456805e+00, -7.49939134e+00,  2.21437966e+00,2.08468750e+00, -2.75599106e+02, -6.44510330e+02, -6.42908099e+01,
-                                  1.62581857e+02, -7.08055014e+02, -3.69790870e+02, -1.27247423e+02,
-                                  -4.95410950e+01, -7.19181934e+02, -3.68426426e+02, -1.26280498e+02,
-                                  -9.83832480e+01,  5.09792853e+02,  2.11733996e+02,  3.00420782e+02,
-                                  3.98647358e+02,  3.00794099e+02,  3.98354341e+02,  1.33385863e+01,
-                                  1.52115254e+00,  1.62676443e+01,  1.57599444e+01,  2.42071606e+00,
-                                  1.37236240e+01,  2.81547535e+01,  4.28670289e+01,  1.51533801e+01,
-                                  1.96672777e+00,  1.40270767e+01, -4.21406896e+00,  1.68091154e+01,
-                                  5.53932743e+00,  1.09413116e+00, -1.33816156e+01, -1.85563306e+00,
-                                  -1.69799971e+01, -1.49262412e+01, -1.83903809e+00])
+         
             
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
