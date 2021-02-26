@@ -136,7 +136,8 @@ class HMM_eff:
         print(f"tolerance: {tolerance}")
         print(f"number of parameters: {len(param_out)}")
         print(f"maximization method: {max_method}")
-        
+        print(f"random starting points: {random_starting_points}")
+
         alpha_out = np.zeros((n_segments, self.n_customers, self.T))
         beta_out = np.zeros((n_segments, self.n_customers, self.T))
         logl_out = 0
