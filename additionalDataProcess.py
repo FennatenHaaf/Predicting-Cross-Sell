@@ -8,10 +8,7 @@ Erasmus School of Economics
 import pandas as pd
 import numpy as np
 from datetime import date
-from datetime import datetime
 import utils
-import os
-import shutil
 import gc
 import declarationsFile
 
@@ -329,10 +326,10 @@ class AdditionalDataProcess(object):
 
         if transform_command in ['cross_long_df', 'all']:
             if use_standard_period:
-                first_date, last_date = "2018Q1","2019Q4"
+                first_date, last_date = "2018Q1","2020Q4"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_cross_data("2019Q4")
-            self.add_longterm_change(benchmark_period = "2017Q4")
+            self.add_longterm_change(benchmark_period = first_date)
 
         if transform_command in ['panel_df', 'all']:
             if use_standard_period:
@@ -397,9 +394,11 @@ class AdditionalDataProcess(object):
         list_to_drop = ['valid_to_dateeow', 'valid_from_dateeow', 'valid_from_min', 'valid_to_max']
         list_to_drop = utils.doListIntersect(list_to_drop, self.input_cross.columns)
         self.input_cross.drop(list_to_drop, axis = 1, inplace = True)
-        self.input_cross[['business', 'joint', 'retail', 'accountoverlay']] = self.input_cross[['business', 'joint',
-                                                                                                      'retail',
-                                                                                                      'accountoverlay']].fillna(value = 0)
+
+        fillna_columns = ['business', 'joint', 'retail', 'accountoverlay', 'accountoverlay_dummy', 'accountoverlay_max']
+        fillna_columns = utils.doListIntersect(fillna_columns,self.input_cross.columns)
+        self.input_cross[fillna_columns] = self.input_cross[fillna_columns].fillna(value = 0)
+
         rename_dict = {
             'retail_dummy'  : 'has_ret_prtf',
             'joint_dummy'   : 'has_jnt_prtf',
@@ -408,6 +407,7 @@ class AdditionalDataProcess(object):
             'joint' : 'joint_prtf_counts',
             'retail': 'retail_prtf_counts'
         }
+
 
         rename_dict = utils.doDictIntersect(self.input_cross.columns, rename_dict)
         self.input_cross.rename(rename_dict, axis = 1, inplace = True)
@@ -600,6 +600,7 @@ class AdditionalDataProcess(object):
         benchmark_slice = benchmark_slice.add_prefix('benchmark_')
 
         df_to_merge = pd.concat([indicator_df1,indicator_df2,benchmark_slice], axis = 1)
+        self.cross_long_df.sort_index(axis = 1,inplace = True)
         self.cross_long_df = pd.merge(self.cross_df, df_to_merge, left_on = 'personid', right_index =  True)
 
 

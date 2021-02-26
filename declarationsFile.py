@@ -800,3 +800,76 @@ def get_cross_section_agg( list_to_get ):
     else:
         print("Invalid value for list_to_get")
 
+def get_portfolio_segment_variables(list_to_return):
+    """
+    Returns either |business_prtf | joint_prtf | retail_prtf |
+    """
+    business_prtf = ['aantalfueltransacties_business',
+     'aantalpostransacties_business',
+     'aantaltegenrekeningenlaatsteq_business',
+     'aantalatmtransacties_business',
+     'aantalloginsapp_business',
+     'aantalbetaaltransacties_business',
+     'aantalloginsweb_business',
+     'saldototaal_business',
+     'saldototaal_fraction',
+     'saldototaal_agg',
+        'sbicode',
+     'sbiname_on_saldofraction',
+     'betalenyn_business',
+     'sbisectorname',
+     'businesstype_on_saldofraction',
+     'businessageinyears',
+     'activitystatus_business',
+     'kwartaalsparenyn_business',
+     'aantal_types',
+     'aantal_sbi',
+        'sbisector',
+     'sbisector_on_saldofraction',
+     'depositoyn_business',
+     'sbiname',
+     'sbisectorname_on_saldofraction',
+     'sbicode_on_saldofraction',
+     'flexibelsparenyn_business',
+     'aantal_sector',
+     'businesstype',
+     'businessageinyears_bins']
+
+    joint_prtf = [
+     'aantalloginsweb_joint',
+     'aantalbetaaltransacties_joint',
+     'aantalatmtransacties_joint',
+     'aantalfueltransacties_joint',
+     'aantalloginsapp_joint',
+     'aantalpostransacties_joint',
+     'aantaltegenrekeningenlaatsteq_joint',
+     'saldototaal_joint',
+     'geslacht_joint',
+     'kwartaalsparenyn_joint',
+     'flexibelsparenyn_joint',
+     'activitystatus_joint',
+     'depositoyn_joint',
+     'betalenyn_joint'
+    ]
+
+    retail__prtf = [
+     'aantalloginsapp_retail',
+     'aantaltegenrekeningenlaatsteq_retail',
+     'aantalfueltransacties_joint',
+     'aantalfueltransacties_retail',
+     'aantalatmtransacties_retail',
+     'aantalbetaaltransacties_retail',
+     'aantalpostransacties_retail',
+     'aantalloginsweb_retail',
+     'saldototaal_retail',
+     'kwartaalsparenyn_retail',
+     'flexibelsparenyn_retail',
+     'betalenyn_retail',
+     'activitystatus_retail',
+     'depositoyn_retail'
+    ]
+
+    other_vars = ['aantalfueltransacties_business']
+
+    return_dict = {'business_prtf':business_prtf, 'joint_prtf': joint_prtf, 'retail__prtf': retail__prtf, 'other_vars': other_vars}
+    return return_dict[list_to_return]

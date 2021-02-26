@@ -44,6 +44,22 @@ class MachineLearningModel(object):
         if self.cross_long_df == None:
             self.import_data_to_model(import_command = "cross_long_df")
 
+        self.cross_long_df.sort_index(axis = 1, inplace = True)
+
+        retail_cl_df = self.cross_long_df[self.cross_long_df.has_ret_prtf == 1].copy()
+        business_cl_df = self.cross_long_df[self.cross_long_df.has_bus_prtf == 1].copy()
+        joint_cl_df = self.cross_long_df[self.cross_long_df.has_jnt_prtf == 1].copy()
+
+        retail_cl_df.dropna(axis = 1, inplace = True)
+        business_cl_df.dropna(axis = 1, inplace = True)
+        joint_cl_df.dropna(axis = 1, inplace = True)
+        ##To quickly get variables which are of a certain sector
+        # retail_nas = retail_cl_df.isna().sum()
+        # retail_nas = retail_nas[retail_nas > 0].index
+        # business_nas = business_cl_df.isna().sum()
+        # business_nas = business_nas[business_nas > 0].index
+
+
         pass
 
     def test_dynamic_features(self):
