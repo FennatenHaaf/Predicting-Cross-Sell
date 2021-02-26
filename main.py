@@ -30,12 +30,12 @@ if __name__ == "__main__":
 
     
     save_intermediate_results = False # Save the intermediate outputs
-    save_intermediate_results = True # Save the intermediate outputs
+    # save_intermediate_results = True # Save the intermediate outputs
     print_information = False # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
     #start_date = "2020-01-01" # From which moment onwards do we want to use
-    start_date = "2019-01-01" # From which moment onwards do we want to use
+    start_date = "2018-01-01" # From which moment onwards do we want to use
 
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
@@ -64,12 +64,13 @@ if __name__ == "__main__":
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
-    time_series = True  # Do we want to run the code for getting time series data
+    # time_series = True  # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
-    transform = False # Transform & aggregate the data
+    # transform = False # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
     saldo_data = True  # Do we want to create the dataset for predicting saldo
     run_hmm = False
+    run_hmm = True
     
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
