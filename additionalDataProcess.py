@@ -25,9 +25,9 @@ class AdditionalDataProcess(object):
         self.interdir = interdir
         self.outdir = outdir
         self.seed = 978391
+        self.automatic_folder_change = False
 
         #Variable to change data folder based on selected first and last date
-        self.automatic_folder_change = automatic_folder_change
         ##Declare variables to provide checks for being empty
         self.input_cross = pd.DataFrame()
         self.input_cross = pd.DataFrame()
@@ -75,7 +75,7 @@ class AdditionalDataProcess(object):
 
 
     def get_difference_data(self,this_period,prev_period, log =True,
-                            select_variables=None, dummy_variables =None):
+                            select_variables=None, dummy_variables =None, select_no_decrease = True):
         """Get the datapoints for which there is a difference of 1 or more
         portfolios"""
         #TODO also add account overlay somehow so that we can also find the impact
@@ -144,13 +144,16 @@ class AdditionalDataProcess(object):
         # And no decrease per type of portfolio. We additionally only look at cases
         # where a person gets only 1 of a particular type of portfolio
         # WE ALSO INCLUDE PEOPLE WHO DON'T HAVE A CHANGE IN THE NUMBER OF PORTFOLIOS
-        select_portfoliogain =( (this_period['portfoliototaal']>=prev_period['portfoliototaal']) \
-                              & (this_period['business_change']>=0) \
-                              & (this_period['business_change']<=1) \
-                              & (this_period['retail_change']>=0) \
-                              & (this_period['retail_change']<=1) \
-                              & (this_period['joint_change']>=0) \
-                              & (this_period['joint_change']<=1))
+        if select_no_decrease:
+            select_portfoliogain =( (this_period['portfoliototaal']>=prev_period['portfoliototaal']) \
+                                  & (this_period['business_change']>=0) \
+                                  & (this_period['business_change']<=1) \
+                                  & (this_period['retail_change']>=0) \
+                                  & (this_period['retail_change']<=1) \
+                                  & (this_period['joint_change']>=0) \
+                                  & (this_period['joint_change']<=1))
+        else:
+            select_portfoliogain = np.full((this_period.shape[0],1), True)
 
         data = this_period.loc[select_portfoliogain, ["personid", "percdiff", 
                                                       "portfolio_change",
@@ -306,24 +309,11 @@ class AdditionalDataProcess(object):
         return dummiesdf, list(dummiesdf.columns.values)
 
 
-
-
     """
     Methods for data creation for general cross-section data and machine learning methods.
     To correctly run, just provide which transformation is warranted. It does not yet call upon the dataprocessor to 
     create the base data needed to use this algorithm however. 
     """
-    def test_values_static(self, first_date = "", last_date = ""):
-        """
-        Test different variables to explore splits of different variables or other possible
-        variable transformations.
-        This analysis  is done on the basis of the long cross data for these static variables.
-
-        Starts with a decision tree to decide where a variable could be split to reduce
-        """
-        self.transform_to_different_sets(transform_command = "cross_long_df", first_date = first_date, last_date = last_date)
-
-        pass
 
     def transform_to_different_sets( self, transform_command = "all", first_date = "", last_date = "" ):
         if first_date == "":
@@ -346,12 +336,12 @@ class AdditionalDataProcess(object):
 
         if transform_command in ['panel_df', 'all']:
             if use_standard_period:
-                first_date, last_date = "2018Q1","2020Q"
+                first_date, last_date = "2018Q1","2020Q4"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_panel()
 
 
-    def set_dates( self, first_date, last_date ):
+    def set_dates( self, first_date, last_date, override_folder_change = False ):
         "Method for safely changing dates in this class"
         data_freq = utils.infer_date_frequency(first_date)
         assert data_freq != None \
@@ -370,8 +360,8 @@ class AdditionalDataProcess(object):
             self.multiple_periods_imported = True
             print(f"Period set from {self.first_date} to {self.last_date} with frequency {self.current_freq}")
 
-        if self.automatic_folder_change:
-            self.replace_time_period(self.first_date,self.last_date, self.interdir)
+        if self.automatic_folder_change and not override_folder_change:
+            self.folder_operations("replace_time",self.first_date,self.last_date)
 
     ###------LAST TRANSFORMATION TO DATA BEFORE MODELLING ----------###
     def prepare_before_transform( self, first_date = "", last_date = "" ):
@@ -387,10 +377,13 @@ class AdditionalDataProcess(object):
         for i, df in enumerate(self.input_cross_list):
             new_df = self.aggregate_portfolio_types(df)
             new_df = self.transform_variables(new_df)
-            # if i > 0:
-            #     diffdata = self.get_difference_data(new_df, self.input_cross_list[i-1], log = False)
-            #     new_df = pd.concat([new_df, diffdata], axis = 1)
-            #     new_df.reset_index()
+            if i == 0:
+                prev_df = new_df
+            else:
+                diffdata = self.get_difference_data(new_df, prev_df, log = False, select_no_decrease =  False)
+                prev_df = new_df
+                new_df = pd.merge(new_df, diffdata, how = "left", on = 'personid')
+                new_df.reset_index()
             self.input_cross_list[i] = new_df
 
         # hoc = self.get_difference_data(self.input_crosFdudus_list[1], self.input_cross_list[0], log = False)
@@ -625,10 +618,10 @@ class AdditionalDataProcess(object):
             'aantalproducten_totaal_joint',
             'aantalproducten_totaal_retail',
             'accountoverlay',
-            'bus_prtf_counts',
-            'jnt_prtf_counts',
-            'ret_prtf_counts',
-            'portfolio_totaal'
+            'business_prtf_counts',
+            'joint_prtf_counts',
+            'retail_prtf_counts',
+            'portfolio_total_counts'
         ]
 
         delta_df = self.input_cross[templist].copy()
@@ -638,7 +631,7 @@ class AdditionalDataProcess(object):
         frame_list = []
         period_index = pd.period_range(start = self.first_date, end = self.last_date, freq = self.current_freq)
         for current_date_in_loop in period_index[1:]:
-            new_delta_frame = delta_df.loc[current_date_in_loop,] - delta_df.loc[current_date_in_loop - 1]
+            new_delta_frame = delta_df.loc[current_date_in_loop,:] - delta_df.loc[current_date_in_loop - 1,:]
             new_delta_frame = new_delta_frame.reset_index()
             new_delta_frame['period_obs'] = current_date_in_loop
             frame_list.append(new_delta_frame)
@@ -650,8 +643,9 @@ class AdditionalDataProcess(object):
         self.panel_df = pd.merge(self.input_cross, new_delta_frame, on = ['period_obs', 'personid'],
                                  suffixes = ["", "_delta"])
 
-        print("number of positively changed variables is :\n", self.panel_df.iloc[:, -4:].sum(), f"\nFrom a total of" \
+        print("number of positively changed variables is :\n", self.panel_df.iloc[:, -len(templist):].sum(), f"\nFrom a total of" \
                                                                                                          f" {self.panel_df.shape[0]} observations")
+        #TODO Onderzoek 035bafd486c3223b24e1e76008847b64fb6c3cdc,
         print(f"Finished aggregating data for change in products at {utils.get_time()}")
 
     def import_data( self, import_string: str, first_date: str, last_date = "", addition_to_file_name = "" ):
@@ -669,9 +663,6 @@ class AdditionalDataProcess(object):
             if import_string == 'input_cross':
                 self.input_cross = pd.read_csv(f"{self.interdir}/final_df_{first_date}{addition_to_file_name}.csv")
 
-    def export_data( self ):
-        pass
-
     def folder_operations(self, folder_command, first_date = None, last_date = None, keywords_list = None, **extra_args):
         if (first_date == None) and (folder_command in ['create_sub_and_import','replace_time']):
             first_date = self.first_date
@@ -680,6 +671,7 @@ class AdditionalDataProcess(object):
             if last_date == None:
                 last_date = first_date
 
+        ##Importing different sets of data
         if keywords_list == None:
             keywords_list = ['final_df', 'valid_id', 'portfoliolink', 'base_experian', 'base_linkinfo']
 
@@ -691,6 +683,8 @@ class AdditionalDataProcess(object):
                                              remove_list = keywords_list,**extra_args)
         elif folder_command == 'clean_folder':
             utils.replace_time_period_folder(subfolder = self.interdir,remove_list = keywords_list,**extra_args)
+        else:
+            print("Wrong Value: Choose either |'final_df', 'create_sub_and_import','clean_folder' |")
 
     def debug_in_class( self ):
         "Method to be able to perform operations as if debugging in class method"
