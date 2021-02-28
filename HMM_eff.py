@@ -79,7 +79,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, tolerance = 10**(-4), max_method = "BFGS", random_starting_points = False, seed = 978391):
+    def EM(self, n_segments, tolerance = 10**(-5), max_method = "BFGS", random_starting_points = False, seed = 978391):
         """function to run the EM algorithm
             n_segments: number of segments to use for the estimation of the HMM
             tolerance: convergence tolerance
@@ -112,7 +112,7 @@ class HMM_eff:
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
-
+            print(f"Starting values: {param}")
             
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
@@ -173,7 +173,9 @@ class HMM_eff:
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
 
-
+            #hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
+            #print(f"Hessian: {hes}")
+            
             if self.covariates:
                 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
                 print(f"Gamma_0: {gamma_0}")
@@ -187,7 +189,6 @@ class HMM_eff:
             print(f"Difference LogLikelihood value: {logl_out - logl_in}")
 
             #difference = abs(logl_out - logl_in) > tolerance
-
 
             if self.iteration == 1:
                 print('breakpoint')
@@ -317,16 +318,16 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
 
-        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
         if (max_method == "Nelder-Mead"):
             if self.iteration <= 9999:
-                #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                 #                        n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                  #                   method=max_method,options= minimize_options_NM)
-                param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+                param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                                         n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                      method=max_method,options= minimize_options_NM)
+                #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+                 #                    method=max_method,options= minimize_options_NM)
             else:
                 #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                  #                        n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
@@ -334,9 +335,11 @@ class HMM_eff:
                  param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                        method='BFGS',options= minimize_options_BFGS)
         else:
-            param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                         n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                                         method='BFGS',options= minimize_options_BFGS)
+            #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+              #                           n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                    #                     method='BFGS',options= minimize_options_BFGS)
+            param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+                                       method='BFGS',options= minimize_options_BFGS)
             
         return param_out.x
     
