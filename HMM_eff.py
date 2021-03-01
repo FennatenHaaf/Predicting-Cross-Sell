@@ -124,8 +124,6 @@ class HMM_eff:
             param_out = param #set name of parameterlist for the input of the algorithm
             print(f"Starting values: {param}")
             
-            
-
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
@@ -190,10 +188,10 @@ class HMM_eff:
             
             if self.covariates:
                 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
-                #print(f"Gamma_0: {gamma_0}")
-                #print(f"Gamma_sr_0: {gamma_sr_0}")
-                #print(f"Gamma_sk_t: {gamma_sk_t}")
-                #print(f"Beta: {beta}")
+                print(f"Gamma_0: {gamma_0}")
+                print(f"Gamma_sr_0: {gamma_sr_0}")
+                print(f"Gamma_sk_t: {gamma_sk_t}")
+                print(f"Beta: {beta}")
                 print(f"{param_out}")
 
             logl_out = self.loglikelihood(param_out, shapes, n_segments)
@@ -330,17 +328,17 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
 
-        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-4), 'fatol': 10**(-4), 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
 
         if (max_method == "Nelder-Mead"):
-            if self.iteration <= 100:
-                #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                 #                        n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                  #                  method=max_method,options= minimize_options_NM)
-                param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+            if self.iteration <= 9999:
+                param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                                         n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                      method=max_method,options= minimize_options_NM)
+                #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+                 #                    method=max_method,options= minimize_options_NM)
             else:
                 #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                  #                        n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
@@ -355,17 +353,16 @@ class HMM_eff:
                             (lb,ub))
 
                     #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                     #                n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                     #                 n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                       #                 method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
                     param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
-                                     method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
+                                      method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
         else:
            #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                  #        n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                               #           method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
             param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                       method='BFGS',options= minimize_options_BFGS)
-            print(f"Hessian: {param_out.hess_inv}")
             
         return param_out.x
     
@@ -377,7 +374,7 @@ class HMM_eff:
         p_js_max = ef.prob_p_js(self, x, shapes, n_segments)
 
         """compute function"""
-        logl = 0
+        logl = 0;
 
         Y = self.list_Y[0]
         if self.covariates == True:
@@ -396,7 +393,7 @@ class HMM_eff:
         P_y_given_s_0 = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments)#ixs
         mult = np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300)))
         logl += np.sum(mult)
-        
+
         for t in range(1,self.T):
             Y = self.list_Y[t]
             if self.covariates == True:
@@ -485,12 +482,6 @@ class HMM_eff:
 
             
         
-        
-        
-        
-        
-    
-    
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:

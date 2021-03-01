@@ -21,12 +21,12 @@ if __name__ == "__main__":
 # =============================================================================
 
     # Define where our input, output and intermediate data is stored
-    # indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021//data"
-    # outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021//output"
-    # interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021//interdata"
     indirec = "./data"
     outdirec = "./output"
     interdir = "./interdata"
+    # indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/data"
+    # outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
+    # interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
 
     
     save_intermediate_results = False # Save the intermediate outputs
@@ -43,8 +43,8 @@ if __name__ == "__main__":
     subsample = False # Do we want to take a subsample
     #subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
-    finergy_segment = None # The finergy segment that we want to be in the sample
-    # e.g.: "B04"
+    finergy_segment = "B04" # The finergy segment that we want to be in the sample
+    # e.g.: "B04" - otherwise make it None
     
     # How to save the final result
     if (finergy_segment != None):
@@ -63,15 +63,12 @@ if __name__ == "__main__":
 # =============================================================================
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
-    time_series = False # Do we want to run the code for getting time series data
-    # time_series = True  # Do we want to run the code for getting time series data
+    time_series = True # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
-    # transform = False # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
-    saldo_data = True  # Do we want to create the dataset for predicting saldo
     run_hmm = False
-    run_hmm = True
-    
+    run_cross_sell = False # do we want to run the model for cross sell or activity
+
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
 # =============================================================================
@@ -134,11 +131,15 @@ if __name__ == "__main__":
     activity_dummies = [
         "activitystatus"
         ]
-    
     activity_total = [
         "log_logins_totaal",
         "log_aantaltransacties_totaal",
         "aantalproducten_totaal"
+        ]
+    activity_total_dummies = [
+        "log_logins_totaal_bins",
+        "log_aantaltransacties_totaal_bins",
+        "aantalproducten_totaal_bins"
         ]
     
     # activity variables per portfolio
@@ -207,7 +208,7 @@ if __name__ == "__main__":
         dflist = processor.time_series_from_cross(outname = final_name)
         
     else:
-        name = "final_df" # adjust this name to specify which files to read
+        name = "final_df_n500" # adjust this name to specify which files to read
         if (path.exists(f"{interdir}/{name}_2018Q1.csv")):
             print("****Reading df list of time series data from file****")
             
@@ -250,6 +251,7 @@ if __name__ == "__main__":
                    print("noooooooooooo")
                dfold = dfnew
     
+    
     #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
     if (saldo_data & transform):
         print(f"****Create data for saldo prediction at {utils.get_time()}****")
@@ -281,10 +283,7 @@ if __name__ == "__main__":
         
         #---------------- SELECT VARIABLES ---------------
         print(f"****Defining variables to use at {utils.get_time()}****")
-        
-        # Define the dependent variable
-        name_dep_var_cross_sell = crosssell_types_max_nooverlay
-        
+    
         # MAKE ACTIVITY VARIABLES
         for i, df in enumerate(dflist):            
             df = dflist[i]
@@ -297,6 +296,19 @@ if __name__ == "__main__":
         activity_variables = activitynames #activity status 1.0 is de base case
         activity_variables.extend(activity_total)
         
+        # MAKE VERSION OF ACTIVITY VARIABLES WHICH ARE ALL DUMMIES
+        activity_dummies.extend(activity_total_dummies)
+        for i, df in enumerate(dflist):            
+            df = dflist[i]
+            # Do not drop any base case, since we will use this for input
+            # as dependent variable
+            dummies2, activitynames2 =  additdata.make_dummies(df,
+                                                 activity_dummies,
+                                                 drop_first = False)
+            df[activitynames2] = dummies2[activitynames2]
+        print("Dummy variables made:")
+        print(activitynames2)
+        activity_variables_categ = activitynames2 
 
         #MAKE PERSONAL VARIABLES
         # we don't use all experian variables yet
@@ -312,14 +324,26 @@ if __name__ == "__main__":
         base_cases = ['income_1.0','age_bins_(18, 30]','geslacht_Man']
         personal_variables = [e for e in dummynames if e not in base_cases]
         
-        # Say which covariates we are going to use
-        name_covariates = personal_variables
-        
-        # take a subset of the number of periods, just to test
-        df_periods  = dflist[:5] # only use 5 periods for now?
-        
-        #Define number of segments
-        n_segments = 5
+            
+        if (run_cross_sell): 
+            # Define the dependent variable
+            name_dep_var = crosssell_types_max_nooverlay
+            # Say which covariates we are going to use
+            name_covariates = personal_variables
+            # take a subset of the number of periods, just to test
+            df_periods  = dflist[:5] # only use 5 periods for now?
+            #Define number of segments
+            n_segments = 3
+            
+        else: # run the activity model!
+            # Define the dependent variable
+            name_dep_var = activitynames2
+            # Say which covariates we are going to use
+            name_covariates = personal_variables
+            # take a subset of the number of periods, just to test
+            df_periods  = dflist[:8] # only use first 2 years
+            #Define number of segments
+            n_segments = 3
         
         #---------------- RUN THE HMM MODEL ---------------
         
@@ -329,21 +353,21 @@ if __name__ == "__main__":
         print(f"number of periods: {len(df_periods)}")
         print(f"number of segments: {n_segments}")
         
-        # Note: the input datasets have to be sorted!
-        test_cross_sell = ht.HMM_eff(df_periods, name_dep_var_cross_sell, 
+        # Note: the input datasets have to be sorted / have equal ID columns!
+        test_cross_sell = ht.HMM_eff(df_periods, name_dep_var, 
                                      name_covariates, covariates = True,
                                      iterprint = True)
         
-        # Run the EM algorithm
-        param_cross, alpha_cross, shapes_cross = test_cross_sell.EM(n_segments, 
-                                                                    max_method = 'Nelder-Mead')
+        # Run the EM algorithm - max method can be Nelder-Mead or BFGS
+        param_cross, alpha_cross, shapes_cross, hes = test_cross_sell.EM(n_segments, 
+                                                                    max_method = 'Nelder-Mead') 
        
+        
         # Transform the output back to the specific parameter matrices
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, 
                                                                           n_segments, 
                                                                           param_cross, 
                                                                           shapes_cross)
-        
         # See what the results are in terms of probabilities, for the first period
         Y = test_cross_sell.list_Y[0]
         Z = test_cross_sell.list_Z[0]
@@ -351,6 +375,7 @@ if __name__ == "__main__":
         P_y_given_S = ef.prob_P_y_given_s(test_cross_sell, Y, p_js, n_segments)
         P_s_given_Z = ef.prob_P_s_given_Z(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
         P_s_given_r = ef.prob_P_s_given_r(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
+        # Also print the Hessian?
     
         endmodel = utils.get_time()
         diff = utils.get_time_diff(startmodel,endmodel)
