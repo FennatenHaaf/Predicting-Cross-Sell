@@ -242,8 +242,6 @@ class AdditionalDataProcess(object):
         return df
 
 
-
-
     def transform_variables(self,df, separate_types = False):
         """Transform variables so that they are all around the same scale"""
 
@@ -254,6 +252,8 @@ class AdditionalDataProcess(object):
                     df[f"log_{var}_{name}"] = self.getlogs(df[f"{var}_{name}"])
 
             df[f"log_{var}"] =  self.getlogs(df[f"{var}"])
+            # also make a version of this variable where they are divided into bins
+            df[f"log_{var}_bins"] = pd.cut(df[f"log_{var}"], bins=3, labels=False)
 
 
         # Put a MAX on the business, portfolio, joint variables (3 per type max)

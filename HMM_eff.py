@@ -168,7 +168,7 @@ class HMM_eff:
                 print(f"Gamma_sr_0: {gamma_sr_0}")
                 print(f"Gamma_sk_t: {gamma_sk_t}")
                 print(f"Beta: {beta}")
-                #print(f"{param_out}")
+                print(f"{param_out}")
 
             logl_out = self.loglikelihood(param_out, shapes, n_segments)
             print(f"LogLikelihood value: {logl_out}")
@@ -305,7 +305,7 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
 
-        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': True, 'xatol': 10**(-2), 'fatol': 10**(-2)}#, 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
         if (max_method == "Nelder-Mead"):
@@ -355,7 +355,7 @@ class HMM_eff:
         P_y_given_s_0 = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments)#ixs
         mult = np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300)))
         logl += np.sum(mult)
-        print('hallo')
+        #print('hallo')
         for t in range(1,self.T):
             Y = self.list_Y[t]
             if self.covariates == True:
@@ -444,12 +444,6 @@ class HMM_eff:
 
             
         
-        
-        
-        
-        
-    
-    
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:
