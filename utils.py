@@ -10,6 +10,7 @@ Erasmus School of Economics
 import numpy as np
 import pandas as pd
 import os
+import shutil
 from datetime import datetime
 from datetime import timedelta 
 from csv import writer
@@ -143,6 +144,57 @@ def importAndConcat(listOfDataLocations, chunkSize=0, **readArgs):
             imported = pd.read_csv(dataLocation, **readArgs)
         importList.append(imported)
     return pd.concat(importList, ignore_index=True)
+
+def create_subfolder_and_import_files(first_date, last_date, subfolder = "", folder_name_addition = "", find_list = [] ):
+    """
+    Creates a subfolder for a certain time period that has been processed.
+    -Need to fill in a first_date, last_date.
+    -Also possible to go to a subfolder or add an additional stirng to the folder name
+    First checks if the folder exists to backup previously saved files.
+    """
+    if not subfolder == "":
+        subfolder_path = f"{subfolder}/"
+    else:
+        subfolder_path = ""
+
+    folder_string = f"{subfolder_path}{first_date}_{last_date}{folder_name_addition}"
+    if os.path.exists(folder_string):
+        print('Folder already exists, proceeding to backup old folder')
+        time_string = datetime.now().strftime("M%mD%d_%H%M")
+        try:
+            os.mkdir("z_old")
+        except:
+            pass
+        new_folder_string = f"{subfolder_path}/z_old/{first_date}_{last_date}{folder_name_addition}_{time_string}"
+        os.mkdir(new_folder_string)
+        for item in os.listdir(folder_string):
+            shutil.copy2(f"{folder_string}/{item}", new_folder_string)
+        shutil.rmtree(folder_string)
+
+    os.mkdir(folder_string)
+    print("New folder created")
+    for item in os.listdir(subfolder_path):
+        for string_to_find in find_list:
+            if string_to_find in item:
+                shutil.copy2(f"{subfolder_path}{item}", f"{folder_string}/{item}")
+                break
+    print("Files have been copied to new Folder")
+
+def replace_time_period_folder(first_date = "", last_date= "", subfolder = None, remove_list = [] ):
+    "Replaces all the files for the final_df with another time period"
+    if subfolder != None:
+        subfolder = f"{subfolder}/"
+    os.listdir(subfolder)
+    for item in os.listdir(subfolder):
+        for string_to_delete in remove_list:
+            if string_to_delete in item:
+                os.remove(f"{subfolder}{item}")
+                break
+
+    if not first_date == "":
+        new_folder = f"{subfolder}{first_date}_{last_date}"
+        for item in os.listdir(new_folder):
+            shutil.copy2(f"{new_folder}/{item}", f"{subfolder}")
 
 
 """

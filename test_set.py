@@ -81,11 +81,11 @@ for i in range(0,3):
     df = pd.read_excel (r'C:/Users/matth/OneDrive/Documenten/seminar 2021/Code/df_per_time constant.xlsx', sheet_name=f"Blad{i+1}")
     df_per_time.append(df)
 
-name_dep_var_cross_sell = ['p1','p2','p3']
+name_dep_var_cross_sell = ['p1','p2']
 name_covariates = ['var1','var2']
 name_dep_var_active = ['ac1', 'ac2', 'ac3']
 
-n_segments = 4
+n_segments = 3
 #Bool: If true: run Model as paas , if False: run a more general HMM
 
 #test = ht.HMM_eff(df_per_time, name_dep_var, name_covariates, covariates)
@@ -105,7 +105,7 @@ n_segments = 4
 test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates, covariates = True)
 # test_cross_sell.data_frame_collection = data_frame_collection
 
-param_cross, alpha_cross, shapes_cross, hes = test_cross_sell.EM(n_segments, max_method = 'Nelder-Mead')
+param_cross, alpha_cross, shapes_cross, hes = test_cross_sell.EM(n_segments, random_starting_points = True, bounded  = (-50,50), seed = 978391)
 
 Y = test_cross_sell.list_Y[1]
 Z = test_cross_sell.list_Z[1]

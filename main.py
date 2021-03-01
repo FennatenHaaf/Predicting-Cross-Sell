@@ -27,8 +27,10 @@ if __name__ == "__main__":
     # indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/data"
     # outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
     # interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
+
     
     save_intermediate_results = False # Save the intermediate outputs
+    # save_intermediate_results = True # Save the intermediate outputs
     print_information = False # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
@@ -37,7 +39,7 @@ if __name__ == "__main__":
 
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    #end_date = "2020-12-27" # Until which moment do we want to use the information
+    end_date = "2019-12-31" # Until which moment do we want to use the information
     subsample = False # Do we want to take a subsample
     #subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
@@ -66,6 +68,7 @@ if __name__ == "__main__":
     saldo_data = False # Do we want to create the dataset for predicting saldo
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
+
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
 # =============================================================================
