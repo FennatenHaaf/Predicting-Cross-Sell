@@ -93,7 +93,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, tolerance = 10**(-6), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
+    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-6), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
         """
 
         Parameters
@@ -218,7 +218,7 @@ class HMM_eff:
 
 
             #perform maximisation step 
-            param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference, bounded)
+            param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, reg_term, max_method, difference, bounded)
             end = utils.get_time()#set end time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
@@ -259,12 +259,8 @@ class HMM_eff:
         
         param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference, bounded, end = True)
 
-        
-        if self.covariates == True:
-            return param_out, alpha_out, shapes, hes, hess_inv
-        else:
-            return param_out, alpha_out, beta_out, shapes, hes, hess_inv
-        
+        return param_out, alpha_out, beta_out, shapes, hes, hess_inv
+     
         
     #------------Function for the expectation step------------
         
@@ -336,7 +332,7 @@ class HMM_eff:
                 
         return alpha_return, beta_return
       
-    def maximization_step(self, alpha, beta, param_in, shapes, n_segments, max_method, difference, bounded, end = False):
+    def maximization_step(self, alpha, beta, param_in, shapes, n_segments, reg_term, max_method, difference, bounded, end = False):
         """
 
         Parameters
@@ -399,7 +395,7 @@ class HMM_eff:
         if (max_method == 'Nelder-Mead') & (end == False): #if Nelder-Mead is used and it is not the last maximisation step
             if self.iteration <= 150: #the first X iterations Nelder-Mead is used, thereafter BFGS
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                         n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                         n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                      method=max_method,options= minimize_options_NM)
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                  #                    method=max_method,options= minimize_options_NM)
@@ -407,7 +403,7 @@ class HMM_eff:
 
             else:
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                         n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                         n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                          method='BFGS',options= minimize_options_BFGS)
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                 #                      method='BFGS',options= minimize_options_BFGS)
@@ -416,7 +412,7 @@ class HMM_eff:
         elif (max_method == 'BFGS') & (end == False): #if BFGS is used and it is not the last maximisation step
             if bounded == None: #if parameters are not bounded, use BFGS, otherwise use L-BFGS-B
                 #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                 #                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                 #                  n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                  #                  method='BFGS',options= minimize_options_BFGS)
                 param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                      method='BFGS',options= minimize_options_BFGS)
@@ -428,7 +424,7 @@ class HMM_eff:
                             (lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),
                             (lb,ub))
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                      n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                      n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                       method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                 #                      method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
@@ -439,7 +435,7 @@ class HMM_eff:
             return param_out.x, param_out.hess_inv
         
     
-    def optimization_function(self, x, alpha, beta, shapes, n_segments, 
+    def optimization_function(self, x, alpha, beta, shapes, n_segments, reg_term 
                               P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js, P_s_given_Y_Z_ut):
         """
         Parameters
@@ -521,7 +517,7 @@ class HMM_eff:
             logl += np.sum(mult)
         
         
-        logl = -logl + np.sum(abs(x))*0.1
+        logl = -logl + np.sum(abs(x)) * reg_term
         self.maximization_iters += 1
         if self.iterprint:
             if (self.maximization_iters % 1000 == 0):  # print alleen elke 1000 iterations
