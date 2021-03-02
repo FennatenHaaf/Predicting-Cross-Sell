@@ -135,7 +135,7 @@ class HMM_eff:
                 
                 for s in range(n_segments):
                     for p in range(0,self.n_products):
-                        beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1))                    
+                        beta[s,p,0:self.n_categories[p]-1] = np.ones((1,self.n_categories[p]-1))                    
             
             else: 
                 if seed == None:
