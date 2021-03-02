@@ -105,7 +105,7 @@ n_segments = 3
 test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariates, covariates = True)
 # test_cross_sell.data_frame_collection = data_frame_collection
 
-param_cross, alpha_cross, shapes_cross, hes = test_cross_sell.EM(n_segments, random_starting_points = True)#, max_method = 'Nelder-Mead') #, seed = 978391)
+param_cross, alpha_cross, shapes_cross, hes, hess_inv = test_cross_sell.EM(n_segments, random_starting_points = True)#, max_method = 'Nelder-Mead') #, seed = 978391)
 
 Y = test_cross_sell.list_Y[1]
 Z = test_cross_sell.list_Z[1]
