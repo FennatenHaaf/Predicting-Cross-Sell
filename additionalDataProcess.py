@@ -281,8 +281,8 @@ class AdditionalDataProcess(object):
         df["age"] = today.year - df["birthyear"]
         # Create bins out of the ages
         bins = pd.IntervalIndex.from_tuples([ (0, 18), (18, 30),
-                                             (30, 45), (45, 60),
-                                             (60, 75), (75, 200)])
+                                             (30, 40), (40, 50),
+                                             (50, 65), (65, 200)])
         df["age_bins"] = pd.cut(df["age"], bins, labels=False)
 
         # also make bins out of the business age! mostly range between 0 and 30

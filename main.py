@@ -299,7 +299,9 @@ if __name__ == "__main__":
                                "joint_max",
                                "accountoverlay_max",
                                "activitystatus",
-                               "saldototaal_bins"]   
+                               "saldototaal_bins",
+                               "log_logins_totaal_bins",
+                               "log_aantaltransacties_totaal_bins",]   
         for var in visualize_variables:
             print(f"visualising {var}")
             DI.plotCategorical(df, var)
@@ -312,7 +314,7 @@ if __name__ == "__main__":
 # =============================================================================
     
     if (transform):
-         # MAKE ACTIVITY VARIABLES
+         #----------------MAKE ACTIVITY VARIABLES -----------------------
         for i, df in enumerate(dflist):            
             df = dflist[i]
             dummies, activitynames =  additdata.make_dummies(df,
@@ -324,7 +326,7 @@ if __name__ == "__main__":
         activity_variables = activitynames #activity status 1.0 is de base case
         activity_variables.extend(activity_total)
         
-        #MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER)
+        #-------MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER)-------------
         # we don't use all experian variables yet
         dummies_personal = ["income","age_bins","geslacht"] 
         for i, df in enumerate(dflist):   
@@ -340,6 +342,24 @@ if __name__ == "__main__":
         # Note: we should drop man(nen) en vrouw(en) as well!! Which means we treat these
         # occurrences as men
         personal_variables = [e for e in dummynames if e not in base_cases]
+        
+        
+        #---------MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER) - FIXED-------
+        # we don't use all experian variables yet
+        dummies_personal = ["income","age_bins","geslacht"] 
+        for i, df in enumerate(dflist):   
+            dummies, dummynames =  additdata.make_dummies(df,
+                                                 dummies_personal,
+                                                 drop_first = False)
+            df[dummynames] = dummies[dummynames]
+        print("Dummy variables made:")
+        print(dummynames)
+        # get the dummy names without base cases        
+        base_cases = ['income_1.0','age_bins_(18, 30]','geslacht_Man'
+                      ,'geslacht_Man(nen) en vrouw(en)','age_bins_(0, 18]']
+        # Note: we should drop man(nen) en vrouw(en) as well!! Which means we treat these
+        # occurrences as men
+        personal_variables2 = [e for e in dummynames if e not in base_cases]
 
 
     if (run_hmm & transform):
@@ -363,7 +383,7 @@ if __name__ == "__main__":
             activity_dummies.extend(activity_total_dummies)
             name_dep_var = activity_dummies
             # Say which covariates we are going to use
-            name_covariates = personal_variables
+            name_covariates = personal_variables2
             # take a subset of the number of periods, just to test
             df_periods  = dflist[:8] # only use first 2 years
             #Define number of segments
