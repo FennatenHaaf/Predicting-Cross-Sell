@@ -180,9 +180,9 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
     else:  
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
         A = np.vstack((A, np.zeros((1, n_segments))))
-        
-        A = A[np.newaxis, :, :]
         P_s_given_r = np.exp(A - logsumexp(A))
+        P_s_given_r = P_s_given_r[np.newaxis, :, :]
+
     return P_s_given_r
         
     def gamma_sr_0_to_trans(self, param, shapes, n_segments):
