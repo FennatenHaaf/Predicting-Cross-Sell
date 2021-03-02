@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     save_intermediate_results = False # Save the intermediate outputs
     # save_intermediate_results = True # Save the intermediate outputs
-    print_information = True # Print things like frequency tables or not
+    print_information = False # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
     #start_date = "2020-01-01" # From which moment onwards do we want to use
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    end_date = "2019-12-31" # Until which moment do we want to use the information
+    end_date = "2020-12-31" # Until which moment do we want to use the information
     subsample = False # Do we want to take a subsample
     #subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
@@ -70,8 +70,8 @@ if __name__ == "__main__":
     saldo_data = False # Do we want to create the dataset for predicting saldo
     visualize_data = True # make some graphs and figures
     
-    run_hmm = False
-    run_cross_sell = True # do we want to run the model for cross sell or activity
+    run_hmm = True
+    run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
 
 # =============================================================================
@@ -299,7 +299,9 @@ if __name__ == "__main__":
                                "joint_max",
                                "accountoverlay_max",
                                "activitystatus",
-                               "saldototaal_bins"]   
+                               "saldototaal_bins",
+                               "log_logins_totaal_bins",
+                               "log_aantaltransacties_totaal_bins",]   
         for var in visualize_variables:
             print(f"visualising {var}")
             DI.plotCategorical(df, var)
@@ -312,7 +314,7 @@ if __name__ == "__main__":
 # =============================================================================
     
     if (transform):
-         # MAKE ACTIVITY VARIABLES
+         #----------------MAKE ACTIVITY VARIABLES -----------------------
         for i, df in enumerate(dflist):            
             df = dflist[i]
             dummies, activitynames =  additdata.make_dummies(df,
@@ -324,7 +326,7 @@ if __name__ == "__main__":
         activity_variables = activitynames #activity status 1.0 is de base case
         activity_variables.extend(activity_total)
         
-        #MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER)
+        #-------MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER)-------------
         # we don't use all experian variables yet
         dummies_personal = ["income","age_bins","geslacht"] 
         for i, df in enumerate(dflist):   
@@ -340,6 +342,24 @@ if __name__ == "__main__":
         # Note: we should drop man(nen) en vrouw(en) as well!! Which means we treat these
         # occurrences as men
         personal_variables = [e for e in dummynames if e not in base_cases]
+        
+        
+        #---------MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER) - FIXED-------
+        # we don't use all experian variables yet
+        dummies_personal = ["income","age_bins","geslacht"] 
+        for i, df in enumerate(dflist):   
+            dummies, dummynames =  additdata.make_dummies(df,
+                                                 dummies_personal,
+                                                 drop_first = False)
+            df[dummynames] = dummies[dummynames]
+        print("Dummy variables made:")
+        print(dummynames)
+        # get the dummy names without base cases        
+        base_cases = ['income_1.0','age_bins_(18, 30]','geslacht_Man'
+                      ,'geslacht_Man(nen) en vrouw(en)','age_bins_(0, 18]']
+        # Note: we should drop man(nen) en vrouw(en) as well!! Which means we treat these
+        # occurrences as men
+        personal_variables2 = [e for e in dummynames if e not in base_cases]
 
 
     if (run_hmm & transform):
@@ -363,7 +383,7 @@ if __name__ == "__main__":
             activity_dummies.extend(activity_total_dummies)
             name_dep_var = activity_dummies
             # Say which covariates we are going to use
-            name_covariates = personal_variables
+            name_covariates = personal_variables2
             # take a subset of the number of periods, just to test
             df_periods  = dflist[:8] # only use first 2 years
             #Define number of segments
