@@ -244,6 +244,20 @@ def doListIntersect(list_to_check, full_list : list, exclusion_list = []):
     result = ( set(list_to_check) & set(full_list) ) - set(exclusion_list)
     return list(result)
 
+def do_find_and_select_from_list(list_to_search,search_string_list, exclusion_string_list = []):
+    variable_list = []
+    for variable in list_to_search:
+        for search_string in search_string_list:
+            if search_string in variable:
+                append_if_found = True
+                for excluded_string in exclusion_string_list:
+                    if excluded_string in variable:
+                        append_if_found = False
+                        break
+                if append_if_found:
+                    variable_list.append(variable)
+    return variable_list
+
 def check_and_drop_columns(data: pd.DataFrame, columns_to_drop):
     drop_list = doListIntersect(data.columns, columns_to_drop)
     data.drop(drop_list, inplace = True)

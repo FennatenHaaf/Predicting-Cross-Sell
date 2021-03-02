@@ -328,7 +328,7 @@ class AdditionalDataProcess(object):
             if use_standard_period:
                 first_date, last_date = "2018Q1","2020Q4"
             self.prepare_before_transform(first_date, last_date)
-            self.transform_for_cross_data("2019Q4")
+            self.transform_for_cross_data(last_date)
             self.add_longterm_change(benchmark_period = first_date)
 
         if transform_command in ['panel_df', 'all']:
@@ -368,60 +368,74 @@ class AdditionalDataProcess(object):
         else:
             self.set_dates(first_date, last_date)
 
-        # Sort the index and make a deepcopy of the original data
+        #Import the different files related to the data to be prepared for transformation
         self.import_data('input_cross', first_date = self.first_date, last_date = self.last_date)
 
+        #Transform the different dataframes that have been imported
         for i, df in enumerate(self.input_cross_list):
             new_df = self.aggregate_portfolio_types(df)
-            new_df = self.transform_variables(new_df)
-            if i == 0:
-                prev_df = new_df
-            else:
-                diffdata = self.get_difference_data(new_df, prev_df, log = False, select_no_decrease =  False)
-                prev_df = new_df
-                new_df = pd.merge(new_df, diffdata, how = "left", on = 'personid')
-                new_df.reset_index()
+            # new_df = self.transform_variables(new_df)
+            # if i == 0:
+            #     prev_df = new_df
+            # else:
+            #     diffdata = self.get_difference_data(new_df, prev_df, log = False, select_no_decrease =  False)
+            #     if i == 1:
+            #         filter_diffdata = ['personid'] + list(set(diffdata.columns) - set(new_df.columns))
+            #
+            #     prev_df = new_df
+            #     new_df = pd.merge(new_df, diffdata[filter_diffdata], how = "left", on = 'personid')
+            #     new_df.reset_index()
             self.input_cross_list[i] = new_df
 
-        # hoc = self.get_difference_data(self.input_crosFdudus_list[1], self.input_cross_list[0], log = False)
+
 
         self.input_cross = pd.concat(self.input_cross_list, ignore_index = True)
 
         # Make lowercase names
         self.input_cross.rename(str.lower, axis = 'columns', inplace = True)
 
-        # Drop unnecessary columns
-        list_to_drop = ['valid_to_dateeow', 'valid_from_dateeow', 'valid_from_min', 'valid_to_max']
-        list_to_drop = utils.doListIntersect(list_to_drop, self.input_cross.columns)
-        self.input_cross.drop(list_to_drop, axis = 1, inplace = True)
-
+        #Fill NA values with zeros to correctly set observations with not one of these options
         fillna_columns = ['business', 'joint', 'retail', 'accountoverlay', 'accountoverlay_dummy', 'accountoverlay_max']
         fillna_columns = utils.doListIntersect(fillna_columns,self.input_cross.columns)
         self.input_cross[fillna_columns] = self.input_cross[fillna_columns].fillna(value = 0)
 
         rename_dict = {
-            'retail_dummy'  : 'has_ret_prtf',
-            'joint_dummy'   : 'has_jnt_prtf',
-            'business_dummy': 'has_bus_prtf',
+            # 'retail_dummy'  : 'has_ret_prtf',
+            # 'joint_dummy'   : 'has_jnt_prtf',
+            # 'business_dummy': 'has_bus_prtf',
+            # 'accountoverlay_dummy' : 'has_accountoverlay',
             'business': 'business_prtf_counts',
             'joint' : 'joint_prtf_counts',
-            'retail': 'retail_prtf_counts'
+            'retail': 'retail_prtf_counts',
+            'accountoverlay': 'aantalproducten_accountoverlay',
+            # 'accountoverlay_dummy': 'has_accountoverlay',
+            # 'portfoliototaal': 'portfolio_total_counts'
         }
-
-
         rename_dict = utils.doDictIntersect(self.input_cross.columns, rename_dict)
         self.input_cross.rename(rename_dict, axis = 1, inplace = True)
+
+        today = date.today()
         self.input_cross = self.input_cross.assign(
             period_q2 = lambda x: np.where(x.period_obs.dt.quarter == 2, 1, 0),
             period_q3 = lambda x: np.where(x.period_obs.dt.quarter == 3, 1, 0),
             period_q4 = lambda x: np.where(x.period_obs.dt.quarter == 4, 1, 0),
             period_year = lambda x: x.period_obs.dt.year,
-            # has_bus_prtf = lambda x: np.where(x.aantalproducten_totaal_business > 0, 1, 0),
-            # has_bus_jnt_prtf = lambda x: x.has_bus_prtf * x.has_jnt_prtf,
+            has_ret_prtf = lambda x: np.where(x.retail_prtf_counts > 0,1,0),
+            has_jnt_prtf = lambda x: np.where(x.joint_prtf_counts > 0,1,0),
+            has_bus_prtf = lambda x: np.where(x.business_prtf_counts > 0,1,0),
+            has_accountoverlay =  lambda x: np.where(x.aantalproducten_accountoverlay > 0,1,0),
             portfolio_total_counts = lambda x: x.business_prtf_counts + x.joint_prtf_counts + x.retail_prtf_counts,
-            has_bus_ret_prtf = lambda x: x.has_bus_prtf * x.has_ret_prtf,
-            has_jnt_ret_prtf = lambda x: x.has_ret_prtf * x.has_jnt_prtf
+            current_age = lambda x:today.year - x.birthyear
         )
+
+        self.input_cross.loc[(self.input_cross["geslacht"]=="Mannen"), "geslacht"]="Man"
+        self.input_cross.loc[(self.input_cross["geslacht"]=="Vrouwen"), "geslacht"]="Vrouw"
+
+        # Drop unnecessary columns
+        list_to_drop = ['valid_to_dateeow', 'valid_from_dateeow', 'valid_from_min', 'valid_to_max', 'saldototaal_agg']
+        list_to_drop = utils.doListIntersect(list_to_drop, self.input_cross.columns)
+        self.input_cross.drop(list_to_drop, axis = 1, inplace = True)
+
         self.input_cross.sort_index(inplace = True, axis = 1)
 
         print(f"Finished preparing data at {utils.get_time()}")
@@ -432,12 +446,20 @@ class AdditionalDataProcess(object):
         Selected variables are chosen to be take a mean over the year.
         Method to impute missing values to more correctly balance
         """
-        columns_to_use_list = utils.doListIntersect(self.input_cross.columns, declarationsFile.get_cross_section_agg('count_list'))
+
+        search_list_counts = ['aantalatmtrans','aantalbetaaltrans','aantalfueltrans','aantallogins','aantalposttrans',
+                              'aantaltegenrek','aantaltrans', 'logins_']
+        exclusion_list_counts = ['bins']
+        search_list_balance = ['saldototaal']
+        exclusion_list_balance = []
+
+        columns_to_use_list = utils.do_find_and_select_from_list(self.input_cross.columns, search_list_counts,
+                                                             exclusion_list_counts)
         columns_to_use_list = columns_to_use_list + \
-                              utils.doListIntersect(self.input_cross.columns, declarationsFile.get_cross_section_agg(
-                                  'balance_at_moment'))
+                              utils.do_find_and_select_from_list(self.input_cross.columns,search_list_balance,exclusion_list_balance)
         indicators_list = ['has_bus_prtf', 'has_jnt_prtf', 'has_ret_prtf']
         columns_to_use_list = ['personid', 'period_obs'] + indicators_list + columns_to_use_list
+
 
         cross_df = self.input_cross[columns_to_use_list].copy()
         time_conv_dict = {"Q": 4, "M": 12, "W": 52, "Y": 1}
@@ -466,19 +488,12 @@ class AdditionalDataProcess(object):
         indexed_df = indexed_df.transpose()
         cross_df.reset_index(inplace = True)
 
-        def column_loop( data: pd.DataFrame(), value_to_find: str ):
-            column_list = []
-            for item in data.columns:
-                if value_to_find in item:
-                    column_list.append(item)
-            return column_list
-
         ##LARGE OPERATION TO MATCH ALL COLUMNS WHICH ARE DEPENDENT ON THE SECTOR
-        business_columns = column_loop(cross_df, "business")
-        retail_columns = column_loop(cross_df, "retail")
-        joint_columns = column_loop(cross_df, "joint")
+        # business_columns = column_loop(cross_df, "business")
+        business_columns = utils.do_find_and_select_from_list(cross_df.columns,['business'])
+        retail_columns = utils.do_find_and_select_from_list(cross_df.columns,['retail'])
+        joint_columns = utils.do_find_and_select_from_list(cross_df.columns,['joint'])
         standard_cols = ['personid', 'period_obs']
-        other_cols = set(incomplete_df.columns) - set(business_columns) - set(joint_columns) - set(standard_cols)
         incomplete_final = incomplete_df[standard_cols]
 
         """-INTERPOLATE THE MISSING VALUES BASED ON THE GENERAL INDEX DERIVED ABOVE AND THE FIRST AVAILABLE QUANTITY 
@@ -490,7 +505,7 @@ class AdditionalDataProcess(object):
 
             incomplete_df_slice = incomplete_df[incomplete_df.personid.isin(persons)]
             incomplete_df_slice_persons = incomplete_df_slice.groupby(['personid'], as_index = False).apply(lambda x: x.loc[
-                x[indic] == 1, 'period_obs'].max())
+                x[indic] == 1, 'period_obs'].min())
             incomplete_df_slice_persons = incomplete_df_slice_persons.rename({None: "benchmark_period"}, axis = 1)
             incomplete_df_slice = pd.merge(incomplete_df, incomplete_df_slice_persons, on = 'personid')
 
@@ -538,9 +553,11 @@ class AdditionalDataProcess(object):
         remaining_vars = list(set(incomplete_df.columns) - set(incomplete_final.columns))
         remaining_vars = standard_cols + remaining_vars
 
+
         print(f"The final dataset has dim :{incomplete_final.shape} and the one before transforming has {incomplete_df.shape}")
         incomplete_final = pd.merge(incomplete_final, incomplete_df[remaining_vars], on = standard_cols)
-        print(f"With final result : {incomplete_final.shape}")
+        print(f"With final result : {incomplete_final.shape}. With indicator variables still in, which are discarded before the "
+              f"final merge with the larger set.")
 
         # Concat to the larger set without NaN
         cross_df = pd.concat([cross_df, incomplete_final], ignore_index = True)
@@ -552,11 +569,16 @@ class AdditionalDataProcess(object):
             period_outer, templist, templist2, templist3
         gc.collect()
 
+        cross_df.drop(indicators_list, axis = 1, inplace = True)
         cross_df = cross_df.groupby("personid").mean().reset_index()
+
         remaining_vars = list(set(self.input_cross) - set(cross_df))
         remaining_vars = ['personid'] + remaining_vars
+
+        #Takes last period and merges this to the variables who have just gotten a mean value
         partial_input_cross = self.input_cross.loc[self.input_cross.period_obs == period_list[-1], remaining_vars]
         self.cross_df = pd.merge(cross_df, partial_input_cross, on = 'personid')
+        print(f"Finished larger merge with final dimensions :{cross_df.shape}")
 
         print(f"Finished transforming data for cross section {utils.get_time()}")
 
@@ -570,7 +592,7 @@ class AdditionalDataProcess(object):
             'aantalproducten_totaal_business',
             'aantalproducten_totaal_joint',
             'aantalproducten_totaal_retail',
-            'accountoverlay',
+            'aantalproducten_accountoverlay',
             'portfolio_total_counts',
             'business_prtf_counts',
             'joint_prtf_counts',
@@ -614,11 +636,13 @@ class AdditionalDataProcess(object):
         Last step is merging it back to the larger self.prepared_df dataset
         """
         templist = [
-            'personid', 'period_obs', 'aantalproducten_totaal',
+            'personid',
+            'period_obs',
+            'aantalproducten_totaal',
             'aantalproducten_totaal_business',
             'aantalproducten_totaal_joint',
             'aantalproducten_totaal_retail',
-            'accountoverlay',
+            'aantalproducten_accountoverlay',
             'business_prtf_counts',
             'joint_prtf_counts',
             'retail_prtf_counts',

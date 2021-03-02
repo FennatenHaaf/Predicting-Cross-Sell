@@ -40,33 +40,58 @@ class MachineLearningModel(object):
         self.cross_long_df = None
         self.panel_df = None
 
-    def test_static_features(self):
+    def load_split(self, split_to_load):
+        """
+        Currently three datasets and estimations:
+        Retail -> Has Joint or Not
+        Retail (+values of Joint?) -> Has Business or not
+        Retail + Business -> Has overlay or not (as every overlay has business connected)
+        """
         if self.cross_long_df == None:
             self.import_data_to_model(import_command = "cross_long_df")
 
         self.cross_long_df.sort_index(axis = 1, inplace = True)
 
-        retail_cl_df = self.cross_long_df[self.cross_long_df.has_ret_prtf == 1].copy()
-        business_cl_df = self.cross_long_df[self.cross_long_df.has_bus_prtf == 1].copy()
-        joint_cl_df = self.cross_long_df[self.cross_long_df.has_jnt_prtf == 1].copy()
+        #TODO create loop to get correct column values
+        business_column_to_use = ['business','sbicode','sbiname','sbisector','aantal_types', 'saldototaal_fr','aantal_sbi',
+                                  'aantal_sector']
+        business_exclusion_list = ['dummy','change','increase','prtf','increased']
 
-        retail_cl_df.dropna(axis = 1, inplace = True)
-        business_cl_df.dropna(axis = 1, inplace = True)
-        joint_cl_df.dropna(axis = 1, inplace = True)
-        ##To quickly get variables which are of a certain sector
-        # retail_nas = retail_cl_df.isna().sum()
-        # retail_nas = retail_nas[retail_nas > 0].index
-        # business_nas = business_cl_df.isna().sum()
-        # business_nas = business_nas[business_nas > 0].index
+        joint_column_to_use = ['joint']
+        joint_exclusion_list = ['dummy','change','increase']
 
+        retail_column_to_use = ['retail','educat4','age']
+        retail_exclusion_list =  ['businessage','benchmark','increase','']
+
+        #Find correct columns to use
+        business_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns,business_column_to_use)
+        joint_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns, joint_column_to_use)
+        retail_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns, retail_column_to_use)
+
+        drop_list_extra = ['period_q']
+        drop_exclusion = []
+        drop_list_general = utils.do_find_and_select_from_list(self.cross_long_df,drop_list_extra,drop_exclusion)
+        ##Replace th
+
+        if split_to_load == 'retail_only':
+            columns_to_drop = business_column_to_use + joint_column_to_use + drop_list_general
+            self.train_set = self.cross_long_df.query("has_ret_prtf == 1").drop(columns_to_drop,
+                                                                                axis = 1)
+            #TODO Zoek waar verkeerde waarden vandaan komen voor de laatste periode
+            self.train_set.dropna(inplace = True)
+
+
+        elif split_to_load == 'joint_and_retail':
+            self.train_set = self.cross_long_df.query(f"has_ret_prtf == 1 & has_jnt_prtf == 1").drop(business_column_to_use,
+                                                                                                     axis = 1)
+        elif split_to_load == 'retail_and_business':
+            self.train_set = self.cross_long_df.query(f"has_ret_prtf == 1 & has_bus_prtf == 1").copy()
 
         pass
 
-    def test_dynamic_features(self):
-        if self.panel_df == None:
-            self.import_data_to_model(import_command = "panel_df")
+    def test_static_features(self):
+        self.load_split('retail_only')
 
-        pass
 
     ##IMPORTING DATA AND VARIABLE SETTERS
     def import_data_to_model(self, import_command, last_date = "", first_date = ""):

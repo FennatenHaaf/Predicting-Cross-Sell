@@ -646,230 +646,126 @@ def getPersonAggregateDict():
 
  ###-----------CROSS_SECTION ---------------------------####
 
-
-
-def get_cross_section_agg( list_to_get ):
-    count_list = [
-
-     'aantalatmtransacties_business' ,
-     'aantalatmtransacties_joint',
-     'aantalatmtransacties_retail',
-     'aantalbetaaltransacties_business',
-     'aantalbetaaltransacties_joint',
-     'aantalbetaaltransacties_retail',
-     'aantalfueltransacties_business',
-     'aantalfueltransacties_joint',
-     'aantalfueltransacties_retail',
-     'aantalloginsapp_business',
-     'aantalloginsapp_joint',
-     'aantalloginsapp_retail',
-     'aantalloginsweb_business',
-     'aantalloginsweb_joint' ,
-     'aantalloginsweb_retail' ,
-     'aantalpostransacties_business',
-     'aantalpostransacties_joint',
-     'aantalpostransacties_retail',
-     'aantaltegenrekeningenlaatsteq_business',
-     'aantaltegenrekeningenlaatsteq_joint',
-     'aantaltegenrekeningenlaatsteq_retail',
-        'aantaltransacties_totaal',
-        'aantaltransacties_totaal_business',
-        'aantaltransacties_totaal_joint',
-        'aantaltransacties_totaal_retail',
-        'logins_totaal',
-        'logins_totaal_business',
-        'logins_totaal_joint',
-        'logins_totaal_retail',
-        'log_aantaltransacties_totaal',
-        'log_logins_totaal',
-
-    ]
-
-    balance_at_moment = [
-    'saldototaal',
-    'saldototaal_business',
-    'saldototaal_joint',
-    'saldototaal_retail',
-        'log_saldototaal',
-         ]
-
-    moment_counts = [
-    'aantal_sbi' ,
-    'aantal_sector' ,
-    'aantal_types'
-        ]
-
-    categorical = [
-        'accountoverlay'
-        'activitystatus_business'
-        'activitystatus_joint',
-        'activitystatus_retail',
-        'age_hh',
-         'businesstype',
-         'businesstype_on_saldofraction'
-         'birthyear',
-        'business',
-        'educat4',
-        'finergy_tp',
-        'geslacht',
-        'geslacht_joint',
-        'sbicode',
-        'sbicode_on_saldofraction',
-        'sbiname',
-        'sbiname_on_saldofraction',
-        'sbisector',
-        'sbisector_on_saldofraction',
-        'sbisectorname',
-        'sbisectorname_on_saldofraction',
-        'lfase',
-        'hh_child',
-        'hh_size',
-        'housetype',
-        'huidigewaarde_klasse',
-        'income',
-        'activitystatus',
-        'activitystatus_business',
-        'activitystatus_joint',
-        'age',
-        'age_bins',
-        'birthyear',
-        'businessageinyears_bins',
-        'businesstype_on_saldofraction',
-         ]
-
-    indicators = ['betalenyn_business',
-     'betalenyn_joint',
-     'betalenyn_retail',
-     'depositoyn_business',
-     'depositoyn_joint',
-     'depositoyn_retail',
-     'flexibelsparenyn_business',
-     'flexibelsparenyn_joint',
-     'flexibelsparenyn_retail',
-     'kwartaalsparenyn_business',
-     'kwartaalsparenyn_joint',
-     'kwartaalsparenyn_retail',
-     ]
-
-    dependent_variables = [
-        'retail_max',
-        'retail_prtf_counts'
-        'portfolio_total_counts',
-        'has_bus_prtf',
-        'has_bus_ret_prtf',
-        'has_jnt_prtf',
-        'has_jnt_ret_prtf',
-        'has_ret_prtf',
-        'joint_max',
-        'joint_prtf_counts',
-        'business_max',
-        'business_prtf_counts',
-        'accountoverlay',
-        'accountoverlay_dummy',
-        'accountoverlay_max',
-        'aantalproducten_totaal',
-        'aantalproducten_totaal_business',
-        'aantalproducten_totaal_joint',
-        'aantalproducten_totaal_retail',
-    ]
-
-    remainder_dict = {
-                               'joint': 'max',
-               'retail': 'max',
-               'businessageinyears': 'first',
-                'saldototaal_fraction': 'last'
-                }
-
-    if list_to_get == "count_list":
-        return count_list
-    elif list_to_get == "balance_at_moment":
-        return balance_at_moment
-    elif list_to_get == "moment_counts":
-        return moment_counts
-    elif list_to_get == "categorical":
-        return categorical
-    elif list_to_get == "indicators":
-        return indicators
-    elif list_to_get == "remainder_dict":
-        return remainder_dict
-    elif list_to_get == "dependent_variables":
-        return dependent_variables
-    elif list_to_get == 'all':
-        return count_list + balance_at_moment + moment_counts + categorical + indicators + dependent_variables + list(set(
-            remainder_dict))
-    else:
-        print("Invalid value for list_to_get")
-
-def get_portfolio_segment_variables(list_to_return):
-    """
-    Returns either |business_prtf | joint_prtf | retail_prtf |
-    """
-    business_prtf = ['aantalfueltransacties_business',
-     'aantalpostransacties_business',
-     'aantaltegenrekeningenlaatsteq_business',
-     'aantalatmtransacties_business',
-     'aantalloginsapp_business',
-     'aantalbetaaltransacties_business',
-     'aantalloginsweb_business',
-     'saldototaal_business',
-     'saldototaal_fraction',
-     'saldototaal_agg',
-        'sbicode',
-     'sbiname_on_saldofraction',
-     'betalenyn_business',
-     'sbisectorname',
-     'businesstype_on_saldofraction',
-     'businessageinyears',
-     'activitystatus_business',
-     'kwartaalsparenyn_business',
-     'aantal_types',
-     'aantal_sbi',
-        'sbisector',
-     'sbisector_on_saldofraction',
-     'depositoyn_business',
-     'sbiname',
-     'sbisectorname_on_saldofraction',
-     'sbicode_on_saldofraction',
-     'flexibelsparenyn_business',
-     'aantal_sector',
-     'businesstype',
-     'businessageinyears_bins']
-
-    joint_prtf = [
-     'aantalloginsweb_joint',
-     'aantalbetaaltransacties_joint',
-     'aantalatmtransacties_joint',
-     'aantalfueltransacties_joint',
-     'aantalloginsapp_joint',
-     'aantalpostransacties_joint',
-     'aantaltegenrekeningenlaatsteq_joint',
-     'saldototaal_joint',
-     'geslacht_joint',
-     'kwartaalsparenyn_joint',
-     'flexibelsparenyn_joint',
-     'activitystatus_joint',
-     'depositoyn_joint',
-     'betalenyn_joint'
-    ]
-
-    retail__prtf = [
-     'aantalloginsapp_retail',
-     'aantaltegenrekeningenlaatsteq_retail',
-     'aantalfueltransacties_joint',
-     'aantalfueltransacties_retail',
-     'aantalatmtransacties_retail',
-     'aantalbetaaltransacties_retail',
-     'aantalpostransacties_retail',
-     'aantalloginsweb_retail',
-     'saldototaal_retail',
-     'kwartaalsparenyn_retail',
-     'flexibelsparenyn_retail',
-     'betalenyn_retail',
-     'activitystatus_retail',
-     'depositoyn_retail'
-    ]
-
-    other_vars = ['aantalfueltransacties_business']
-
-    return_dict = {'business_prtf':business_prtf, 'joint_prtf': joint_prtf, 'retail__prtf': retail__prtf, 'other_vars': other_vars}
-    return return_dict[list_to_return]
+['aantal_sbi',
+ 'aantal_sector',
+ 'aantal_types',
+ 'aantalatmtransacties_business',
+ 'aantalatmtransacties_joint',
+ 'aantalatmtransacties_retail',
+ 'aantalbetaaltransacties_business',
+ 'aantalbetaaltransacties_joint',
+ 'aantalbetaaltransacties_retail',
+ 'aantalfueltransacties_business',
+ 'aantalfueltransacties_joint',
+ 'aantalfueltransacties_retail',
+ 'aantalloginsapp_business',
+ 'aantalloginsapp_joint',
+ 'aantalloginsapp_retail',
+ 'aantalloginsweb_business',
+ 'aantalloginsweb_joint',
+ 'aantalloginsweb_retail',
+ 'aantalpostransacties_business',
+ 'aantalpostransacties_joint',
+ 'aantalpostransacties_retail',
+ 'aantalproducten_accountoverlay',
+ 'aantalproducten_totaal',
+ 'aantalproducten_totaal_business',
+ 'aantalproducten_totaal_joint',
+ 'aantalproducten_totaal_retail',
+ 'aantaltegenrekeningenlaatsteq_business',
+ 'aantaltegenrekeningenlaatsteq_joint',
+ 'aantaltegenrekeningenlaatsteq_retail',
+ 'aantaltransacties_totaal',
+ 'aantaltransacties_totaal_business',
+ 'aantaltransacties_totaal_joint',
+ 'aantaltransacties_totaal_retail',
+ 'activitystatus',
+ 'activitystatus_business',
+ 'activitystatus_joint',
+ 'activitystatus_retail',
+ 'age_hh',
+ 'benchmark_aantalproducten_accountoverlay',
+ 'benchmark_aantalproducten_totaal',
+ 'benchmark_aantalproducten_totaal_business',
+ 'benchmark_aantalproducten_totaal_joint',
+ 'benchmark_aantalproducten_totaal_retail',
+ 'benchmark_business_prtf_counts',
+ 'benchmark_joint_prtf_counts',
+ 'benchmark_portfolio_total_counts',
+ 'benchmark_retail_prtf_counts',
+ 'betalenyn_business',
+ 'betalenyn_joint',
+ 'betalenyn_retail',
+ 'birthyear',
+ 'business_prtf_counts',
+ 'businessageinyears',
+ 'businesstype',
+ 'businesstype_on_saldofraction',
+ 'current_age',
+ 'delta_aantalproducten_accountoverlay',
+ 'delta_aantalproducten_totaal',
+ 'delta_aantalproducten_totaal_business',
+ 'delta_aantalproducten_totaal_joint',
+ 'delta_aantalproducten_totaal_retail',
+ 'delta_business_prtf_counts',
+ 'delta_joint_prtf_counts',
+ 'delta_portfolio_total_counts',
+ 'delta_retail_prtf_counts',
+ 'depositoyn_business',
+ 'depositoyn_joint',
+ 'depositoyn_retail',
+ 'educat4',
+ 'finergy_tp',
+ 'flexibelsparenyn_business',
+ 'flexibelsparenyn_joint',
+ 'flexibelsparenyn_retail',
+ 'geslacht',
+ 'geslacht_joint',
+ 'has_accountoverlay',
+ 'has_bus_prtf',
+ 'has_jnt_prtf',
+ 'has_ret_prtf',
+ 'hh_child',
+ 'hh_size',
+ 'housetype',
+ 'huidigewaarde_klasse',
+ 'income',
+ 'increased_aantalproducten_accountoverlay',
+ 'increased_aantalproducten_totaal',
+ 'increased_aantalproducten_totaal_business',
+ 'increased_aantalproducten_totaal_joint',
+ 'increased_aantalproducten_totaal_retail',
+ 'increased_business_prtf_counts',
+ 'increased_joint_prtf_counts',
+ 'increased_portfolio_total_counts',
+ 'increased_retail_prtf_counts',
+ 'joint_prtf_counts',
+ 'kwartaalsparenyn_business',
+ 'kwartaalsparenyn_joint',
+ 'kwartaalsparenyn_retail',
+ 'lfase',
+ 'logins_totaal',
+ 'logins_totaal_business',
+ 'logins_totaal_joint',
+ 'logins_totaal_retail',
+ 'period_obs',
+ 'period_q2',
+ 'period_q3',
+ 'period_q4',
+ 'period_year',
+ 'personid',
+ 'portfolio_total_counts',
+ 'retail_prtf_counts',
+ 'saldototaal',
+ 'saldototaal_business',
+ 'saldototaal_fraction',
+ 'saldototaal_joint',
+ 'saldototaal_retail',
+ 'sbicode',
+ 'sbicode_on_saldofraction',
+ 'sbiname',
+ 'sbiname_on_saldofraction',
+ 'sbisector',
+ 'sbisector_on_saldofraction',
+ 'sbisectorname',
+ 'sbisectorname_on_saldofraction']
