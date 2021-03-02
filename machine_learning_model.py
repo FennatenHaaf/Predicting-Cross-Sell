@@ -55,7 +55,7 @@ class MachineLearningModel(object):
         #TODO create loop to get correct column values
         business_column_to_use = ['business','sbicode','sbiname','sbisector','aantal_types', 'saldototaal_fr','aantal_sbi',
                                   'aantal_sector']
-        business_exclusion_list = ['dummy','change','increase','prtf','increased']
+        business_exclusion_list = ['dummy','change','increase','prtf','increased','delta']
 
         joint_column_to_use = ['joint']
         joint_exclusion_list = ['dummy','change','increase']
@@ -64,9 +64,9 @@ class MachineLearningModel(object):
         retail_exclusion_list =  ['businessage','benchmark','increase','']
 
         #Find correct columns to use
-        business_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns,business_column_to_use)
-        joint_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns, joint_column_to_use)
-        retail_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns, retail_column_to_use)
+        business_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns,business_column_to_use,business_exclusion_list)
+        joint_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns, joint_column_to_use,joint_exclusion_list)
+        retail_column_to_use = utils.do_find_and_select_from_list(self.cross_long_df.columns, retail_column_to_use,retail_exclusion_list)
 
         drop_list_extra = ['period_q']
         drop_exclusion = []
@@ -80,17 +80,32 @@ class MachineLearningModel(object):
             #TODO Zoek waar verkeerde waarden vandaan komen voor de laatste periode
             self.train_set.dropna(inplace = True)
 
-
         elif split_to_load == 'joint_and_retail':
             self.train_set = self.cross_long_df.query(f"has_ret_prtf == 1 & has_jnt_prtf == 1").drop(business_column_to_use,
                                                                                                      axis = 1)
         elif split_to_load == 'retail_and_business':
             self.train_set = self.cross_long_df.query(f"has_ret_prtf == 1 & has_bus_prtf == 1").copy()
 
+        unique_vals = self.train_set.nunique()
+        templist = list(unique_vals[unique_vals <= 1].index)
+        print(f"dropping variables {templist} for having one value")
+        self.train_set.drop(templist, inplace = True)
+
         pass
 
     def test_static_features(self):
         self.load_split('retail_only')
+
+        dependent_variable_increase = ['increased_business_prtf_counts']
+        unique_vals = self.train_set.nunique()
+        templist = list(set(unique_vals[unique_vals <= 2].index))
+        print()
+
+        templist = list(unique_vals[unique_vals <= 5].index)
+        print(templist)
+
+    def split_by_decision_tree(self,x,y):
+        DecisionTreeClassifier()
 
 
     ##IMPORTING DATA AND VARIABLE SETTERS
