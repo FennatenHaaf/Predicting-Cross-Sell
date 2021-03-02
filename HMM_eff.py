@@ -30,7 +30,7 @@ import copy
 class HMM_eff:
     
     def __init__(self, list_dataframes, list_dep_var, 
-                   list_covariates = [], covariates = False, iterprint =False):
+                   list_covariates = [], covariates = False, iterprint = False):
         """Initialisation of a HMM object
            list_dataframes: list consisting of the timeperiod-specific dataframes
            list_dep_var: list consisting of all the names of the variables we use as dependent variables
@@ -82,7 +82,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, tolerance = 10**(-6), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
+    def EM(self, n_segments, tolerance = 10**(-5), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
         """function to run the EM algorithm
             n_segments: number of segments to use for the estimation of the HMM
             tolerance: convergence tolerance
@@ -436,7 +436,7 @@ class HMM_eff:
             logl += np.sum(mult)
         
         
-        logl = -logl 
+        logl = -logl + np.sum(abs(x))*1
         self.maximization_iters += 1
         if self.iterprint:
             if (self.maximization_iters % 1000 == 0):  # print alleen elke 1000 iterations
