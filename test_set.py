@@ -107,8 +107,8 @@ test_cross_sell = ht.HMM_eff(df_per_time, name_dep_var_cross_sell, name_covariat
 
 param_cross, alpha_cross, shapes_cross, hes, hess_inv = test_cross_sell.EM(n_segments, random_starting_points = True)#, max_method = 'Nelder-Mead') #, seed = 978391)
 
-Y = test_cross_sell.list_Y[1]
-Z = test_cross_sell.list_Z[1]
+Y = test_cross_sell.list_Y[0]
+Z = test_cross_sell.list_Z[0]
 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, n_segments, param_cross, shapes_cross)
 p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
 P_y_given_S = ef.prob_P_y_given_s(test_cross_sell, Y, p_js, n_segments)
@@ -117,10 +117,10 @@ P_s_given_r = ef.prob_P_s_given_r(test_cross_sell, param_cross, shapes_cross, Z,
 
 p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
 p_jout = pd.DataFrame(np.concatenate(p_js, axis = 0))
-cov = - np.linalg.inv(hes)
-print(f"Covariance: {cov}")
-p_jout.to_csv(f"{outdirec}/p_j_out.csv")
-pass
+cov = np.linalg.inv(-hes)
+#print(f"Covariance: {cov}")
+#p_jout.to_csv(f"{outdirec}/p_j_out.csv")
+#pass
 
 tresholds = [0.5, 0.8]
 #cross_sell_target, cross_sell_self, cross_self_total = test_cross_sell.cross_sell_yes_no(param_cross, shapes_cross, n_segments, alpha_cross, active_value, tresholds)      

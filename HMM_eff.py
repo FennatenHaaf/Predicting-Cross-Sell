@@ -20,26 +20,40 @@ import utils
 from tqdm import tqdm
 from time import perf_counter
 import numdifftools as nd
-#from geneticalgorithm import geneticalgorithm as ga
 import seaborn as sns
 import matplotlib.pyplot as plt
+<<<<<<< HEAD
+=======
 import matplotlib.cm as cm
 import copy
 #from pyswarm import pso
+>>>>>>> 8d3acfac54dcfbc28d851b3e4272b066832e6059
 
 class HMM_eff:
     
     def __init__(self, list_dataframes, list_dep_var, 
                    list_covariates = [], covariates = False, iterprint = False):
-        """Initialisation of a HMM object
-           list_dataframes: list consisting of the timeperiod-specific dataframes
-           list_dep_var: list consisting of all the names of the variables we use as dependent variables
-           list_covariates: list consisting of all the names of the variables we use as covariates
-           covariates: boolean that indicates whether transition/state probabilities are modelled as logit model"""
+        """
+        Parameters
+        ----------
+        list_dataframes : list
+            list consisting of the timeperiod-specific dataframes
+        list_dep_var : list
+            list consisting of all the names of the variables we use as dependent variables.
+        list_covariates : boolean
+            list consisting of all the names of the variables we use as covariates        
+        covariates : boolean
+            boolean indicating whether transition/state probabilities are modelled as logit model
+        iterprint : boolean
+            boolean indicating whether function evaluations within M-step are printed
+
+        """
+        """Function for the Initialisation of a HMM object"""
            
         self.list_dataframes = list_dataframes
         self.list_dep_var = list_dep_var
         self.list_covariates = list_covariates
+        
         
         self.n_covariates = len(list_covariates) #initialise the number of covariates
         self.n_customers = self.list_dataframes[0].shape[0] #initialise the number of customers
@@ -48,7 +62,7 @@ class HMM_eff:
         
         self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
 
-        self.iterprint = iterprint #Iterprint True or False, will print x and iterations
+        self.iterprint = iterprint #Iterprint True or False, will print x and iterations within a M-step
 
         #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_products))
@@ -82,12 +96,38 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, tolerance = 10**(-5), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
-        """function to run the EM algorithm
-            n_segments: number of segments to use for the estimation of the HMM
-            tolerance: convergence tolerance
-            max_method: maximization method to use for the maximization step"""
-        
+    def EM(self, n_segments, tolerance = 10**(-6), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
+        """
+
+        Parameters
+        ----------
+        n_segments : int
+            number of segments to use for the estimation of the HMM
+        tolerance : float
+            convergence tolerance.
+        max_method : string
+            maximization method to use for the maximization step
+        random_starting_points : boolean
+            boolean indicating whether random starting points are used for the EM algorithm
+        seed : int
+            if random starting points are used, one can pass the seed
+        bounded : tuple
+            tuple consisting of the bound for the parameters, if one wants to use bounds
+
+        Returns
+        -------
+        param_out : 1-D array
+            estimated parameters from the EM algorithm
+        alpha_out : 3-D array
+            estimated probabilities P[Y_{0:t}, X_{t}]
+        beta_out  : 3-D array
+            estimated probabilities P[Y_{t+1:T} | X_{t}]
+        shapes    : 2-D array
+            array consisting of shape and size of every single parameters matrix
+        hes/hes_inv : 2-D array
+        """
+        """function for running the EM algorithm"""
+
         if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
         
             if random_starting_points == False:
@@ -126,7 +166,6 @@ class HMM_eff:
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
             print(f"Starting values: {param}")
-
             
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
@@ -227,13 +266,32 @@ class HMM_eff:
         if self.covariates == True:
             return param_out, alpha_out, shapes, hes, hess_inv
         else:
-            return param_out, shapes, hes, hess_inv
+            return param_out, alpha_out, beta_out, shapes, hes, hess_inv
         
         
     #------------Function for the expectation step------------
         
     def forward_backward_procedure(self, param, shapes, n_segments):
+        """
 
+        Parameters
+        ----------
+        param  : 1-D array
+            estimated parameters from the previous M-step
+        shapes : 2-D array
+            array consisting of shape and size of every single parameter matrix
+        n_segments : int
+            number of segments being used for the estimation of the HMM
+        Returns
+        -------
+        alpha_return : 3-D array
+            estimated probabilities P[Y_{0:t}, X_{t}]
+        beta_return  : 3-D array
+            estimated probabilities P[Y_{t+1:T} | X_{t}]
+        """
+        """function for the E-step (forward and backward procedure)"""
+        
+        
         p_js = ef.prob_p_js(self, param, shapes, n_segments)
         
         alpha_return = np.zeros((n_segments, self.n_customers, self.T))
@@ -286,27 +344,28 @@ class HMM_eff:
 
         Parameters
         ----------
-        alpha : TYPE
-            DESCRIPTION.
-        beta : TYPE
-            DESCRIPTION.
-        param_in : TYPE
-            DESCRIPTION.
-        shapes : TYPE
-            DESCRIPTION.
-        n_segments : TYPE
-            DESCRIPTION.
-        max_method : TYPE
-            DESCRIPTION.
-
+        alpha : 3-D array
+            estimated probabilities P[Y_{0:t}, X_{t}], coming from the E-step (forward and backward procedure)
+        beta  : 3-D array
+            estimated probabilities P[Y_{t+1:T} | X_{t}], coming from the E-step (forward and backward procedure)
+        param_in : 1-D array
+            parameters estimated at the previous M_step
+        shapes : 2-D array
+            array consisting of shape and size of every single parameter matrix
+        n_segments : int
+            number of segments being used for the estimation of the HMM
+        max_method : string
+            maximization method to use for the maximization step
         Returns
         -------
-        param_out : TYPE
-            DESCRIPTION.
-
+        param_out : 1-D array
+            estimated parameters in current M-step
+        hess_inv : 2-D array
+            estimated inverse of hessian
         """
         """function for the maximization step"""
-            
+        
+        #calculate multiple probabilities which are constant in the function that has to be minimized
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
         p_js_cons = ef.prob_p_js(self, param_in, shapes, n_segments)
         P_s_given_Y_Z_ut = np.multiply(alpha, beta)
@@ -335,12 +394,13 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
 
+        #set options for the different optimization routines
         minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2)} #, 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
-
-        if (max_method == 'Nelder-Mead') & (end == False):
-            if self.iteration <= 9999:
+        #run the minimisation
+        if (max_method == 'Nelder-Mead') & (end == False): #if Nelder-Mead is used and it is not the last maximisation step
+            if self.iteration <= 150: #the first X iterations Nelder-Mead is used, thereafter BFGS
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                          n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                      method=max_method,options= minimize_options_NM)
@@ -349,22 +409,22 @@ class HMM_eff:
                 return param_out.x
 
             else:
-                #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                 #                        n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                 #                        method='BFGS',options= minimize_options_BFGS)
-                 param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
-                                      method='BFGS',options= minimize_options_BFGS)
-                 return param_out.x
-
-        elif (max_method == 'BFGS') & (end == False):
-            if bounded == None:
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
-                                   n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
-                                   method='BFGS',options= minimize_options_BFGS)
+                                         n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                                         method='BFGS',options= minimize_options_BFGS)
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
-                #                     method='BFGS',options= minimize_options_BFGS)
+                #                      method='BFGS',options= minimize_options_BFGS)
                 return param_out.x
-            else:
+
+        elif (max_method == 'BFGS') & (end == False): #if BFGS is used and it is not the last maximisation step
+            if bounded == None: #if parameters are not bounded, use BFGS, otherwise use L-BFGS-B
+                #param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
+                 #                  n_segments, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
+                 #                  method='BFGS',options= minimize_options_BFGS)
+                param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
+                                     method='BFGS',options= minimize_options_BFGS)
+                return param_out.x
+            else: 
                 ub = bounded[1] 
                 lb = bounded[0]
                 bnds = ((lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),(lb,ub),
@@ -376,7 +436,7 @@ class HMM_eff:
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                 #                      method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
                 return param_out.x
-        elif end == True:
+        elif end == True: #if it is the last iteration, minimize the loglikelihood itself (instead of expected complete data loglikelihood)
             param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                  method='BFGS',options= minimize_options_BFGS)
             return param_out.x, param_out.hess_inv
@@ -384,8 +444,36 @@ class HMM_eff:
     
     def optimization_function(self, x, alpha, beta, shapes, n_segments, 
                               P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js, P_s_given_Y_Z_ut):
-        """function that has to be minimized"""
-                    
+        """
+        Parameters
+        ----------
+        x     : 1-D array
+            parameters over which the maximisation must be done
+        alpha : 3-D array
+            estimated probabilities P[Y_{0:t}, X_{t}], coming from the E-step (forward and backward procedure)
+        beta  : 3-D array
+            estimated probabilities P[Y_{t+1:T} | X_{t}], coming from the E-step (forward and backward procedure)
+        shapes : 2-D array
+            array consisting of shape and size of every single parameter matrix
+        n_segments : int
+            number of segments being used for the estimation of the HMM
+        P_s_given_Y_Z : 3-D array
+            probabilties P[X_{it} = s | Y_{it}, Z_{it}]
+        list_P_s_given_r : list 
+            probabilties P[X_{it} = s | X_{it} = r, Z_{it}]
+        list_P_y_given_s : list
+            probabilties P[Y_{it} = c | X_{it} = s]
+        p_js : 3-D array
+            probabilties P[Y_{itp} = c | X_{it} = s]
+        P_s_given_Y_Z_ut : 3-D array
+            element-wise multiplication of alpha and beta
+        Returns
+        -------
+        param_out : float
+            value of the complete data loglikelihood
+
+        """
+        """function for the optimization function"""                    
         
         p_js_max = ef.prob_p_js(self, x, shapes, n_segments)
 
@@ -436,7 +524,7 @@ class HMM_eff:
             logl += np.sum(mult)
         
         
-        logl = -logl + np.sum(abs(x))*1
+        logl = -logl + np.sum(abs(x))*0.1
         self.maximization_iters += 1
         if self.iterprint:
             if (self.maximization_iters % 1000 == 0):  # print alleen elke 1000 iterations
