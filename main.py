@@ -460,8 +460,7 @@ if __name__ == "__main__":
             
         # Now interpret & visualise the parameters 
         hmm.interpret_parameters(param_cross, n_segments)
-        #TODO give names of the classes as input!
-        
+
         # # See what the results are in terms of probabilities, for the first period
         # Y = hmm.list_Y[0]
         # Z = hmm.list_Z[0]
@@ -474,20 +473,40 @@ if __name__ == "__main__":
     LRtest = False
     if (LRtest) :
         
+        print("****Doing LR comparison*****")
         def likelihood_ratio(llmin, llmax):
             return(2*(llmax-llmin))
+        
+        def calculateBIC(ll,k,n):
+            return(k*np.log(n) - 2*ll)
         
         # Comparing 4 and 5 
         L1 = -2107.45952780524
         param1 = 105
+        n1 =500
+        BIC1 = calculateBIC(L1,param1,n1)
+        print(f"BIC model 1: {BIC1}")
         
         L2 = -2050.340265791282
         param2 = 142
+        n2 =500 
+        BIC2 = calculateBIC(L2,param2,n2)
+        print(f"BIC model 2: {BIC2}")
+        
+        if (BIC1<BIC2):
+            print("Model 1 is better according to BIC")
+        else:
+            print("Model 2 is better according to BIC")
         
         LR = likelihood_ratio(L1,L2)
         p = chi2.sf(LR, param2-param1) # L2 has 1 DoF more than L1
         
         print('p: %.30f' % p) 
+        if (p <0.05):
+            print("Model 2 is significantly better according to LR test")
+        else:
+            print("Model 1 is significantly better according to LR test")
+        
         # So 5 is significantly better than 4?
 
         

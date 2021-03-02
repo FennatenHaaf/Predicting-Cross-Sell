@@ -617,16 +617,16 @@ class HMM_eff:
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
         gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
         beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
-        for s in range(n_segments):
-            for p in range(0,self.n_products):
-                beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
+        # for s in range(n_segments):
+        #     for p in range(0,self.n_products):
+        #         beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
                 
         #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
                    
         
-        #----------- Now look at the actual parameters -------------
+        #----------- Look at the actual parameters -------------
         print("Interpreting the following parameters")
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, parameters, shapes)
         print(f"Gamma_0: {gamma_0}")
@@ -637,30 +637,42 @@ class HMM_eff:
         #perform ONE forward-backward procedure (expectation step of EM) 
         alpha, beta = self.forward_backward_procedure(parameters, shapes, n_segments)
         
+        #Change gamma_sr_0 into a transition probabilities matrix and visualize
+        transition_probs = ef.gamma_sr_0_to_trans(self, parameters, shapes, n_segments)
+        #Now interpret the impacts of the covariates
+        y_axis = np.arange(n_segments)
+        x_axis = np.arange(n_segments)
+        self.visualize_matrix(transition_probs, x_axis, y_axis,
+                              "Segment","Segment", 
+                              "Base transition probabilities")
         
-        #TODO change gamma_sr_0 into a transition probabilities matrix
-        
-        
+        #Now visualise the logit coefficients for the covariates
+        y_axis = np.arange(n_segments-1) # we have the last segment as base case (?)
+        x_axis = self.list_covariates
+        self.visualize_matrix(gamma_sk_t, x_axis, y_axis,
+                              "Covariates", "Segments",
+                              "Logit coefficients on segment membership probabilities",
+                              diverging = True)
         
         
         
         # ------- Visualize the pjs ---------
         p_js = ef.prob_p_js(self, parameters, shapes, n_segments)
         for seg in range(0, n_segments):
-            title = f"P_js for segment {seg}"
             y_axis = self.list_dep_var
             x_axis = np.arange(np.max(self.n_categories))
             matrix = p_js[seg,:,:]
             self.visualize_matrix(matrix, x_axis, y_axis, "Level",
-                                  "dependent variable", title)
+                                  "dependent variable",
+                                   f"P_js for segment {seg}")
         
         # ------Visualize Ps_given_Y_Z---------
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
-        title = f"P_s_given_Y_Z for person {person_index}"
         y_axis = np.arange(n_segments)
         x_axis = np.arange(self.T)
         self.visualize_matrix(P_s_given_Y_Z[:,person_index,:], x_axis, y_axis,
-                              "Time","Segment", title)
+                              "Time","Segment",
+                              f"P_s_given_Y_Z for person {person_index}")
         
         # Visualize Ps_given_Y_Z_ut??
         P_s_given_Y_Z_ut = np.multiply(alpha, beta)
@@ -679,7 +691,6 @@ class HMM_eff:
             P_s_given_r = ef.prob_P_s_given_r(self, parameters, shapes, Z, n_segments)
             P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
             P_s_given_Z = ef.prob_P_s_given_Z(self, parameters, shapes, Z, n_segments) #[ixs]
-            #P_s_given_Z = P_s_given_Z[:,np.newaxis,:]
             list_P_s_given_r.append(P_s_given_r)
             list_P_y_given_s.append(P_y_given_s)
             list_P_s_given_Z.append(P_s_given_Z)
@@ -702,21 +713,28 @@ class HMM_eff:
         
         
         
-    def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title):
+    def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
+                         diverging = False):
         """Visualize a 2D matrix in a figure with labels and title"""
         
         fig, ax = plt.subplots(figsize=(14, 8))
 
         # Define the colors
-        colMap = copy.copy(cm.get_cmap("viridis"))
-        colMap.set_under(color='white') # set under deals with values below minimum
-        # colMap.set_bad(color='black') # set bad deals with color of nan values
-        
+        if diverging:
+            colMap = copy.copy(cm.get_cmap("coolwarm"))      
+        else:
+            colMap = copy.copy(cm.get_cmap("viridis"))
+            colMap.set_under(color='white') # set under deals with values below minimum
+            # colMap.set_bad(color='black') # set bad deals with color of nan values
+            
         # Now plot the values
         im = ax.imshow(matrix, cmap = colMap)
         # set the max color to >1  so that the lightest areas are not too light
         # below the min we want it to be white
-        im.set_clim(1e-30, 1.2)  
+        if diverging:
+            im.set_clim(-1.5, 1.5)  
+        else:
+            im.set_clim(1e-30, 1.2)  
         
         
         # We want to show all ticks...
@@ -726,8 +744,8 @@ class HMM_eff:
         ax.set_xticklabels(x_axis,fontsize = 12)
         ax.set_yticklabels(y_axis,fontsize = 12)
         
-        ax.xaxis.set_label_position('top') 
-        ax.xaxis.tick_top()
+        #ax.xaxis.set_label_position('top') 
+        #ax.xaxis.tick_top()
         # Rotate the tick labels and set their alignment.
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
                  rotation_mode="anchor")

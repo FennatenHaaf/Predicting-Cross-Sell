@@ -88,7 +88,10 @@ def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = 
 
 
 
- #------------Functies waarmee je van de parameters naar de kansen gaat------------
+# =============================================================================
+# Functies waarmee je van de parameters naar de kansen gaat------------
+# =============================================================================
+
 def prob_p_js(self, param, shapes, n_segments): 
     """function to compute p(j,c,s) with parameters beta/b"""
         
@@ -185,23 +188,28 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         P_s_given_r = np.exp(A - logsumexp(A))
     return P_s_given_r
         
-    def gamma_sr_0_to_trans(self, param, shapes, n_segments):
-        if self.covariates == True:
-            gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
-            gamma_sr_0 = np.vstack((gamma_sr_0, np.zeros((1,n_segments))))
-            
-            P_s_given_r = np.exp(gamma_sr_0 - logsumexp(gamma_sr_0)) #i x s x s
-            
-        else:
-            A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
-            A = np.vstack((A, np.zeros((1, n_segments))))
+
+
+def gamma_sr_0_to_trans(self, param, shapes, n_segments):
+    """Makes the transition matrix out of gamma_sr_0"""
+    if self.covariates == True:
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
+        gamma_sr_0 = np.vstack((gamma_sr_0, np.zeros((1,n_segments))))
         
-            P_s_given_r = np.exp(A - logsumexp(A))
-         
-        return P_s_given_r
+        P_s_given_r = np.exp(gamma_sr_0 - logsumexp(gamma_sr_0)) #i x s x s
+        
+    else:
+        A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
+        A = np.vstack((A, np.zeros((1, n_segments))))
+    
+        P_s_given_r = np.exp(A - logsumexp(A))
+     
+    return P_s_given_r
             
 
-#--------------------function for maximisation step---------------------
+# =============================================================================
+# --------------------function for maximisation step---------------------
+# =============================================================================
 
 
 def joint_event(self, alpha, beta, t, n_segments,
