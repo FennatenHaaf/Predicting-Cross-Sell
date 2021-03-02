@@ -290,6 +290,15 @@ class AdditionalDataProcess(object):
                                              (5, 10), (20, 30),
                                              (30, np.inf)])
         df["businessAgeInYears_bins"] = pd.cut(df["businessAgeInYears"], bbins, labels=False)
+        
+        
+        # finally, make bins out of saldo
+        bins = pd.IntervalIndex.from_tuples([ (-np.inf, 0), (0, 100),
+                                             (100, 1000), (1000, 5000),
+                                             (5000, 10000), (10000, 50000),
+                                             (50000, np.inf)])
+        df["saldototaal_bins"] = pd.cut(df["saldototaal"], bins, labels=False)
+        
 
         return df
 

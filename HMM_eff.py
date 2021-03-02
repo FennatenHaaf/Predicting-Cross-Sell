@@ -730,7 +730,7 @@ class HMM_eff:
                               "Segment","Segment", 
                               "Base transition probabilities")
         
-        #Now visualise the logit coefficients for the covariates
+        #Now visualise the logit coefficients for the covariates (gamma_sk_t)
         y_axis = np.arange(n_segments-1) # we have the last segment as base case (?)
         x_axis = self.list_covariates
         self.visualize_matrix(gamma_sk_t, x_axis, y_axis,
@@ -800,7 +800,7 @@ class HMM_eff:
     def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
                          diverging = False):
         """Visualize a 2D matrix in a figure with labels and title"""
-        
+        plt.rcParams["axes.grid"] = False
         fig, ax = plt.subplots(figsize=(14, 8))
 
         # Define the colors

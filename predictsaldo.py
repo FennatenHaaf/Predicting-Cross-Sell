@@ -33,15 +33,18 @@ X = data.drop(columns = ['percdiff'])
 
               
 #Drop some of the variables that we do not use from x
-X = X.drop(columns = ['personid','portfolio_change','saldo_prev','business_change','retail_change','joint_change', 
-                      'retail_change_dummy', 'business_change_dummy','joint_change_dummy' ,
+X = X.drop(columns = ['personid','portfolio_change','saldo_prev',
+                      'business_change','retail_change','joint_change', 
+                      'retail_change_dummy','business_change_dummy','joint_change_dummy' ,
                       'saldo_now','saldo_prev'])
 
 # Drop the base cases
-X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 'huidigewaarde_klasse_1.0', 
-                      'age_bins_(18, 30]', 'geslacht_Man','activitystatus_1.0' ])
+X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 
+                      'huidigewaarde_klasse_1.0', 'age_bins_(18, 30]', 
+                      'geslacht_Man','activitystatus_1.0' ])
 # Drop lfase as well
-X = X.drop(columns = [ 'lfase_2.0', 'lfase_3.0', 'lfase_4.0', 'lfase_5.0', 'lfase_6.0', 'lfase_7.0', 'lfase_8.0',])
+X = X.drop(columns = [ 'lfase_2.0', 'lfase_3.0', 'lfase_4.0', 'lfase_5.0', 
+                      'lfase_6.0', 'lfase_7.0', 'lfase_8.0',])
 
 
 # Create cross-effects dummies

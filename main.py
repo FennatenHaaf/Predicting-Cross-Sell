@@ -10,8 +10,9 @@ import utils
 import additionalDataProcess as AD
 import HMM_eff as ht
 import extra_functions_HMM_eff as ef
-from scipy.stats.distributions import chi2
+import dataInsight as DI
 
+from scipy.stats.distributions import chi2
 import pandas as pd
 import numpy as np
 from os import path
@@ -32,7 +33,7 @@ if __name__ == "__main__":
 
     save_intermediate_results = False # Save the intermediate outputs
     # save_intermediate_results = True # Save the intermediate outputs
-    print_information = False # Print things like frequency tables or not
+    print_information = True # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
     #start_date = "2020-01-01" # From which moment onwards do we want to use
@@ -67,6 +68,7 @@ if __name__ == "__main__":
     time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
+    visualize_data = True # make some graphs and figures
     
     run_hmm = False
     run_cross_sell = True # do we want to run the model for cross sell or activity
@@ -109,6 +111,9 @@ if __name__ == "__main__":
     
     saldo_total = [
         "log_saldototaal"
+        ]
+    saldo_total_bin = [
+        "saldototaal_bins"
         ]
     
     # ------ Characteristics -------
@@ -278,6 +283,29 @@ if __name__ == "__main__":
     diff = utils.get_time_diff(start,end)
     print(f"Data creation finished! Total time: {diff}")
     
+    
+# =============================================================================
+# VISUALIZE DATA
+# =============================================================================
+
+    if visualize_data:
+        print("*****Visualising data*****")
+        df = dflist[0] # use the first time period
+        visualize_variables = ["age_bins", "geslacht",
+                               "hh_size",
+                               "income",
+                               "business_max",
+                               "retail_max",
+                               "joint_max",
+                               "accountoverlay_max",
+                               "activitystatus",
+                               "saldototaal_bins"]   
+        for var in visualize_variables:
+            print(f"visualising {var}")
+            DI.plotCategorical(df, var)
+            counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
+            print(counts)
+
     
 # =============================================================================
 # RUN HMM MODEL
