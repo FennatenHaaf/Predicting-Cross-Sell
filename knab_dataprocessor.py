@@ -904,6 +904,7 @@ class dataProcessor:
             x[f'{column_to_agg_on}_fraction'].idxmax(),:] )
         to_merge = pd.concat([to_merge, portfolio_sum_per_sector2], ignore_index =  True)
 
+        to_merge.drop(f'{column_to_agg_on}_agg', axis = 1, inplace = True)
 
         return to_merge
 
