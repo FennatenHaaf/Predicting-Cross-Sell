@@ -106,6 +106,27 @@ def checkAVL(list):
     for value in list:
         yield value
         
+        
+def plotCategorical(df, name, annotate = True):
+    sns.set(font_scale=2,rc={'figure.figsize':(15,10)})
+    graph = sns.countplot(x=name, data = df)
+    
+    
+    graph.set_xticklabels(graph.get_xticklabels(),rotation=30,
+                          horizontalalignment='right', fontweight='light',
+                          fontsize=18)
+    
+    if annotate:
+        ## We want to label the bars with the height, to see what the exact counts are
+        for p in graph.patches:
+            value = p.get_height()
+            # locations of where to put the labels
+            x = p.get_x() + p.get_width() / 2 - 0.05 
+            y = p.get_y() + p.get_height()
+            graph.annotate(value, (x, y), size = 16)
+    
+    
+    plt.show()
     
         
     
