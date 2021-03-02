@@ -212,6 +212,7 @@ if __name__ == "__main__":
         
     else:
         name = "final_df_finB04" # adjust this name to specify which files to read
+        #name = "final_df_n500"
         if (path.exists(f"{interdir}/{name}_2018Q1.csv")):
             print("****Reading df list of time series data from file****")
             
@@ -307,6 +308,9 @@ if __name__ == "__main__":
         print(dummynames)
         # get the dummy names without base cases        
         base_cases = ['income_1.0','age_bins_(18, 30]','geslacht_Man']
+                      #,'geslacht_Man(nen) en vrouw(en)']
+        # Note: we should drop man(nen) en vrouw(en) as well!! Which means we treat these
+        # occurrences as men
         personal_variables = [e for e in dummynames if e not in base_cases]
 
 
@@ -383,7 +387,9 @@ if __name__ == "__main__":
             print("-----Reading in existing parameters-----")
              
             source = "activityFinB04"
+            #source = "3seg500n"
             if (source == "3seg500n"):
+                # note: dataset used is "final_df_n500" _. make sure to change
                 param_cross = np.array([ 9.57347300e+00,5.48433032e+00,1.12262507e+01,1.62844971e+01
                 ,-4.24443740e+00,-9.38509250e-13,-2.93732866e+00,-1.87993462e+00
                 ,-2.65321128e+00,1.46505313e-20,2.96302734e+02,1.09186362e+01
@@ -411,6 +417,8 @@ if __name__ == "__main__":
                 n_segments = 3
                 
             if (source == "activityFinB04"):
+                
+                # note: dataset used is "final_df_finB04"
                 param_cross = np.array([ 1.09607100e-01,9.08286566e-03,-6.36999543e-01,-2.96600310e-01
                 ,-3.12565519e-01,6.46833377e+05,3.84478055e-01,3.22616130e-01
                 ,3.34262554e-01,-3.98285606e+01,5.18491848e-01,1.64299266e-01
@@ -452,8 +460,7 @@ if __name__ == "__main__":
             
         # Now interpret & visualise the parameters 
         hmm.interpret_parameters(param_cross, n_segments)
-        #TODO give names of the classes as input!
-        
+
         # # See what the results are in terms of probabilities, for the first period
         # Y = hmm.list_Y[0]
         # Z = hmm.list_Z[0]
@@ -466,20 +473,40 @@ if __name__ == "__main__":
     LRtest = False
     if (LRtest) :
         
+        print("****Doing LR comparison*****")
         def likelihood_ratio(llmin, llmax):
             return(2*(llmax-llmin))
+        
+        def calculateBIC(ll,k,n):
+            return(k*np.log(n) - 2*ll)
         
         # Comparing 4 and 5 
         L1 = -2107.45952780524
         param1 = 105
+        n1 =500
+        BIC1 = calculateBIC(L1,param1,n1)
+        print(f"BIC model 1: {BIC1}")
         
         L2 = -2050.340265791282
         param2 = 142
+        n2 =500 
+        BIC2 = calculateBIC(L2,param2,n2)
+        print(f"BIC model 2: {BIC2}")
+        
+        if (BIC1<BIC2):
+            print("Model 1 is better according to BIC")
+        else:
+            print("Model 2 is better according to BIC")
         
         LR = likelihood_ratio(L1,L2)
         p = chi2.sf(LR, param2-param1) # L2 has 1 DoF more than L1
         
         print('p: %.30f' % p) 
+        if (p <0.05):
+            print("Model 2 is significantly better according to LR test")
+        else:
+            print("Model 1 is significantly better according to LR test")
+        
         # So 5 is significantly better than 4?
 
         

@@ -22,6 +22,12 @@ from time import perf_counter
 import numdifftools as nd
 import seaborn as sns
 import matplotlib.pyplot as plt
+<<<<<<< HEAD
+=======
+import matplotlib.cm as cm
+import copy
+#from pyswarm import pso
+>>>>>>> 8d3acfac54dcfbc28d851b3e4272b066832e6059
 
 class HMM_eff:
     
@@ -579,7 +585,10 @@ class HMM_eff:
         return logl
 
             
-        
+
+# =============================================================================
+#  METHODS TO PROCESS OUTPUT       
+# =============================================================================
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
         if self.covariates == True:
@@ -687,24 +696,25 @@ class HMM_eff:
     
     
     
-    def interpret_parameters(self,parameters,n_segments):
-        """This function aims to visualise and interpret the results for parameters"""
+    def interpret_parameters(self,parameters,n_segments, person_index = 0):
+        """This function aims to visualise and interpret the results for
+        the parameters of a specific person (standard: the first one)"""
         
         #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
         gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
         beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
-        for s in range(n_segments):
-            for p in range(0,self.n_products):
-                beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
+        # for s in range(n_segments):
+        #     for p in range(0,self.n_products):
+        #         beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
                 
         #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
                    
         
-        #----------- Now look at the actual parameters -------------
+        #----------- Look at the actual parameters -------------
         print("Interpreting the following parameters")
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, parameters, shapes)
         print(f"Gamma_0: {gamma_0}")
@@ -715,23 +725,51 @@ class HMM_eff:
         #perform ONE forward-backward procedure (expectation step of EM) 
         alpha, beta = self.forward_backward_procedure(parameters, shapes, n_segments)
         
-        # Get Probabilities
-        p_js = ef.prob_p_js(self, parameters, shapes, n_segments)
+        #Change gamma_sr_0 into a transition probabilities matrix and visualize
+        transition_probs = ef.gamma_sr_0_to_trans(self, parameters, shapes, n_segments)
+        #Now interpret the impacts of the covariates
+        y_axis = np.arange(n_segments)
+        x_axis = np.arange(n_segments)
+        self.visualize_matrix(transition_probs, x_axis, y_axis,
+                              "Segment","Segment", 
+                              "Base transition probabilities")
         
-        # Visualize the pjs
+        #Now visualise the logit coefficients for the covariates
+        y_axis = np.arange(n_segments-1) # we have the last segment as base case (?)
+        x_axis = self.list_covariates
+        self.visualize_matrix(gamma_sk_t, x_axis, y_axis,
+                              "Covariates", "Segments",
+                              "Logit coefficients on segment membership probabilities",
+                              diverging = True)
+        
+        
+        
+        # ------- Visualize the pjs ---------
+        p_js = ef.prob_p_js(self, parameters, shapes, n_segments)
         for seg in range(0, n_segments):
-            title = f"P_js for segment {seg}"
             y_axis = self.list_dep_var
             x_axis = np.arange(np.max(self.n_categories))
             matrix = p_js[seg,:,:]
-            self.visualize_matrix(matrix, x_axis, y_axis, title)
+            self.visualize_matrix(matrix, x_axis, y_axis, "Level",
+                                  "dependent variable",
+                                   f"P_js for segment {seg}")
         
-        # Other probabilities (different for each person)
+        # ------Visualize Ps_given_Y_Z---------
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
+        y_axis = np.arange(n_segments)
+        x_axis = np.arange(self.T)
+        self.visualize_matrix(P_s_given_Y_Z[:,person_index,:], x_axis, y_axis,
+                              "Time","Segment",
+                              f"P_s_given_Y_Z for person {person_index}")
+        
+        # Visualize Ps_given_Y_Z_ut??
         P_s_given_Y_Z_ut = np.multiply(alpha, beta)
         
+    
+        # ------Visualize time dependent variables ---------
         list_P_s_given_r = []
         list_P_y_given_s = []
+        list_P_s_given_Z = []
         for t in range(0,self.T):
             Y = self.list_Y[t]
             if self.covariates == True:
@@ -740,39 +778,76 @@ class HMM_eff:
                 Z = []
             P_s_given_r = ef.prob_P_s_given_r(self, parameters, shapes, Z, n_segments)
             P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
+            P_s_given_Z = ef.prob_P_s_given_Z(self, parameters, shapes, Z, n_segments) #[ixs]
             list_P_s_given_r.append(P_s_given_r)
             list_P_y_given_s.append(P_y_given_s)
+            list_P_s_given_Z.append(P_s_given_Z)
+        
+            
+        # Visualize P_s_given_r for the last T
+        title = f"P_s_given_r for person {person_index} at time T"
+        y_axis = np.arange(n_segments)
+        x_axis = np.arange(n_segments)
+        self.visualize_matrix(P_s_given_r[person_index,:,:], x_axis, y_axis,
+                              "segment","segment",title)
+        
+        # Visualize P_s_given_Z
+        # title = f"P_s_given_r for person {person_index} at time T"
+        # y_axis = np.arange(n_segments)
+        # x_axis = np.arange(n_segments)
+        # self.visualize_matrix(P_s_given_r[person_index,:,:], x_axis, y_axis, 
+        #                       "segment","segment",title)
         
         
-
-
-    def visualize_matrix(self,matrix,x_axis,y_axis,title):
-        """Visualize a matrix in a figue with labels and title"""
+        
+        
+    def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
+                         diverging = False):
+        """Visualize a 2D matrix in a figure with labels and title"""
+        
         fig, ax = plt.subplots(figsize=(14, 8))
-        #colors = ""
-        im = ax.imshow(matrix, cmap = 'viridis')
+
+        # Define the colors
+        if diverging:
+            colMap = copy.copy(cm.get_cmap("coolwarm"))      
+        else:
+            colMap = copy.copy(cm.get_cmap("viridis"))
+            colMap.set_under(color='white') # set under deals with values below minimum
+            # colMap.set_bad(color='black') # set bad deals with color of nan values
+            
+        # Now plot the values
+        im = ax.imshow(matrix, cmap = colMap)
         # set the max color to >1  so that the lightest areas are not too light
-        im.set_clim(0, 1.2) 
+        # below the min we want it to be white
+        if diverging:
+            im.set_clim(-1.5, 1.5)  
+        else:
+            im.set_clim(1e-30, 1.2)  
+        
         
         # We want to show all ticks...
         ax.set_xticks(np.arange(len(x_axis)))
         ax.set_yticks(np.arange(len(y_axis)))
         # ... and label them with the respective list entries
-        ax.set_xticklabels(x_axis,fontsize = 10)
-        ax.set_yticklabels(y_axis,fontsize = 10)
+        ax.set_xticklabels(x_axis,fontsize = 12)
+        ax.set_yticklabels(y_axis,fontsize = 12)
         
-        ax.xaxis.set_label_position('top') 
-        ax.xaxis.tick_top()
+        #ax.xaxis.set_label_position('top') 
+        #ax.xaxis.tick_top()
         # Rotate the tick labels and set their alignment.
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
                  rotation_mode="anchor")
         
+        #Label the axes
+        plt.xlabel(xlabel,fontsize = 13)
+        plt.ylabel(ylabel,fontsize = 13)
+
         # Loop over data dimensions and create text annotations.
         for i in range(len(y_axis)):
             for j in range(len(x_axis)):
                 text = ax.text(j, i, matrix[i, j],
                                ha="center", va="center", color="w",
-                               fontsize = 9)
+                               fontsize = 10)
         ax.set_title(title,fontsize = 20, fontweight='bold')
         fig.tight_layout()
         
