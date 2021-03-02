@@ -408,7 +408,7 @@ if __name__ == "__main__":
         param_cross, alpha_cross, beta_cross, shapes_cross, hes, hess_inv = hmm.EM(n_segments, 
                                                                                    max_method = 'Nelder-Mead', 
                                                                                    reg_term = 0.05,
-                                                                                   random_starting_values = True) 
+                                                                                   random_starting_points = True) 
        
         # Transform the output back to the specific parameter matrices
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(hmm, 
