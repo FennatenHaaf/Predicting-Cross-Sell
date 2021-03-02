@@ -21,7 +21,8 @@ from tqdm import tqdm
 from time import perf_counter
 import numdifftools as nd
 #from geneticalgorithm import geneticalgorithm as ga
-
+import seaborn as sns
+import matplotlib.pyplot as plt
 #from pyswarm import pso
 
 class HMM_eff:
@@ -328,7 +329,7 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
 
-        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2), 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2)} #, 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
 
@@ -585,11 +586,100 @@ class HMM_eff:
                     cross_sell_total = False 
                         
         return cross_sell_target, cross_sell_self, cross_sell_total
+    
+    
+    
+    
+    def interpret_parameters(self,parameters,n_segments):
+        """This function aims to visualise and interpret the results for parameters"""
+        
+        #----------- Initialise everything so that we get the shapes-------------
+        gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
+        gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
+        gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
+        beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
+        for s in range(n_segments):
+            for p in range(0,self.n_products):
+                beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
+                
+        #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
+        shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
+                           [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
                    
         
+        #----------- Now look at the actual parameters -------------
+        print("Interpreting the following parameters")
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, parameters, shapes)
+        print(f"Gamma_0: {gamma_0}")
+        print(f"Gamma_sr_0: {gamma_sr_0}")
+        print(f"Gamma_sk_t: {gamma_sk_t}")
+        print(f"Beta: {beta}")
         
-              
-            
-            
-            
-            
+        #perform ONE forward-backward procedure (expectation step of EM) 
+        alpha, beta = self.forward_backward_procedure(parameters, shapes, n_segments)
+        
+        # Get Probabilities
+        p_js = ef.prob_p_js(self, parameters, shapes, n_segments)
+        
+        # Visualize the pjs
+        for seg in range(0, n_segments):
+            title = f"P_js for segment {seg}"
+            y_axis = self.list_dep_var
+            x_axis = np.arange(np.max(self.n_categories))
+            matrix = p_js[seg,:,:]
+            self.visualize_matrix(matrix, x_axis, y_axis, title)
+        
+        # Other probabilities (different for each person)
+        P_s_given_Y_Z = ef.state_event(self, alpha, beta)
+        P_s_given_Y_Z_ut = np.multiply(alpha, beta)
+        
+        list_P_s_given_r = []
+        list_P_y_given_s = []
+        for t in range(0,self.T):
+            Y = self.list_Y[t]
+            if self.covariates == True:
+                Z = self.list_Z[t]   
+            else: 
+                Z = []
+            P_s_given_r = ef.prob_P_s_given_r(self, parameters, shapes, Z, n_segments)
+            P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
+            list_P_s_given_r.append(P_s_given_r)
+            list_P_y_given_s.append(P_y_given_s)
+        
+        
+
+
+    def visualize_matrix(self,matrix,x_axis,y_axis,title):
+        """Visualize a matrix in a figue with labels and title"""
+        fig, ax = plt.subplots(figsize=(14, 8))
+        #colors = ""
+        im = ax.imshow(matrix, cmap = 'viridis')
+        # set the max color to >1  so that the lightest areas are not too light
+        im.set_clim(0, 1.2) 
+        
+        # We want to show all ticks...
+        ax.set_xticks(np.arange(len(x_axis)))
+        ax.set_yticks(np.arange(len(y_axis)))
+        # ... and label them with the respective list entries
+        ax.set_xticklabels(x_axis,fontsize = 10)
+        ax.set_yticklabels(y_axis,fontsize = 10)
+        
+        ax.xaxis.set_label_position('top') 
+        ax.xaxis.tick_top()
+        # Rotate the tick labels and set their alignment.
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+                 rotation_mode="anchor")
+        
+        # Loop over data dimensions and create text annotations.
+        for i in range(len(y_axis)):
+            for j in range(len(x_axis)):
+                text = ax.text(j, i, matrix[i, j],
+                               ha="center", va="center", color="w",
+                               fontsize = 9)
+        ax.set_title(title,fontsize = 20, fontweight='bold')
+        fig.tight_layout()
+        
+        #cbar = plt.colorbar()
+        #cbar.set_label('Probability')
+        plt.show()
+                

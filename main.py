@@ -10,8 +10,10 @@ import utils
 import additionalDataProcess as AD
 import HMM_eff as ht
 import extra_functions_HMM_eff as ef
+from scipy.stats.distributions import chi2
 
 import pandas as pd
+import numpy as np
 from os import path
 
 if __name__ == "__main__":
@@ -28,7 +30,6 @@ if __name__ == "__main__":
     # outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
     # interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
 
-    
     save_intermediate_results = False # Save the intermediate outputs
     # save_intermediate_results = True # Save the intermediate outputs
     print_information = False # Print things like frequency tables or not
@@ -63,11 +64,13 @@ if __name__ == "__main__":
 # =============================================================================
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
-    time_series = True # Do we want to run the code for getting time series data
+    time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
+    
     run_hmm = False
-    run_cross_sell = False # do we want to run the model for cross sell or activity
+    run_cross_sell = True # do we want to run the model for cross sell or activity
+    interpret = True #Do we want to interpret variables
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -139,7 +142,7 @@ if __name__ == "__main__":
     activity_total_dummies = [
         "log_logins_totaal_bins",
         "log_aantaltransacties_totaal_bins",
-        "aantalproducten_totaal_bins"
+        #"aantalproducten_totaal_bins"
         ]
     
     # activity variables per portfolio
@@ -208,7 +211,7 @@ if __name__ == "__main__":
         dflist = processor.time_series_from_cross(outname = final_name)
         
     else:
-        name = "final_df_n500" # adjust this name to specify which files to read
+        name = "final_df_finB04" # adjust this name to specify which files to read
         if (path.exists(f"{interdir}/{name}_2018Q1.csv")):
             print("****Reading df list of time series data from file****")
             
@@ -279,12 +282,8 @@ if __name__ == "__main__":
 # RUN HMM MODEL
 # =============================================================================
     
-    if (run_hmm & transform):
-        
-        #---------------- SELECT VARIABLES ---------------
-        print(f"****Defining variables to use at {utils.get_time()}****")
-    
-        # MAKE ACTIVITY VARIABLES
+    if (transform):
+         # MAKE ACTIVITY VARIABLES
         for i, df in enumerate(dflist):            
             df = dflist[i]
             dummies, activitynames =  additdata.make_dummies(df,
@@ -296,21 +295,7 @@ if __name__ == "__main__":
         activity_variables = activitynames #activity status 1.0 is de base case
         activity_variables.extend(activity_total)
         
-        # MAKE VERSION OF ACTIVITY VARIABLES WHICH ARE ALL DUMMIES
-        activity_dummies.extend(activity_total_dummies)
-        for i, df in enumerate(dflist):            
-            df = dflist[i]
-            # Do not drop any base case, since we will use this for input
-            # as dependent variable
-            dummies2, activitynames2 =  additdata.make_dummies(df,
-                                                 activity_dummies,
-                                                 drop_first = False)
-            df[activitynames2] = dummies2[activitynames2]
-        print("Dummy variables made:")
-        print(activitynames2)
-        activity_variables_categ = activitynames2 
-
-        #MAKE PERSONAL VARIABLES
+        #MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER)
         # we don't use all experian variables yet
         dummies_personal = ["income","age_bins","geslacht"] 
         for i, df in enumerate(dflist):   
@@ -323,9 +308,14 @@ if __name__ == "__main__":
         # get the dummy names without base cases        
         base_cases = ['income_1.0','age_bins_(18, 30]','geslacht_Man']
         personal_variables = [e for e in dummynames if e not in base_cases]
-        
-            
+
+
+    if (run_hmm & transform):
+        #---------------- SELECT VARIABLES ---------------
+        print(f"****Defining variables to use at {utils.get_time()}****")
+
         if (run_cross_sell): 
+            print("Running cross sell model")
             # Define the dependent variable
             name_dep_var = crosssell_types_max_nooverlay
             # Say which covariates we are going to use
@@ -336,8 +326,10 @@ if __name__ == "__main__":
             n_segments = 3
             
         else: # run the activity model!
+            print("Running activity model")
             # Define the dependent variable
-            name_dep_var = activitynames2
+            activity_dummies.extend(activity_total_dummies)
+            name_dep_var = activity_dummies
             # Say which covariates we are going to use
             name_covariates = personal_variables
             # take a subset of the number of periods, just to test
@@ -349,36 +341,152 @@ if __name__ == "__main__":
         
         startmodel = utils.get_time()
         print(f"****Running HMM at {startmodel}****")
+        print(f"dependent variable: {name_dep_var}")
         print(f"covariates: {name_covariates}")
         print(f"number of periods: {len(df_periods)}")
         print(f"number of segments: {n_segments}")
+        print(f"number of people: {len(dflist[0])}")
         
         # Note: the input datasets have to be sorted / have equal ID columns!
-        test_cross_sell = ht.HMM_eff(df_periods, name_dep_var, 
+        hmm = ht.HMM_eff(df_periods, name_dep_var, 
                                      name_covariates, covariates = True,
                                      iterprint = True)
         
         # Run the EM algorithm - max method can be Nelder-Mead or BFGS
-        param_cross, alpha_cross, shapes_cross, hes = test_cross_sell.EM(n_segments, 
-                                                                    max_method = 'Nelder-Mead') 
+        param_cross, alpha_cross, shapes_cross, hes = hmm.EM(n_segments, 
+                                                             max_method = 'Nelder-Mead') 
        
         
         # Transform the output back to the specific parameter matrices
-        gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(test_cross_sell, 
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(hmm, 
                                                                           n_segments, 
                                                                           param_cross, 
                                                                           shapes_cross)
-        # See what the results are in terms of probabilities, for the first period
-        Y = test_cross_sell.list_Y[0]
-        Z = test_cross_sell.list_Z[0]
-        p_js = ef.prob_p_js(test_cross_sell, param_cross, shapes_cross, n_segments)
-        P_y_given_S = ef.prob_P_y_given_s(test_cross_sell, Y, p_js, n_segments)
-        P_s_given_Z = ef.prob_P_s_given_Z(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
-        P_s_given_r = ef.prob_P_s_given_r(test_cross_sell, param_cross, shapes_cross, Z, n_segments)
         # Also print the Hessian?
+        cov = - np.linalg.inv(hes)
+        print(f"Covariance: {cov}")
     
         endmodel = utils.get_time()
         diff = utils.get_time_diff(startmodel,endmodel)
         print(f"HMM finished! Total time: {diff}")
 
+
+
+# =============================================================================
+# INTERPRET PARAMETERS
+# =============================================================================
+
+    if (transform & interpret):
+        print("****Checking HMM output****")
+        
+        if (~run_hmm): # read in parameters if we have not run hmm
+            print("-----Reading in existing parameters-----")
+             
+            source = "activityFinB04"
+            if (source == "3seg500n"):
+                param_cross = np.array([ 9.57347300e+00,5.48433032e+00,1.12262507e+01,1.62844971e+01
+                ,-4.24443740e+00,-9.38509250e-13,-2.93732866e+00,-1.87993462e+00
+                ,-2.65321128e+00,1.46505313e-20,2.96302734e+02,1.09186362e+01
+                ,1.02184573e+01,6.47918756e+00,1.15696666e+01,1.64926188e+01
+                ,-3.90221106e+00,-1.18444012e-15,-3.90183094e+00,-2.60783116e+00
+                ,-3.03147808e+00,5.73839349e+01,1.88850731e-12,1.10490188e+01
+                ,2.00427593e+01,1.38660471e-25,2.54295940e-24,2.54256611e-30
+                ,2.75082911e+02,-3.36123056e+01,2.71594678e-18,-9.76973359e-23
+                ,9.64370896e+00,-6.91851040e-25,1.61978835e-18,-1.47880050e+01
+                ,-1.45612764e+01,-8.18246359e+00,5.44864002e-19,5.90501218e+02
+                ,5.84185133e-01,1.73384950e+00,1.04830966e+00,1.02836248e+01
+                ,-6.53726714e+01,5.14140979e-21,1.59860159e-01,2.01874672e-21
+                ,7.57429109e-23,-9.65927404e-19,-4.26094993e-15,-1.97230447e-21
+                ,5.89207048e+00,9.05672539e+00,-1.46727080e+01,-7.31147855e-01
+                ,6.73366209e+00,5.81941813e+00,3.29402028e-17,-9.26004012e+01
+                ,-2.23678235e+02,1.17238854e+02,3.56124603e-20,5.68453198e+00
+                ,-5.27674988e+00,-1.01674686e+01,1.17725048e+01,1.65711107e+00
+                ,-7.05901628e+00,-1.06283721e+01])
+                
+                # Define the parameters (need to be the same as what was used to
+                # produce the output!)
+                df_periods  = dflist[:5] 
+                name_dep_var = crosssell_types_max_nooverlay
+                name_covariates = personal_variables
+                n_segments = 3
+                
+            if (source == "activityFinB04"):
+                param_cross = np.array([ 1.09607100e-01,9.08286566e-03,-6.36999543e-01,-2.96600310e-01
+                ,-3.12565519e-01,6.46833377e+05,3.84478055e-01,3.22616130e-01
+                ,3.34262554e-01,-3.98285606e+01,5.18491848e-01,1.64299266e-01
+                ,-4.32951294e-02,9.28187258e-01,3.17080787e-01,1.35084244e-01
+                ,9.72483796e-02,-4.39334060e+07,2.01594729e-01,-2.19203431e-01
+                ,-6.51141160e-01,-1.74737789e+03,1.20225968e+00,1.71622738e-01
+                ,3.63044788e+00,8.74362292e+00,-3.30587117e+00,1.18486016e+00
+                ,1.42813089e+01,-1.76406965e+01,1.26248695e+00,3.35600755e-02
+                ,-9.33111839e-02,-1.16092695e-01,-6.89555430e-02,3.65032170e-01
+                ,3.40766501e-02,1.55316201e-01,-2.46821210e-01,-4.59052570e-01
+                ,8.64342959e-02,1.35125683e+00,-5.50664918e-01,-1.27545667e+00
+                ,-9.28133544e-01,-2.50734713e+04,-7.18313052e-01,-8.74515160e-01
+                ,-1.43949098e+00,-1.94122989e+01,4.76542140e-01,1.80622664e-01
+                ,2.55926773e+01,2.73330647e+01,3.23366097e+01,4.38701084e+00
+                ,6.12311842e+00,5.65507768e+00,1.16063458e+01,-1.02975081e+04
+                ,-1.55988692e+06,1.33866191e+01,1.36217551e+01,1.99016626e+01
+                ,1.21420722e+01,2.22883871e+01,1.43737298e+01,1.48039032e+01
+                ,1.14224853e+01,-1.50407630e+00,-5.59738143e+00,-2.64778064e+00
+                ,-9.17047760e+00])
+               
+                # Define the parameters (need to be the same as what was used to
+                # produce the output!)
+                df_periods  = dflist[:8] 
+                activity_dummies.extend(activity_total_dummies)
+                name_dep_var = activity_dummies
+                name_covariates = personal_variables
+                n_segments = 3
+            
+            
+            print(f"dependent variable: {name_dep_var}")
+            print(f"covariates: {name_covariates}")
+            print(f"number of periods: {len(df_periods)}")
+            print(f"number of segments: {n_segments}")
+            print(f"number of people: {len(dflist[0])}")
+            
+            
+            hmm = ht.HMM_eff(df_periods, name_dep_var, name_covariates, 
+                             covariates = True, iterprint = True)
+            
+        # Now interpret & visualise the parameters 
+        hmm.interpret_parameters(param_cross, n_segments)
+        #TODO give names of the classes as input!
+        
+        # # See what the results are in terms of probabilities, for the first period
+        # Y = hmm.list_Y[0]
+        # Z = hmm.list_Z[0]
+        # p_js = ef.prob_p_js(hmm, param_cross, shapes_cross, n_segments)
+        # P_y_given_S = ef.prob_P_y_given_s(hmm, Y, p_js, n_segments)
+        # P_s_given_Z = ef.prob_P_s_given_Z(hmm, param_cross, shapes_cross, Z, n_segments)
+        # P_s_given_r = ef.prob_P_s_given_r(hmm, param_cross, shapes_cross, Z, n_segments)
+
     
+    LRtest = False
+    if (LRtest) :
+        
+        def likelihood_ratio(llmin, llmax):
+            return(2*(llmax-llmin))
+        
+        # Comparing 4 and 5 
+        L1 = -2107.45952780524
+        param1 = 105
+        
+        L2 = -2050.340265791282
+        param2 = 142
+        
+        LR = likelihood_ratio(L1,L2)
+        p = chi2.sf(LR, param2-param1) # L2 has 1 DoF more than L1
+        
+        print('p: %.30f' % p) 
+        # So 5 is significantly better than 4?
+
+        
+        
+        
+        
+        
+        
+        
+
