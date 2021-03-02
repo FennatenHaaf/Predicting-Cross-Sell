@@ -27,13 +27,13 @@ if __name__ == "__main__":
     indirec = "./data"
     outdirec = "./output"
     interdir = "./interdata"
-    # indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/data"
-    # outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
-    # interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
+    #indirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/data"
+    #outdirec = "C:/Users/matth/OneDrive/Documenten/seminar 2021/output"
+    #interdir = "C:/Users/matth/OneDrive/Documenten/seminar 2021/interdata"
 
     save_intermediate_results = False # Save the intermediate outputs
     # save_intermediate_results = True # Save the intermediate outputs
-    print_information = True # Print things like frequency tables or not
+    print_information = False # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
     #start_date = "2020-01-01" # From which moment onwards do we want to use
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    end_date = "2019-12-31" # Until which moment do we want to use the information
+    end_date = "2020-12-31" # Until which moment do we want to use the information
     subsample = False # Do we want to take a subsample
     #subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
@@ -68,10 +68,10 @@ if __name__ == "__main__":
     time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
-    visualize_data = True # make some graphs and figures
+    visualize_data = False # make some graphs and figures
     
-    run_hmm = False
-    run_cross_sell = True # do we want to run the model for cross sell or activity
+    run_hmm = True
+    run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
 
 # =============================================================================
@@ -382,20 +382,19 @@ if __name__ == "__main__":
         # Note: the input datasets have to be sorted / have equal ID columns!
         hmm = ht.HMM_eff(df_periods, name_dep_var, 
                                      name_covariates, covariates = True,
-                                     iterprint = True)
+                                     iterprint = False)
         
         # Run the EM algorithm - max method can be Nelder-Mead or BFGS
-        param_cross, alpha_cross, shapes_cross, hes = hmm.EM(n_segments, 
-                                                             max_method = 'Nelder-Mead') 
+        param_cross, alpha_cross, beta_cross, shapes_cross, hes = hmm.EM(n_segments, 
+                                                             max_method = 'Nelder-Mead', reg_term = 0.05) 
        
-        
         # Transform the output back to the specific parameter matrices
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(hmm, 
                                                                           n_segments, 
                                                                           param_cross, 
                                                                           shapes_cross)
         # Also print the Hessian?
-        cov = - np.linalg.inv(hes)
+        cov = np.linalg.inv(-hes)
         print(f"Covariance: {cov}")
     
         endmodel = utils.get_time()
