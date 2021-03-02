@@ -256,6 +256,9 @@ class AdditionalDataProcess(object):
             # also make a version of this variable where they are divided into bins
             df[f"log_{var}_bins"] = pd.cut(df[f"log_{var}"], bins=3, labels=False)
 
+        #also take bins for aantalproducten totaal
+        df[f"aantalproducten_totaal_bins"] = pd.cut(df[f'aantalproducten_totaal'], 
+                                                    bins=3, labels=False)
 
         # Put a MAX on the business, portfolio, joint variables (3 per type max)
         # also make a dummy
