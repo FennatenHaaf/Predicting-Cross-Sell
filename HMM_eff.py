@@ -22,12 +22,9 @@ from time import perf_counter
 import numdifftools as nd
 import seaborn as sns
 import matplotlib.pyplot as plt
-<<<<<<< HEAD
-=======
 import matplotlib.cm as cm
 import copy
 #from pyswarm import pso
->>>>>>> 8d3acfac54dcfbc28d851b3e4272b066832e6059
 
 class HMM_eff:
     
