@@ -121,5 +121,7 @@ cov = - np.linalg.inv(hes)
 print(f"Covariance: {cov}")
 p_jout.to_csv(f"{outdirec}/p_j_out.csv")
 pass
+
+tresholds = [0.5, 0.8]
 #cross_sell_target, cross_sell_self, cross_self_total = test_cross_sell.cross_sell_yes_no(param_cross, shapes_cross, n_segments, alpha_cross, active_value, tresholds)      
 #prediction_ownership = test_cross_sell.predict_product_ownership(param_cross, shapes_cross, n_segments, alpha_cross

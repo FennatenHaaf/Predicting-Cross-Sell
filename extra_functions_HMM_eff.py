@@ -179,13 +179,27 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
         P_s_given_r = np.exp(P_s_given_r - log_sum_exp[:,np.newaxis,:]) #i x s x s
     else:  
         A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
-        A = np.vstack((A, np.ones((1, n_segments))))
+        A = np.vstack((A, np.zeros((1, n_segments))))
         
         A = A[np.newaxis, :, :]
         P_s_given_r = np.exp(A - logsumexp(A))
     return P_s_given_r
         
-    
+    def gamma_sr_0_to_trans(self, param, shapes, n_segments):
+        if self.covariates == True:
+            gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
+            gamma_sr_0 = np.vstack((gamma_sr_0, np.zeros((1,n_segments))))
+            
+            P_s_given_r = np.exp(gamma_sr_0 - logsumexp(gamma_sr_0)) #i x s x s
+            
+        else:
+            A, pi, b = param_list_to_matrices(self, n_segments, param, shapes)
+            A = np.vstack((A, np.zeros((1, n_segments))))
+        
+            P_s_given_r = np.exp(A - logsumexp(A))
+         
+        return P_s_given_r
+            
 
 #--------------------function for maximisation step---------------------
 
