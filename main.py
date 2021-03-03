@@ -68,11 +68,11 @@ if __name__ == "__main__":
     time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
-    visualize_data = False # make some graphs and figures
+    visualize_data = True # make some graphs and figures
     
     run_hmm = True
-    run_cross_sell = False # do we want to run the model for cross sell or activity
-    interpret = True #Do we want to interpret variables
+    run_cross_sell = True # do we want to run the model for cross sell or activity
+    interpret = False #Do we want to interpret variables
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     activity_total = [
         "log_logins_totaal",
         "log_aantaltransacties_totaal",
-        "aantalproducten_totaal"
+        #"aantalproducten_totaal"
         ]
     activity_total_dummies = [
         "log_logins_totaal_bins",
@@ -255,7 +255,8 @@ if __name__ == "__main__":
            else:
                dfnew = dflist[i]
                if (dfold["personid"].equals(dfnew["personid"])):
-                   print("check")
+                   #print("check") 
+                   check=1 # we do nothing
                else:
                    print("noooooooooooo")
                dfold = dfnew
@@ -300,8 +301,9 @@ if __name__ == "__main__":
                                "accountoverlay_max",
                                "activitystatus",
                                "saldototaal_bins",
-                               "log_logins_totaal_bins",
-                               "log_aantaltransacties_totaal_bins",]   
+                               "SBIsectorName",
+                               "businessAgeInYears_bins",
+                               "businessType"]   
         for var in visualize_variables:
             print(f"visualising {var}")
             DI.plotCategorical(df, var)
@@ -315,24 +317,27 @@ if __name__ == "__main__":
     
     if (transform):
          #----------------MAKE ACTIVITY VARIABLES -----------------------
-        for i, df in enumerate(dflist):            
-            df = dflist[i]
-            dummies, activitynames =  additdata.make_dummies(df,
-                                                 activity_dummies,
-                                                 drop_first = True)
-            df[activitynames] = dummies[activitynames]
-        print("Dummy variables made:")
-        print(activitynames)
-        activity_variables = activitynames #activity status 1.0 is de base case
-        activity_variables.extend(activity_total)
+        # for i, df in enumerate(dflist):            
+        #     df = dflist[i]
+        #     dummies, activitynames =  additdata.make_dummies(df,
+        #                                          activity_dummies,
+        #                                          drop_first = True)
+        #     df[activitynames] = dummies[activitynames]
+        # print("Dummy variables made:")
+        # print(activitynames)
+        # activity_variables = activitynames #activity status 1.0 is de base case
+        # activity_variables.extend(activity_total)
         
         #-------MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER)-------------
         # we don't use all experian variables yet
+        #TODO remove this once we do not need to interpret the parameters at 
+        # the bottom anymore
+        
         dummies_personal = ["income","age_bins","geslacht"] 
         for i, df in enumerate(dflist):   
             dummies, dummynames =  additdata.make_dummies(df,
-                                                 dummies_personal,
-                                                 drop_first = False)
+                                                  dummies_personal,
+                                                  drop_first = False)
             df[dummynames] = dummies[dummynames]
         print("Dummy variables made:")
         print(dummynames)
@@ -361,6 +366,32 @@ if __name__ == "__main__":
         # occurrences as men
         personal_variables2 = [e for e in dummynames if e not in base_cases]
 
+        #--------------------GET FULL SET OF COVARIATES----------------------
+
+        # First add the continuous variables
+        full_covariates = ["log_logins_totaal","log_aantaltransacties_totaal"] 
+
+        # Time to process dummies again
+        dummies_personal = ["income", "age_bins", "geslacht", "hh_size",
+                            "saldototaal_bins", "businessType"] 
+        for i, df in enumerate(dflist):   
+            dummies, dummynames =  additdata.make_dummies(df,
+                                                 dummies_personal,
+                                                 drop_first = False)
+            df[dummynames] = dummies[dummynames]
+        print("Dummy variables made:")
+        print(dummynames)
+        # get the dummy names without base cases        
+        base_cases = ['income_1.0','age_bins_(18, 30]','age_bins_(0, 18]',
+                      'geslacht_Man','geslacht_Man(nen) en vrouw(en)',
+                      'hh_size_2.0','saldototaal_bins_(0,100]',
+                      ]
+        # Note: we should drop man(nen) en vrouw(en) as well!! Which means we treat these
+        # occurrences as men
+        dummies_final = [e for e in dummynames if e not in base_cases]
+        full_covariates.extend(dummies_final)
+
+
 
     if (run_hmm & transform):
         #---------------- SELECT VARIABLES ---------------
@@ -369,13 +400,13 @@ if __name__ == "__main__":
         if (run_cross_sell): 
             print("Running cross sell model")
             # Define the dependent variable
-            name_dep_var = crosssell_types_max_nooverlay
+            name_dep_var = crosssell_types_max
             # Say which covariates we are going to use
-            name_covariates = personal_variables
+            name_covariates = full_covariates
             # take a subset of the number of periods, just to test
             df_periods  = dflist[:5] # only use 5 periods for now?
             #Define number of segments
-            n_segments = 3
+            n_segments = 5
             
         else: # run the activity model!
             print("Running activity model")
@@ -391,6 +422,8 @@ if __name__ == "__main__":
         
         #---------------- RUN THE HMM MODEL ---------------
         
+        reg = 0.05 # Regularization term - TODO move to top maybe
+        
         startmodel = utils.get_time()
         print(f"****Running HMM at {startmodel}****")
         print(f"dependent variable: {name_dep_var}")
@@ -398,18 +431,19 @@ if __name__ == "__main__":
         print(f"number of periods: {len(df_periods)}")
         print(f"number of segments: {n_segments}")
         print(f"number of people: {len(dflist[0])}")
+        print(f"regularization term: {reg}")
         
         # Note: the input datasets have to be sorted / have equal ID columns!
         hmm = ht.HMM_eff(df_periods, name_dep_var, 
                                      name_covariates, covariates = True,
-                                     iterprint = False)
+                                     iterprint = True)
         
         # Run the EM algorithm - max method can be Nelder-Mead or BFGS
-        param_cross, alpha_cross, beta_cross, shapes_cross, hes, hess_inv = hmm.EM(n_segments, 
-                                                                                   max_method = 'Nelder-Mead', 
-                                                                                   reg_term = 0.05,
-                                                                                   random_starting_points = True) 
-       
+        param_cross, alpha_cross, beta_cross, shapes_cross, hes = hmm.EM(n_segments, 
+                                                             max_method = 'Nelder-Mead',
+                                                             reg_term = reg,
+                                                             random_starting_points = True)  
+
         # Transform the output back to the specific parameter matrices
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(hmm, 
                                                                           n_segments, 
@@ -432,7 +466,7 @@ if __name__ == "__main__":
     if (transform & interpret):
         print("****Checking HMM output****")
         
-        if (~run_hmm): # read in parameters if we have not run hmm
+        if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
             source = "activityFinB04"
