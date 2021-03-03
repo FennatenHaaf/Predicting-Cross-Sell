@@ -93,7 +93,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-6), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
+    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-5), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
         """
 
         Parameters
@@ -388,12 +388,12 @@ class HMM_eff:
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
 
         #set options for the different optimization routines
-        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2)} #, 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-3), 'fatol': 10**(-3)} #, 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
         #run the minimisation
         if (max_method == 'Nelder-Mead') & (end == False): #if Nelder-Mead is used and it is not the last maximisation step
-            if self.iteration <= 150: #the first X iterations Nelder-Mead is used, thereafter BFGS
+            if self.iteration <= 200: #the first X iterations Nelder-Mead is used, thereafter BFGS
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                          n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                      method=max_method,options= minimize_options_NM)
