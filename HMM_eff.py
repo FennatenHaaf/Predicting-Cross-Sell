@@ -612,15 +612,14 @@ class HMM_eff:
 
             return prediction
 
-    def active_value(self, param, shapes, n_segments):
-        Y = self.list_Y[self.T-1]
-
-        p_js = ef.prob_p_js(self, param, shapes, n_segments)
-        P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
-
-        active_value = np.argmax(P_Y_given_S, axis=1)
-
-        return active_value
+    def active_value(self, alpha, beta):
+        P_s_given_Y_Z = ef.state_event(self, alpha, beta)
+        
+        active_value = np.argmin(P_s_given_Y_Z, axis = 0)
+        
+        active_value_T = active_value[:, self.T - 1]
+        
+        return active_value_T
 
 
     def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value, tresholds, order_active_high_to_low = [0,1,2]):
