@@ -534,12 +534,15 @@ if __name__ == "__main__":
             #     ,-5.27674988e+00,-1.01674686e+01,1.17725048e+01,1.65711107e+00
             #     ,-7.05901628e+00,-1.06283721e+01])
                 
+
             #     # Define the parameters (need to be the same as what was used to
             #     # produce the output!)
             #     df_periods  = dflist[:5] 
             #     name_dep_var = crosssell_types_max_nooverlay
             #     name_covariates = personal_variables
             #     n_segments = 3
+            #     run_cross_sell = True
+
                 
             # if (source == "activityFinB04"):
                 
@@ -563,7 +566,7 @@ if __name__ == "__main__":
             #     ,1.21420722e+01,2.22883871e+01,1.43737298e+01,1.48039032e+01
             #     ,1.14224853e+01,-1.50407630e+00,-5.59738143e+00,-2.64778064e+00
             #     ,-9.17047760e+00])
-               
+
             #     # Define the parameters (need to be the same as what was used to
             #     # produce the output!)
             #     df_periods  = dflist[:8] 
@@ -571,6 +574,8 @@ if __name__ == "__main__":
             #     name_dep_var = activity_dummies
             #     name_covariates = personal_variables
             #     n_segments = 3
+            #     run_cross_sell = True
+
             if (source == "crosssell20it"):
                 param_cross = np.array([-1.59851179e-02,1.71030808e+00,6.39402247e-01,2.49854672e-05
                     ,6.37274643e-04,-1.25648848e-05,2.66934066e+00,2.28449489e+00
@@ -654,13 +659,13 @@ if __name__ == "__main__":
                 df_periods  = dflist[:5] # only use 5 periods for now?
                 #Define number of segments
                 n_segments = 5
-                
-          
-                
+                run_cross_sell = True
+
+                          
             if (source == "finalActivity"):
                 
                 # note: dataset used is "final_df_finB04"
-                param_cross = [ 1.40317466e-01,  4.52759878e-01,  1.53728048e-04, -1.29455500e-01,
+                param_cross = np.array([ 1.40317466e-01,  4.52759878e-01,  1.53728048e-04, -1.29455500e-01,
                 -1.67580052e-01,  5.85788986e-01,  1.78204713e-01, -5.58905705e-04,
                 -8.54111694e-01,  1.15437545e-01, -3.13876124e+01,  1.60574429e+01,
                 1.55167454e+01,  1.56559190e+01,  1.56975497e+01,  1.56886264e+01,
@@ -676,7 +681,7 @@ if __name__ == "__main__":
                 7.18670047e+00,  1.21302640e+01,  4.38836635e+00,  4.76497637e+00,
                 5.80298099e+00,  1.24577304e+01,  9.39271385e+00,  9.76444572e+00,
                 6.51689729e+00, -1.54844265e+00, -5.38946312e+00, -2.56214536e+00,
-                -9.65359438e+00]
+                -9.65359438e+00])
 
                 ## Define the dependent variable
                 activity_dummies.extend(activity_total_dummies)
@@ -687,6 +692,7 @@ if __name__ == "__main__":
                 df_periods  = dflist[:12] # use first 3 years
                 #Define number of segments
                 n_segments = 3
+                run_cross_sell = False
             
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
@@ -699,18 +705,25 @@ if __name__ == "__main__":
                              covariates = True, iterprint = True)
             
         # Now interpret & visualise the parameters 
-        hmm.interpret_parameters(param_cross, n_segments)
+        p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
         
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
-            tresholds = [0.3, 0.6]
+            tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
-            active_value = pd.read_csv(f"{outdirec}/active_value.csv")
-            dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total = hmm.cross_sell_yes_no(param_cross, n_segments, active_value, tresholds, order_active_high_to_low)
+            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+            active_value = active_value_pd.to_numpy()
+            active_value = active_value[:,1]
+            dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total = hmm.cross_sell_yes_no(param_cross, n_segments,
+                                                                                                      active_value, tresholds, 
+                                                                                                      order_active_high_to_low)
         else:
-            active_value  = hmm.active_value(param_cross, n_segments)
-            active_value.to_csv(f"{outdirec}/active_value.csv")
+            t = 5
+            active_value  = hmm.active_value(param_cross, n_segments, t)
+            active_value_df = pd.DataFrame(active_value) 
 
+            active_value_df.to_csv(f"{outdirec}/active_value.csv")
 
+        n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
 
     
     LRtest = False

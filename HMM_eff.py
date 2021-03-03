@@ -608,29 +608,30 @@ class HMM_eff:
             gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param, shapes)
 
             p_js = ef.prob_p_js(self, param, shapes, n_segments) #s x p x c
-            P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z)
-            nextstate = np.zeros(self.n_customers, n_segments) #i x s
-            prediction = np.zeros(self.n_customers, self.products, max(self.n_categories))
+            P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
+            nextstate = np.zeros((self.n_customers, n_segments)) #i x s
+            prediction = np.zeros((self.n_customers, self.n_products, max(self.n_categories)))
 
 
             for i in range(0,self.n_customers):
 
-                probstate = alpha[i,self.T,:] / np.sum(alpha[:, i, self.T])
+                probstate = alpha[:, i, self.T-1] / np.sum(alpha[:, i, self.T-1])
 
-                for s in  range(1,n_segments):
-                    nextstate[i,:] += probstate * P_s_given_r[i,:,s]
+                for s in  range(0,n_segments):
+                    nextstate[i,:] += probstate[s] * P_s_given_r[i,:,s]
 
                     #i x s    s x p x c
-            for p in range(1,self.n_products):
-                for c in range(1,self.n_categories[p]):
-                    for s in range(1,n_segments):
-                        prediction[i,p,c] += nextstate[i,s]* p_js[s,p,c]
+                for p in range(0,self.n_products):
+                    for c in range(0,self.n_categories[p]):
+                        pred = 0 
+                        for s in range(0,n_segments):
+                            pred += nextstate[i,s]* p_js[s,p,c]
+                        prediction[i,p,c] = pred
 
-            #prediction = np.einsum('is,spc->ipc', nextstate, p_js)
 
             return prediction
 
-    def active_value(self, param, n_segments):
+    def active_value(self, param, n_segments, t):
         #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
@@ -646,10 +647,10 @@ class HMM_eff:
               
         alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
-        active_value = np.argmin(P_s_given_Y_Z, axis = 0)
-        active_value_T = active_value[:, self.T - 1]
+        active_value = np.argmax(P_s_given_Y_Z, axis = 0)
+        active_value_t = active_value[:, t - 1]
         
-        return active_value_T
+        return active_value_t
 
 
     def cross_sell_yes_no(self, param, n_segments, active_value, tresholds = [0.5,0.8], order_active_high_to_low = [0,1,2]):
@@ -671,13 +672,13 @@ class HMM_eff:
         prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha)
         Y = self.list_Y[self.T-1]
         
-        expected_n_prod = np.zeros(self.n_customers, self.n_products)
+        expected_n_prod = np.zeros((self.n_customers, self.n_products))
 
-        dif_exp_own = np.zeros(self.n_customers, self.n_products)
+        dif_exp_own = np.zeros((self.n_customers, self.n_products))
         
-        cross_sell_target = np.zeros(self.n_customers, self.n_products)
-        cross_sell_self = np.zeros(self.n_customers, self.n_products)
-        cross_sell_total = np.zeros(self.n_customers, self.n_products)
+        cross_sell_target = np.zeros((self.n_customers, self.n_products))
+        cross_sell_self = np.zeros((self.n_customers, self.n_products))
+        cross_sell_total = np.zeros((self.n_customers, self.n_products))
         
 
         for i in range(0, self.n_customers):
@@ -686,49 +687,57 @@ class HMM_eff:
                     expected_n_prod[i,p] = expected_n_prod[i,p] + c*prod_own[i,p,c]
                     
                 dif_exp_own[i,p] = expected_n_prod[i,p] - Y[i,p]
-            if dif_exp_own[i,p] >= tresholds[0]:
-                if active_value[i] == order_active_high_to_low[0]:
-                    cross_sell_target[i,p] = False
-                    cross_sell_self[i,p] = True
-                    cross_sell_total = True
-                if active_value[i] == order_active_high_to_low[1]:
-                    cross_sell_target[i,p] = True
-                    cross_sell_self[i,p] = False
-                    cross_sell_total = True               
-                if active_value[i] == order_active_high_to_low[2]:
-                    cross_sell_target[i,p] = True
-                    cross_sell_self[i,p] = False
-                    cross_sell_total = True  
-            elif dif_exp_own[i,p] < tresholds[0] & dif_exp_own[i,p] >= tresholds[1]:
-                if active_value[i] == order_active_high_to_low[0]:
-                    cross_sell_target[i,p] = True
-                    cross_sell_self[i,p] = False
-                    cross_sell_total = True
-                if active_value[i] == order_active_high_to_low[1]:
-                    cross_sell_target[i,p] = True
-                    cross_sell_self[i,p] = False
-                    cross_sell_total = True               
-                if active_value[i] == order_active_high_to_low[2]:
-                    cross_sell_target[i,p] = True
-                    cross_sell_self[i,p] = False
-                    cross_sell_total = True 
-            else:
-                if active_value[i] == order_active_high_to_low[0]:
-                    cross_sell_target[i,p] = True
-                    cross_sell_self[i,p] = False
-                    cross_sell_total = True
-                if active_value[i] == order_active_high_to_low[1]:
-                    cross_sell_target[i,p] = False
-                    cross_sell_self[i,p] = False
-                    cross_sell_total = False               
-                if active_value[i] == order_active_high_to_low[2]:
-                    cross_sell_target[i,p] = False
-                    cross_sell_self[i,p] = False
-                    cross_sell_total = False 
+                if dif_exp_own[i,p] >= tresholds[1]:
+                    if active_value[i] == order_active_high_to_low[0]:
+                        cross_sell_target[i,p] = False
+                        cross_sell_self[i,p] = True
+                        cross_sell_total[i,p] = True
+                    if active_value[i] == order_active_high_to_low[1]:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total[i,p] = True               
+                    if active_value[i] == order_active_high_to_low[2]:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total[i,p] = True  
+                elif (dif_exp_own[i,p] < tresholds[1]) & (dif_exp_own[i,p] >= tresholds[0]):
+                    if active_value[i] == order_active_high_to_low[0]:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total[i,p] = True
+                    if active_value[i] == order_active_high_to_low[1]:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total[i,p] = True               
+                    if active_value[i] == order_active_high_to_low[2]:
+                        cross_sell_target[i,p] = True
+                        cross_sell_self[i,p] = False
+                        cross_sell_total[i,p] = True 
+                else:
+                    if active_value[i] == order_active_high_to_low[0]:
+                        cross_sell_target[i,p] = False
+                        cross_sell_self[i,p] = False
+                        cross_sell_total[i,p] = False
+                    if active_value[i] == order_active_high_to_low[1]:
+                        cross_sell_target[i,p] = False
+                        cross_sell_self[i,p] = False
+                        cross_sell_total[i,p] = False               
+                    if active_value[i] == order_active_high_to_low[2]:
+                        cross_sell_target[i,p] = False
+                        cross_sell_self[i,p] = False
+                        cross_sell_total[i,p] = False 
                         
         return dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total
     
-    
+    def number_of_cross_sells(self, cross_sell_target, cross_sell_self, cross_sell_total):
+        n_cross_sells = np.zeros((self.n_products, 3))
+        
+        for p in range(0,self.n_products):
+                n_cross_sells[p,0] = np.count_nonzero(cross_sell_target[:,p])
+                n_cross_sells[p,1] = np.count_nonzero(cross_sell_self[:,p])
+                n_cross_sells[p,2] = np.count_nonzero(cross_sell_total[:,p])
+
+        return n_cross_sells
     
     
     def interpret_parameters(self,parameters,n_segments, person_index = 0):
@@ -833,7 +842,7 @@ class HMM_eff:
         # self.visualize_matrix(P_s_given_r[person_index,:,:], x_axis, y_axis, 
         #                       "segment","segment",title)
         
-        
+        return p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs
         
         
     def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
