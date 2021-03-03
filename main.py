@@ -416,7 +416,7 @@ if __name__ == "__main__":
             # Say which covariates we are going to use
             name_covariates = personal_variables2
             # take a subset of the number of periods, just to test
-            df_periods  = dflist[:8] # only use first 2 years
+            df_periods  = dflist # only use first 2 years
             #Define number of segments
             n_segments = 3
         
@@ -441,8 +441,9 @@ if __name__ == "__main__":
         # Run the EM algorithm - max method can be Nelder-Mead or BFGS
         param_cross, alpha_cross, beta_cross, shapes_cross, hes = hmm.EM(n_segments, 
                                                              max_method = 'Nelder-Mead',
-                                                             reg_term = reg) 
-       
+                                                             reg_term = reg,
+                                                             random_starting_points = True)  
+
         # Transform the output back to the specific parameter matrices
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(hmm, 
                                                                           n_segments, 
