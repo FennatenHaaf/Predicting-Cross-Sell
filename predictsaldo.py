@@ -34,8 +34,10 @@ X = data.drop(columns = ['percdiff'])
               
 #Drop some of the variables that we do not use from x
 X = X.drop(columns = ['personid','portfolio_change','saldo_prev',
-                      'business_change','retail_change','joint_change', 
-                      'retail_change_dummy','business_change_dummy','joint_change_dummy' ,
+                      'business_change','retail_change','joint_change',
+                      'accountoverlay_change','retail_change_dummy',
+                      'business_change_dummy','joint_change_dummy' ,
+                      'accountoverlay_change_dummy',
                       'saldo_now','saldo_prev'])
 
 # Drop the base cases

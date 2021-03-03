@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # the information in the dataset
     end_date = None # Until which moment do we want to use the information
-    end_date = "2020-12-31" # Until which moment do we want to use the information
+    #end_date = "2020-12-31" # Until which moment do we want to use the information
     subsample = False # Do we want to take a subsample
     #subsample = True # Do we want to take a subsample
     sample_size = 500 # The sample size
@@ -52,14 +52,17 @@ if __name__ == "__main__":
     if (finergy_segment != None):
         if subsample:
             final_name = f"final_df_fin{finergy_segment}_n{sample_size}"
+            saldo_name =  f"saldopredict_fin{finergy_segment}_n{sample_size}"
         else:
             final_name = f"final_df_fin{finergy_segment}"
+            saldo_name = f"saldopredict_fin{finergy_segment}"
     else:
         if subsample:
             final_name = f"final_df_n{sample_size}"
+            saldo_name = f"saldopredict_n{sample_size}"
         else:
             final_name = "final_df"
-    
+            saldo_name = f"saldopredict"
 # =============================================================================
 # DEFINE WHAT TO RUN
 # =============================================================================
@@ -68,11 +71,11 @@ if __name__ == "__main__":
     time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
-    visualize_data = False # make some graphs and figures
+    visualize_data = True # make some graphs and figures
     
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
-    interpret = True #Do we want to interpret variables
+    interpret = False #Do we want to interpret variables
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -99,6 +102,13 @@ if __name__ == "__main__":
         "business_max",
         "retail_max",
         "joint_max",
+        ]
+    
+    crosssell_types_dummies = [
+        "business_dummy",
+        "retail_dummy",
+        "joint_dummy",
+        "accountoverlay_dummy"
         ]
 
     #------ Account balances -------
@@ -275,7 +285,7 @@ if __name__ == "__main__":
         
         # Run the data creation
         predictdata = additdata.create_saldo_data(dflist, interdir,
-                                        filename= "saldopredict",
+                                        filename= saldo_name,
                                         select_variables = selection,
                                         dummy_variables = dummies)
 
@@ -291,7 +301,7 @@ if __name__ == "__main__":
 
     if visualize_data:
         print("*****Visualising data*****")
-        df = dflist[0] # use the first time period
+        df = dflist[11] # use the last time period
         visualize_variables = ["age_bins", "geslacht",
                                "hh_size",
                                "income",
@@ -309,7 +319,36 @@ if __name__ == "__main__":
             DI.plotCategorical(df, var)
             counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
             print(counts)
-
+        DI.plotCoocc(df, crosssell_types_dummies)
+        
+        if (saldo_data & transform):
+            print("*****Visualising difference data*****")
+            saldodata = pd.read_csv(f"{interdir}/{saldo_name}.csv")
+            
+            # Note: deze data bevat niet de mensen die portfolio hebben geloosd!
+            # -> aparte dataset voor maken?
+            visualize_variables = ["business_change_dummy", "retail_change_dummy",
+                                   "joint_change_dummy",
+                                   "accountoverlay_change_dummy",
+                                  ]
+            
+            # ["business_change",
+            #                        "retail_change",
+            #                        "joint_change",
+            #                        "accountoverlay_change",
+            #                       ]   
+            
+            for var in visualize_variables:
+                print(f"visualising {var}")
+                DI.plotCategorical(df, var)
+                counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
+                print(counts)
+                
+            DI.plotCoocc(df,  visualize_variables  )
+            
+                
+            # Now visualise cross sell events from the saldo prediction data
+        
     
 # =============================================================================
 # RUN HMM MODEL
@@ -384,7 +423,7 @@ if __name__ == "__main__":
         # get the dummy names without base cases        
         base_cases = ['income_1.0','age_bins_(18, 30]','age_bins_(0, 18]',
                       'geslacht_Man','geslacht_Man(nen) en vrouw(en)',
-                      'hh_size_2.0','saldototaal_bins_(0,100]',
+                      'hh_size_2.0','saldototaal_bins_(0.0,100.0]', #'saldototaal_bins_(0,100]' was het eerst
                       ]
         # Note: we should drop man(nen) en vrouw(en) as well!! Which means we treat these
         # occurrences as men

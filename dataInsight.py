@@ -11,6 +11,7 @@ import pandas as pd
 import utils
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 
 """
 Printing Intermediate Results
@@ -123,12 +124,51 @@ def plotCategorical(df, name, annotate = True):
             # locations of where to put the labels
             x = p.get_x() + p.get_width() / 2 - 0.05 
             y = p.get_y() + p.get_height()
-            graph.annotate(value, (x, y), size = 16)
+            graph.annotate(value, (x, y), size = 17)
     
     
     plt.show()
     
+    
+def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0): 
+    sns.set(font_scale=2,rc={'figure.figsize':(20,16)})
+    
+  
+    coocc= df[names].T.dot(df[names])
+    graph = sns.heatmap(coocc, center=cent, annot = annotate, 
+                        cmap=colors, fmt='g',cbar=False) 
+    
+    
+    labels = ["business","retail","joint","accountoverlay"]  
         
+    #labels = graph.get_yticklabels()
+    graph.set_yticklabels(labels,rotation=0,
+                          horizontalalignment='right', fontweight='light',
+                          fontsize=18)
+    graph.set_xticklabels(labels,rotation=0,
+                          horizontalalignment='right', fontweight='light',
+                          fontsize=18)
+    plt.show()
+    
+    # Now also make the percentages version
+    coocc_diagonal = np.diagonal(coocc)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        coocc_perc = np.nan_to_num(np.true_divide(coocc,
+                                                  coocc_diagonal[:, None]))
+    
+    graph = sns.heatmap(coocc_perc, center=cent, annot = annotate, 
+                        cmap=colors, fmt='g',cbar=False,vmin=0.2, vmax=1.2) 
+
+    graph.set_yticklabels(labels,rotation=0,
+                          horizontalalignment='right', fontweight='light',
+                          fontsize=18)
+    graph.set_xticklabels(labels,rotation=0,
+                          horizontalalignment='right', fontweight='light',
+                          fontsize=18)
+    plt.show()
+    
+    
+   
     
     
 ### DATA EXPLORATION METHODS
