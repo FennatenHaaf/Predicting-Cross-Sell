@@ -630,22 +630,47 @@ class HMM_eff:
 
             return prediction
 
-    def active_value(self, alpha, beta):
+    def active_value(self, param, n_segments):
+        #----------- Initialise everything so that we get the shapes-------------
+        gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
+        gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
+        gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
+        beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
+        # for s in range(n_segments):
+        #     for p in range(0,self.n_products):
+        #         beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
+                
+        #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
+        shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
+                           [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
+              
+        alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
-        
         active_value = np.argmin(P_s_given_Y_Z, axis = 0)
-        
         active_value_T = active_value[:, self.T - 1]
         
         return active_value_T
 
 
-    def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value, tresholds, order_active_high_to_low = [0,1,2]):
-
-
+    def cross_sell_yes_no(self, param, n_segments, active_value, tresholds = [0.5,0.8], order_active_high_to_low = [0,1,2]):
+       #----------- Initialise everything so that we get the shapes-------------
+        gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
+        gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
+        gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
+        beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
+        # for s in range(n_segments):
+        #     for p in range(0,self.n_products):
+        #         beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
+                
+        #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
+        shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
+                           [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
+        
+        alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
+        
         prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha)
         Y = self.list_Y[self.T-1]
-
+        
         expected_n_prod = np.zeros(self.n_customers, self.n_products)
 
         dif_exp_own = np.zeros(self.n_customers, self.n_products)
@@ -701,7 +726,7 @@ class HMM_eff:
                     cross_sell_self[i,p] = False
                     cross_sell_total = False 
                         
-        return cross_sell_target, cross_sell_self, cross_sell_total
+        return dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total
     
     
     
