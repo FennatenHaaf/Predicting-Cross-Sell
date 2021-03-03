@@ -68,11 +68,11 @@ if __name__ == "__main__":
     time_series = False # Do we want to run the code for getting time series data
     transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
-    visualize_data = True # make some graphs and figures
+    visualize_data = False# make some graphs and figures
     
-    run_hmm = True
+    run_hmm = False
     run_cross_sell = True # do we want to run the model for cross sell or activity
-    interpret = False #Do we want to interpret variables
+    interpret = True #Do we want to interpret variables
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -469,7 +469,7 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
-            source = "activityFinB04"
+            source = "finalActivity"
             #source = "3seg500n"
             if (source == "3seg500n"):
                 # note: dataset used is "final_df_n500" _. make sure to change
@@ -529,7 +529,22 @@ if __name__ == "__main__":
                 name_dep_var = activity_dummies
                 name_covariates = personal_variables
                 n_segments = 3
-            
+                
+            if (source == "finalActivity"):
+                
+                # note: dataset used is "final_df_finB04"
+                param_cross =1# PLAK HIER DINGEN----------------------
+               
+                df_periods  = dflist[:12] 
+                ## Define the dependent variable
+                activity_dummies.extend(activity_total_dummies)
+                name_dep_var = activity_dummies
+                # Say which covariates we are going to use
+                name_covariates = personal_variables2
+                # take a subset of the number of periods, just to test
+                df_periods  = dflist # only use first 2 years
+                #Define number of segments
+                n_segments = 3
             
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
@@ -544,15 +559,7 @@ if __name__ == "__main__":
         # Now interpret & visualise the parameters 
         hmm.interpret_parameters(param_cross, n_segments)
 
-        # # See what the results are in terms of probabilities, for the first period
-        # Y = hmm.list_Y[0]
-        # Z = hmm.list_Z[0]
-        # p_js = ef.prob_p_js(hmm, param_cross, shapes_cross, n_segments)
-        # P_y_given_S = ef.prob_P_y_given_s(hmm, Y, p_js, n_segments)
-        # P_s_given_Z = ef.prob_P_s_given_Z(hmm, param_cross, shapes_cross, Z, n_segments)
-        # P_s_given_r = ef.prob_P_s_given_r(hmm, param_cross, shapes_cross, Z, n_segments)
 
-    
     LRtest = False
     if (LRtest) :
         
