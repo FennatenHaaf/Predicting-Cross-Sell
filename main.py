@@ -471,8 +471,8 @@ if __name__ == "__main__":
              
             #source = "activityFinB04"
             #source = "3seg500n"
-            source = "finalActivity"
-            #source = "crosssell20it"
+            #source = "finalActivity"
+            source = "crosssell20it"
             
               # if (source == "3seg500n"):
             #     # note: dataset used is "final_df_n500" _. make sure to change
@@ -666,10 +666,10 @@ if __name__ == "__main__":
                              covariates = True, iterprint = True)
             
         # Now interpret & visualise the parameters 
-        hmm.interpret_parameters(param_cross, n_segments)
+        p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
         
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
-            tresholds = [0.3, 0.6]
+            tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
             active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
@@ -684,7 +684,7 @@ if __name__ == "__main__":
 
             active_value_df.to_csv(f"{outdirec}/active_value.csv")
 
-
+        n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
 
     
     LRtest = False
