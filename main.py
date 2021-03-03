@@ -66,13 +66,13 @@ if __name__ == "__main__":
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
-    transform = False # Transform & aggregate the data
+    transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
     visualize_data = False # make some graphs and figures
     
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
-    interpret = False #Do we want to interpret variables
+    interpret = True #Do we want to interpret variables
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -469,7 +469,7 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
-            source = "activityFinB04"
+            #source = "activityFinB04"
             #source = "3seg500n"
             source = "finalActivity"
             if (source == "3seg500n"):
@@ -499,6 +499,8 @@ if __name__ == "__main__":
                 name_dep_var = crosssell_types_max_nooverlay
                 name_covariates = personal_variables
                 n_segments = 3
+                run_cross_sell = True
+
                 
             if (source == "activityFinB04"):
                 
@@ -530,11 +532,13 @@ if __name__ == "__main__":
                 name_dep_var = activity_dummies
                 name_covariates = personal_variables
                 n_segments = 3
+                run_cross_sell = False
+
                 
             if (source == "finalActivity"):
                 
                 # note: dataset used is "final_df_finB04"
-                param_cross = [ 1.40317466e-01,  4.52759878e-01,  1.53728048e-04, -1.29455500e-01,
+                param_cross = np.array([ 1.40317466e-01,  4.52759878e-01,  1.53728048e-04, -1.29455500e-01,
                 -1.67580052e-01,  5.85788986e-01,  1.78204713e-01, -5.58905705e-04,
                 -8.54111694e-01,  1.15437545e-01, -3.13876124e+01,  1.60574429e+01,
                 1.55167454e+01,  1.56559190e+01,  1.56975497e+01,  1.56886264e+01,
@@ -550,7 +554,7 @@ if __name__ == "__main__":
                 7.18670047e+00,  1.21302640e+01,  4.38836635e+00,  4.76497637e+00,
                 5.80298099e+00,  1.24577304e+01,  9.39271385e+00,  9.76444572e+00,
                 6.51689729e+00, -1.54844265e+00, -5.38946312e+00, -2.56214536e+00,
-                -9.65359438e+00]
+                -9.65359438e+00])
 
                 ## Define the dependent variable
                 activity_dummies.extend(activity_total_dummies)
@@ -561,6 +565,7 @@ if __name__ == "__main__":
                 df_periods  = dflist[:12] # use first 3 years
                 #Define number of segments
                 n_segments = 3
+                run_cross_sell = False
             
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
@@ -579,9 +584,11 @@ if __name__ == "__main__":
             tresholds = [0.3, 0.6]
             order_active_high_to_low = [0,1,2]
             active_value = pd.read_csv(f"{outdirec}/active_value.csv")
-            dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total = hmm.cross_sell_yes_no(param_cross, n_segments, active_value, tresholds, order_active_high_to_low)
+            dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total = hmm.cross_sell_yes_no(param_cross, n_segments, active_value, 
+                                                                                                      tresholds, order_active_high_to_low)
         else:
-            active_value  = hmm.active_value(param_cross, n_segments)
+            t = 5
+            active_value  = hmm.active_value(param_cross, n_segments, t)
             active_value.to_csv(f"{outdirec}/active_value.csv")
 
 

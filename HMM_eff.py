@@ -630,7 +630,7 @@ class HMM_eff:
 
             return prediction
 
-    def active_value(self, param, n_segments):
+    def active_value(self, param, n_segments, t):
         #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
@@ -647,9 +647,9 @@ class HMM_eff:
         alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
         active_value = np.argmin(P_s_given_Y_Z, axis = 0)
-        active_value_T = active_value[:, self.T - 1]
+        active_value_t = active_value[:, t - 1]
         
-        return active_value_T
+        return active_value_t
 
 
     def cross_sell_yes_no(self, param, n_segments, active_value, tresholds = [0.5,0.8], order_active_high_to_low = [0,1,2]):
