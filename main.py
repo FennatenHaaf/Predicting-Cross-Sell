@@ -471,8 +471,8 @@ if __name__ == "__main__":
              
             #source = "activityFinB04"
             #source = "3seg500n"
-            #source = "finalActivity"
-            source = "crosssell20it"
+            source = "finalActivity"
+            #source = "crosssell20it"
             
               # if (source == "3seg500n"):
             #     # note: dataset used is "final_df_n500" _. make sure to change
@@ -620,7 +620,8 @@ if __name__ == "__main__":
                 df_periods  = dflist[:5] # only use 5 periods for now?
                 #Define number of segments
                 n_segments = 5
-                
+                run_cross_sell = True
+
                           
             if (source == "finalActivity"):
                 
@@ -670,14 +671,18 @@ if __name__ == "__main__":
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             tresholds = [0.3, 0.6]
             order_active_high_to_low = [0,1,2]
-            active_value = pd.read_csv(f"{outdirec}/active_value.csv")
+            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+            active_value = active_value_pd.to_numpy()
+            active_value = active_value[:,1]
             dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total = hmm.cross_sell_yes_no(param_cross, n_segments,
                                                                                                       active_value, tresholds, 
                                                                                                       order_active_high_to_low)
         else:
             t = 5
             active_value  = hmm.active_value(param_cross, n_segments, t)
-            active_value.to_csv(f"{outdirec}/active_value.csv")
+            active_value_df = pd.DataFrame(active_value) 
+
+            active_value_df.to_csv(f"{outdirec}/active_value.csv")
 
 
 
