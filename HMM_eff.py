@@ -646,7 +646,7 @@ class HMM_eff:
               
         alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
-        active_value = np.argmin(P_s_given_Y_Z, axis = 0)
+        active_value = np.argmax(P_s_given_Y_Z, axis = 0)
         active_value_t = active_value[:, t - 1]
         
         return active_value_t
