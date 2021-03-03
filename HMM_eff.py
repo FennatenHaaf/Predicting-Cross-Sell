@@ -479,11 +479,11 @@ class HMM_eff:
             element-wise multiplication of alpha and beta
         Returns
         -------
-        logl : float
+        param_out : float
             value of the complete data loglikelihood
 
         """
-        """function for the optimization function/complete data loglikelihood"""                    
+        """function for the optimization function"""                    
         
         #compute probabilties P[Y_{itp} = c | X_{it} = s], which is person and time-invariant
         p_js_max = ef.prob_p_js(self, x, shapes, n_segments)
@@ -491,7 +491,6 @@ class HMM_eff:
         #set complete data loglikelihood to zero
         logl = 0;
 
-        #get the data from the right time
         Y = self.list_Y[0]
         if self.covariates == True:
             Z = self.list_Z[0]
@@ -499,13 +498,13 @@ class HMM_eff:
             Z = np.array([])
             
         P_s_given_Y_Z_0 = np.transpose(P_s_given_Y_Z[:,:,0]) #s x i x t
-
-        #t=0, term 1 of the complete data loglikelihood 
+        
+        #t=0, term 1
         P_s_given_Z = ef.prob_P_s_given_Z(self, x, shapes, Z, n_segments)  #i x s
         mult = np.multiply(P_s_given_Y_Z_0, np.log(P_s_given_Z + 10**(-300)))
         logl += np.sum(mult)
         
-        #t=0, term 3 of the complete data loglikelihood
+        #t=0, term 3
         P_y_given_s_0 = ef.prob_P_y_given_s(self, Y, p_js_max, n_segments)#ixs
         mult = np.multiply(P_s_given_Y_Z_0, np.log(P_y_given_s_0 + 10**(-300)))
         logl += np.sum(mult)
@@ -535,13 +534,11 @@ class HMM_eff:
             mult = np.multiply(P_s_given_Y_Z_t, np.log(P_y_given_s_max + 10**(-300)))
             logl += np.sum(mult)
         
-        #for minimising, do complete data loglikelihood times -1, further, add regularisation term
-        logl = -logl + np.sum(abs(x)) * reg_term
         
-        #print function evaluations when desired
+        logl = -logl + np.sum(abs(x)) * reg_term
         self.maximization_iters += 1
         if self.iterprint:
-            if (self.maximization_iters % 1000 == 0):  # only print every 1000th iteration
+            if (self.maximization_iters % 1000 == 0):  # print alleen elke 1000 iterations
                 print('function value:', logl,' at iteration ',self.maximization_iters)
                 #print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
         return logl
@@ -549,28 +546,12 @@ class HMM_eff:
     
     
     def loglikelihood(self, param, shapes, n_segments):
-        """
-        Parameters
-        ----------
-        param     : 1-D array
-            parameters of the loglikelihood
-        shapes : 2-D array
-            array consisting of shape and size of every single parameter matrix
-        n_segments : int
-            number of segments being used for the estimation of the HMM
-        Returns
-        -------
-        logl : float
-            value of the loglikelihood
-
-        """
-        """function for the loglikelihood"""   
+        gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param, shapes)
         
-        #compute probabilties P[Y_{itp} = c | X_{it} = s], which is person and time-invariant
         p_js = ef.prob_p_js(self, param, shapes, n_segments)
+        logl = 0
+        logl_i = np.zeros(self.n_customers)
         
-        #set loglikelihood to zero
-        logl = 0        
                     
         for t in range(0,self.T):
             Y = self.list_Y[t]
@@ -608,9 +589,9 @@ class HMM_eff:
                 mat = np.matmul(P_s_given_r, P_Y_given_S)
                 likelihood = np.matmul(likelihood, mat)
                     
-        logl = np.log(likelihood + 10**(-300))
+        logl_i = np.log(likelihood + 10**(-300))
             
-        logl = - np.sum(logl)
+        logl = - np.sum(logl_i)
         
         return logl
 
@@ -649,24 +630,11 @@ class HMM_eff:
 
             return prediction
 
-    def active_value(self, param, n_segments):
-        #----------- Initialise everything so that we get the shapes-------------
-        gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
-        gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
-        gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
-        beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
-        # for s in range(n_segments):
-        #     for p in range(0,self.n_products):
-        #         beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
-                
-        #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
-        shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
-                           [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
-        
-        
-        alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
+    def active_value(self, alpha, beta):
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
+        
         active_value = np.argmin(P_s_given_Y_Z, axis = 0)
+        
         active_value_T = active_value[:, self.T - 1]
         
         return active_value_T

@@ -66,13 +66,13 @@ if __name__ == "__main__":
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
-    transform = False # Transform & aggregate the data
+    transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
-    visualize_data = False # make some graphs and figures
+    visualize_data = True # make some graphs and figures
     
-    run_hmm = False
-    run_cross_sell = False # do we want to run the model for cross sell or activity
-    interpret = True #Do we want to interpret variables
+    run_hmm = True
+    run_cross_sell = True # do we want to run the model for cross sell or activity
+    interpret = False #Do we want to interpret variables
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -469,10 +469,8 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
+            source = "activityFinB04"
             #source = "3seg500n"
-            #source = "activityFinB04"
-            source = "activityFinB04_preLim"
-
             if (source == "3seg500n"):
                 # note: dataset used is "final_df_n500" _. make sure to change
                 param_cross = np.array([ 9.57347300e+00,5.48433032e+00,1.12262507e+01,1.62844971e+01
@@ -526,40 +524,12 @@ if __name__ == "__main__":
                
                 # Define the parameters (need to be the same as what was used to
                 # produce the output!)
-                df_periods  = dflist[:8]
+                df_periods  = dflist[:8] 
                 activity_dummies.extend(activity_total_dummies)
                 name_dep_var = activity_dummies
                 name_covariates = personal_variables
                 n_segments = 3
             
-            if (source == "activityFinB04_preLim"):
-                
-                # note: dataset used is "final_df_finB04"
-                param_cross = np.array([ 1.40317466e-01,  4.52759878e-01,  1.53728048e-04, -1.29455500e-01,
-                 -1.67580052e-01,  5.85788986e-01,  1.78204713e-01, -5.58905705e-04,
-                 -8.54111694e-01,  1.15437545e-01, -3.13876124e+01,  1.60574429e+01,
-                  1.55167454e+01,  1.56559190e+01,  1.56975497e+01,  1.56886264e+01,
-                  1.58385134e+01,  1.56247325e+01, -4.32139415e-03,  1.55515136e-01,
-                  9.14039679e+00, -1.58427129e+00, -7.66832113e+00,  7.09329805e+00,
-                  3.82200420e+00, -3.30208583e+00,  2.89148035e+00,  1.29348817e+00,
-                  7.77530885e-01,  9.78623946e-01, -1.21755124e-01, -2.62002794e-01,
-                 -1.13043252e-02, -9.79775511e-01,  2.16267069e-01,  1.37262204e+00,
-                  1.50048290e-01,  2.46021310e-02,  3.65928234e-02, -9.24598047e-02,
-                 -1.41507395e-01, -2.53221408e-01,  1.73864829e-01,  1.20410067e-01,
-                  6.86408411e-03, -3.52351529e-03,  1.21852569e+01,  1.13284305e+01,
-                  1.71098589e+01,  8.40967169e+00,  1.83085345e+01,  5.07705129e+00,
-                  7.18670047e+00,  1.21302640e+01,  4.38836635e+00,  4.76497637e+00,
-                  5.80298099e+00,  1.24577304e+01,  9.39271385e+00,  9.76444572e+00,
-                  6.51689729e+00, -1.54844265e+00, -5.38946312e+00, -2.56214536e+00,
-                 -9.65359438e+00])
-               
-                # Define the parameters (need to be the same as what was used to
-                # produce the output!)
-                df_periods  = dflist
-                activity_dummies.extend(activity_total_dummies)
-                name_dep_var = activity_dummies
-                name_covariates = personal_variables
-                n_segments = 3
             
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
@@ -571,7 +541,6 @@ if __name__ == "__main__":
             hmm = ht.HMM_eff(df_periods, name_dep_var, name_covariates, 
                              covariates = True, iterprint = True)
             
-        
         # Now interpret & visualise the parameters 
         hmm.interpret_parameters(param_cross, n_segments)
 
