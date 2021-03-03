@@ -124,7 +124,7 @@ class AdditionalDataProcess(object):
             this_period['percdiff'] =((saldo_now2-saldo_prev2) / saldo_prev2)*100
 
         # Get portfolio variables
-        for name in (["business","retail","joint"]):
+        for name in (["business","retail","joint", "accountoverlay"]):
             this_period[name] = this_period[name].fillna(0)
             prev_period[name] = prev_period[name].fillna(0)
 
@@ -155,10 +155,13 @@ class AdditionalDataProcess(object):
         data = this_period.loc[select_portfoliogain, ["personid", "percdiff", 
                                                       "portfolio_change",
                                                       "business_change",
-                                                      "retail_change","joint_change",
+                                                      "retail_change",
+                                                      "joint_change",
+                                                      "accountoverlay_change",
                                                       "business_change_dummy",
                                                       "retail_change_dummy",
-                                                      "joint_change_dummy",]]
+                                                      "joint_change_dummy",
+                                                      "accountoverlay_change_dummy"]]
 
         data["saldo_prev"] = saldo_prev
         data["saldo_now"] = saldo_now
@@ -308,6 +311,13 @@ class AdditionalDataProcess(object):
         #self.make_other_category(df,"businessType",limit=5)
         df["businessType"] = df["businessType"].replace("Maatschap", "Maatschap/Stichting")
         df["businessType"] = df["businessType"].replace("Stichting", "Maatschap/Stichting")
+        df["businessType"] = df["businessType"].replace("Besloten vennootschap", "Besloten Vennootschap")
+      
+        
+        # Fix some categories for the businessType
+        df["hh_size"] = df["hh_size"].replace(10.0, 1.0)
+        df["hh_size"] = df["hh_size"].replace(11.0, 1.0)
+
         return df
 
 

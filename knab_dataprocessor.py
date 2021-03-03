@@ -755,6 +755,12 @@ class dataProcessor:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)    
                 
+                
+                # Fix some categories for the businessType
+                df["businessType"] = df["businessType"].replace("Maatschap", "Maatschap/Stichting")
+                df["businessType"] = df["businessType"].replace("Stichting", "Maatschap/Stichting")
+                df["businessType"] = df["businessType"].replace("Besloten vennootschap", "Besloten Vennootschap")
+                
                 #Doe hetzelfde met de Business Type 
                 temp = df.loc[:,["personid", "businessType"]]
                 indicator =  self.aggregateBusinessPerPerson(temp, 
