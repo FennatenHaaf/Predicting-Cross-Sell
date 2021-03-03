@@ -188,9 +188,9 @@ class AdditionalDataProcess(object):
 
 
 
-    # =============================================================================
-    # Methods for aggregating and transforming
-    # =============================================================================
+# =============================================================================
+# Methods for aggregating and transforming
+# =============================================================================
 
 
     def getlogs(self,Y):
@@ -261,16 +261,21 @@ class AdditionalDataProcess(object):
                                                     bins=3, labels=False)
 
         # Put a MAX on the business, portfolio, joint variables (3 per type max)
-        # also make a dummy
         for name in (["business","retail","joint","accountoverlay"]):
+            df[f"{name}"] = df[f"{name}"].fillna(0)
             df[f"{name}_max"] = df[f"{name}"]
-            df.loc[(df[f"{name}"]>3),f"{name}_max"] = 3   # Should I make it a string or make it a number?
-            # This only relevant for business and joint since retail does not have >1
-
+            
+            # also make a dummy for if there is more than 0
             df[f"{name}_dummy"] = df[f"{name}"]
             df.loc[(df[f"{name}"]>0),f"{name}_dummy"] = 1
-
-        # TODO also put a max on the total number of products???? or take the log??
+            
+            if (name=="business"): 
+                df.loc[(df[f"{name}"]>3),f"{name}_max"] = 3   
+                # This only relevant for business since retail does not have >1
+            elif (name=="accountoverlay"):
+                df.loc[(df[f"{name}"]>2),f"{name}_max"] = 2   
+            else: # for joint and retail we consider 1 the maximum
+                df.loc[(df[f"{name}"]>1),f"{name}_max"] = 1   
 
         # handle it if there are still multiple categories in the gender
         df.loc[(df["geslacht"]=="Mannen"), "geslacht"]="Man"
@@ -286,20 +291,23 @@ class AdditionalDataProcess(object):
         df["age_bins"] = pd.cut(df["age"], bins, labels=False)
 
         # also make bins out of the business age! mostly range between 0 and 30
-        bbins = pd.IntervalIndex.from_tuples([ (-1, 2), (2, 5),
-                                             (5, 10), (20, 30),
-                                             (30, np.inf)])
+        bbins = pd.IntervalIndex.from_tuples([ (-1, 3), (3, 6),
+                                             (6, 12), (12, 25),
+                                             (25, np.inf)])
         df["businessAgeInYears_bins"] = pd.cut(df["businessAgeInYears"], bbins, labels=False)
-        
         
         # finally, make bins out of saldo
         bins = pd.IntervalIndex.from_tuples([ (-np.inf, 0), (0, 100),
                                              (100, 1000), (1000, 5000),
-                                             (5000, 10000), (10000, 50000),
+                                             (5000, 15000), (15000, 50000),
                                              (50000, np.inf)])
         df["saldototaal_bins"] = pd.cut(df["saldototaal"], bins, labels=False)
         
 
+        # transform to 'other' categories
+        #self.make_other_category(df,"businessType",limit=5)
+        df["businessType"] = df["businessType"].replace("Maatschap", "Maatschap/Stichting")
+        df["businessType"] = df["businessType"].replace("Stichting", "Maatschap/Stichting")
         return df
 
 
@@ -316,6 +324,23 @@ class AdditionalDataProcess(object):
 
 
         return dummiesdf, list(dummiesdf.columns.values)
+
+
+    def make_other_category(self,df,cat_var,limit):
+        """For a categoral variable, changes all values which appear
+        fewer times than the limit to a category 'other' """
+        
+        df[f"{cat_var}_other"] = df[cat_var]
+        g = df.groupby(cat_var)[cat_var].transform('size')
+        df.loc[g < limit, f"{cat_var}_other"] = 'Anders'
+        
+        #TODO: als je dit per df apart doet zorgt het ervoor dat verschillende
+        # categorieen per tijdsperiode in de 'anders' categorie komen
+
+
+# =============================================================================
+# Methods for ML data
+# =============================================================================
 
 
     """

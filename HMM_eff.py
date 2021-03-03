@@ -435,7 +435,7 @@ class HMM_eff:
             return param_out.x, param_out.hess_inv
         
     
-    def optimization_function(self, x, alpha, beta, shapes, n_segments, reg_term 
+    def optimization_function(self, x, alpha, beta, shapes, n_segments, reg_term, 
                               P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js, P_s_given_Y_Z_ut):
         """
         Parameters
