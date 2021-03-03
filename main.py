@@ -66,13 +66,13 @@ if __name__ == "__main__":
     
     cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
-    transform = False # Transform & aggregate the data
+    transform = True # Transform & aggregate the data
     saldo_data = False # Do we want to create the dataset for predicting saldo
     visualize_data = False # make some graphs and figures
     
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
-    interpret = False #Do we want to interpret variables
+    interpret = True #Do we want to interpret variables
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
