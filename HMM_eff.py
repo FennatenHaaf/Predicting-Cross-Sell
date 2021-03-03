@@ -93,7 +93,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-6), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
+    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-4), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
         """
 
         Parameters
@@ -127,31 +127,32 @@ class HMM_eff:
 
         if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
         
-            if random_starting_points == False:
+            if random_starting_points == False: #initialise parameters with set startingvalues
                 gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
                 gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
                 gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
-                beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
                 
+                beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
                 for s in range(n_segments):
                     for p in range(0,self.n_products):
                         beta[s,p,0:self.n_categories[p]-1] = np.ones((1,self.n_categories[p]-1))                    
             
             else: 
-                if seed == None:
-                    gamma_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1))
-                    gamma_sr_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1,n_segments))
-                    gamma_sk_t = np.random.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates))
+                if seed == None: #initialise parameters with random startingvalues, without setting the seed
+                    gamma_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1)) #parameters for P(S_0 = s|Z)
+                    gamma_sr_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1,n_segments)) #parameters for P(S_t = s | S_t-1 = r)
+                    gamma_sk_t = np.random.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates)) #parameters for P(S_t = s | S_t-1 = r)
         
                     beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
                     for s in range(n_segments):
                         for p in range(0,self.n_products):
-                            beta[s,p,0:self.n_categories[p]-1] = np.random.uniform(low=-5, high=5, size=(1,self.n_categories[p]-1))         
-                else:
+                            beta[s,p,0:self.n_categories[p]-1] = np.random.uniform(low=-5, high=5, size=(1,self.n_categories[p]-1)) 
+                            
+                else: #initialise parameters with random startingvalues, with a set seed
                     fixed_random_seed = np.random.RandomState(seed)
-                    gamma_0 = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1))
-                    gamma_sr_0 = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1,n_segments))
-                    gamma_sk_t = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates))
+                    gamma_0 = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1)) #parameters for P(S_0 = s|Z)
+                    gamma_sr_0 = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1,n_segments)) #parameters for P(S_t = s | S_t-1 = r)
+                    gamma_sk_t = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates)) #parameters for P(S_t = s | S_t-1 = r)
     
                     beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
                     for s in range(n_segments):
@@ -162,13 +163,13 @@ class HMM_eff:
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
-            print(f"Starting values: {param}")
+            print(f"Starting values: {param}") #print starting values
             
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
-            b = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) ##parameters for P(Y| S_t = s)
             
+            b = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) ##parameters for P(Y| S_t = s)
             for s in range(n_segments):
                 for p in range(0,self.n_products):
                     b[s,p,0:self.n_categories[p]-1] = 0.5 * np.ones((1,self.n_categories[p]-1)) 
@@ -201,24 +202,18 @@ class HMM_eff:
             alpha_in = alpha_out
             beta_in = beta_out
             logl_in = logl_out
-            start1 = utils.get_time() 
             
             #perform forward-backward procedure (expectation step of EM) 
+            start1 = utils.get_time() 
             alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
-              
-            start = utils.get_time() #set start time to time maximisation step
+            start = utils.get_time() 
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
-
-            if self.iteration != 0:
-               difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
-               #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
-               #print(f"max difference: {np.max(abs(param_in-param_out))}")
-               print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
-               print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
 
 
             #perform maximisation step 
-            param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, reg_term, max_method, difference, bounded)
+            param_out = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, reg_term, max_method, bounded)
+            logl_out = self.loglikelihood(param_out, shapes, n_segments)
+
             end = utils.get_time()#set end time to time maximisation step
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
@@ -234,12 +229,21 @@ class HMM_eff:
                 #print(f"Beta: {beta}")
                 print(f"{param_out}")
 
-            logl_out = self.loglikelihood(param_out, shapes, n_segments)
-            print(f"LogLikelihood value: {logl_out}")
-            print(f"Difference LogLikelihood value: {logl_out - logl_in}")
+            #compute difference to check convergence 
+            if self.iteration != 0:
+               difference = (np.linalg.norm(abs(alpha_in - alpha_out)) > tolerance) & (np.linalg.norm(abs(beta_in - beta_out)) > tolerance)
+               print(f"norm absolute difference alpha: {np.linalg.norm(abs(alpha_in - alpha_out))}")
+               print(f"norm absolute difference beta: {np.linalg.norm(abs(beta_in - beta_out))}")
 
-            #difference = abs(logl_out - logl_in) > tolerance
+               #difference = (np.max(abs(param_in-param_out)) > tolerance) #set difference of input and output of model-parameters
+               #print(f"max difference: {np.max(abs(param_in-param_out))}")
 
+               #difference = abs(logl_out - logl_in) > tolerance
+               print(f"LogLikelihood value: {logl_out}")
+               print(f"Difference LogLikelihood value: {logl_out - logl_in}")
+
+
+            #if statement to set a breakpoint if desired
             if self.iteration == 1:
                 print('breakpoint')
                 
@@ -248,16 +252,18 @@ class HMM_eff:
                 
             self.iteration = self.iteration + 1 #update iteration
         
-    
+        #compute and print time for the complete EM algorithm
         end_EM = utils.get_time()
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
+        #calculate hessian
         print(f"Calculating Hessian at {utils.get_time()}")
         hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
         print(f"Done calculating at {utils.get_time()}!")
         
-        param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, difference, bounded, end = True)
+        #do one last minimisation of the loglikelihood itself to retrive the hessian 
+        param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, bounded, end = True)
 
         return param_out, alpha_out, beta_out, shapes, hes, hess_inv
      
@@ -285,9 +291,10 @@ class HMM_eff:
         """function for the E-step (forward and backward procedure)"""
         
         
-        p_js = ef.prob_p_js(self, param, shapes, n_segments)
+        p_js = ef.prob_p_js(self, param, shapes, n_segments) #get probabilites P[Y_{itp} = c | X_{it} = s]
         
-        alpha_return = np.zeros((n_segments, self.n_customers, self.T))
+        #initialise matrices for the return
+        alpha_return = np.zeros((n_segments, self.n_customers, self.T)) 
         beta_return = np.zeros((n_segments, self.n_customers, self.T))
         
     
@@ -295,44 +302,51 @@ class HMM_eff:
             for t in range(0,self.T):
                 v = self.T - t - 1
                 
+                #get the data from the right person at the right time, data_t is for the forward algorithm
                 Y_t = np.array([self.list_Y[t][i,:]])
-
                 if self.covariates == True:
                     Z_t = np.array([self.list_Z[t][i,:]])
                 else:
                     Z_t = []
                 
+                #compute alpha and beta if t = 0
                 if t == 0:
                     P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
                     P_s_given_Z_t = ef.prob_P_s_given_Z(self, param, shapes, Z_t, n_segments)
 
                     alpha_return[:,i,t] = np.multiply(P_y_given_s_t, P_s_given_Z_t).flatten()
                     beta_return[:,i,v] = np.ones((n_segments))
+                #compute alpha and beta if t >= 1
                 else:
+                    #get the data from the right person at the right time, data_v1 is for the backward algorithm
                     Y_v1 = np.array([self.list_Y[v+1][i,:]])
                     if self.covariates == True:
                         Z_v1 = np.array([self.list_Z[v+1][i,:]])
                     else:
                         Z_v1 = []
                         
+                    #compute probabilties for estimating alpha and beta
                     P_s_given_r_t = ef.prob_P_s_given_r(self, param, shapes, Z_t, n_segments)
                     P_s_given_r_v1 = ef.prob_P_s_given_r(self, param, shapes, Z_v1, n_segments)
                     
                     P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
                     P_y_given_s_v1 = ef.prob_P_y_given_s(self, Y_v1, p_js, n_segments)
 
+                    #before going into the for-loop for computing them, initialise sums 
                     sum_alpha = np.zeros( (n_segments) )
                     sum_beta = np.zeros( (n_segments) )
+                    #for loop for computing the sum
                     for r in range(0,n_segments):
                             sum_alpha = sum_alpha + alpha_return[r,i,t-1] * np.multiply(P_s_given_r_t[:,:,r], P_y_given_s_t.flatten())
                             sum_beta = sum_beta + beta_return[r,i,v+1] * np.multiply(P_s_given_r_v1[:,r,:], P_y_given_s_v1[:,r])
                             
+                    #add computed sums to alpha and beta matrices
                     alpha_return[:,i,t] = sum_alpha
                     beta_return[:,i,v]  = sum_beta
                 
         return alpha_return, beta_return
       
-    def maximization_step(self, alpha, beta, param_in, shapes, n_segments, reg_term, max_method, difference, bounded, end = False):
+    def maximization_step(self, alpha, beta, param_in, shapes, n_segments, reg_term, max_method, bounded, end = False):
         """
 
         Parameters
@@ -347,8 +361,14 @@ class HMM_eff:
             array consisting of shape and size of every single parameter matrix
         n_segments : int
             number of segments being used for the estimation of the HMM
+        reg_term : float
+            regularisation term, indicates the penalty for large parameters
         max_method : string
             maximization method to use for the maximization step
+        bounded : tuple
+            indicates bounds for the parameters, if desired
+        end : boolean
+            indicates whether it is the last iteration, and the hessian inverse has also to be returned
         Returns
         -------
         param_out : 1-D array
@@ -377,37 +397,35 @@ class HMM_eff:
             list_P_s_given_r.append(P_s_given_r)
             list_P_y_given_s.append(P_y_given_s)
             
+        #set startingvalues
         x0 = param_in
             
         self.maximization_iters = 0
     
+        #set options for the different optimization routines
         #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
         #xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-
-        #set options for the different optimization routines
-        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2)} #, 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-3), 'fatol': 10**(-3)} #, 'maxfev': 99999}# 'maxiter': 99999999} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
         #run the minimisation
         if (max_method == 'Nelder-Mead') & (end == False): #if Nelder-Mead is used and it is not the last maximisation step
-            if self.iteration <= 150: #the first X iterations Nelder-Mead is used, thereafter BFGS
+            if self.iteration <= 200: #the first X iterations Nelder-Mead is used, thereafter BFGS
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                          n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                      method=max_method,options= minimize_options_NM)
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                  #                    method=max_method,options= minimize_options_NM)
-                return param_out.x
-
             else:
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                          n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                          method='BFGS',options= minimize_options_BFGS)
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                 #                      method='BFGS',options= minimize_options_BFGS)
-                return param_out.x
+            return param_out.x
 
         elif (max_method == 'BFGS') & (end == False): #if BFGS is used and it is not the last maximisation step
             if bounded == None: #if parameters are not bounded, use BFGS, otherwise use L-BFGS-B
@@ -416,7 +434,6 @@ class HMM_eff:
                  #                  method='BFGS',options= minimize_options_BFGS)
                 param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                      method='BFGS',options= minimize_options_BFGS)
-                return param_out.x
             else: 
                 ub = bounded[1] 
                 lb = bounded[0]
@@ -428,7 +445,7 @@ class HMM_eff:
                                       method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                 #                      method='L-BFGS-B',options= minimize_options_BFGS, bounds = bnds)
-                return param_out.x
+            return param_out.x
         elif end == True: #if it is the last iteration, minimize the loglikelihood itself (instead of expected complete data loglikelihood)
             param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                  method='BFGS',options= minimize_options_BFGS)
@@ -468,9 +485,10 @@ class HMM_eff:
         """
         """function for the optimization function"""                    
         
+        #compute probabilties P[Y_{itp} = c | X_{it} = s], which is person and time-invariant
         p_js_max = ef.prob_p_js(self, x, shapes, n_segments)
 
-        """compute function"""
+        #set complete data loglikelihood to zero
         logl = 0;
 
         Y = self.list_Y[0]
@@ -612,15 +630,14 @@ class HMM_eff:
 
             return prediction
 
-    def active_value(self, param, shapes, n_segments):
-        Y = self.list_Y[self.T-1]
-
-        p_js = ef.prob_p_js(self, param, shapes, n_segments)
-        P_Y_given_S = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
-
-        active_value = np.argmax(P_Y_given_S, axis=1)
-
-        return active_value
+    def active_value(self, alpha, beta):
+        P_s_given_Y_Z = ef.state_event(self, alpha, beta)
+        
+        active_value = np.argmin(P_s_given_Y_Z, axis = 0)
+        
+        active_value_T = active_value[:, self.T - 1]
+        
+        return active_value_T
 
 
     def cross_sell_yes_no(self, param, shapes, n_segments, alpha, active_value, tresholds, order_active_high_to_low = [0,1,2]):
