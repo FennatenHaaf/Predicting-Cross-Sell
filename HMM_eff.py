@@ -29,7 +29,8 @@ import copy
 class HMM_eff:
     
     def __init__(self, list_dataframes, list_dep_var, 
-                   list_covariates = [], covariates = False, iterprint = False):
+                   list_covariates = [], covariates = False, iterprint = False,
+                   initparam = None):
         """
         Parameters
         ----------
@@ -50,7 +51,7 @@ class HMM_eff:
         self.list_dataframes = list_dataframes
         self.list_dep_var = list_dep_var
         self.list_covariates = list_covariates
-        
+        self.initparam = initparam
         
         self.n_covariates = len(list_covariates) #initialise the number of covariates
         self.n_customers = self.list_dataframes[0].shape[0] #initialise the number of customers
@@ -124,7 +125,9 @@ class HMM_eff:
         hes/hes_inv : 2-D array
         """
         """function for running the EM algorithm"""
-
+        
+        #-----------------INITIALISE STARTING VALUES-------------------------
+        
         if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
         
             if random_starting_points == False: #initialise parameters with set startingvalues
@@ -162,9 +165,9 @@ class HMM_eff:
             #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
             shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
-            param_out = param #set name of parameterlist for the input of the algorithm
-            print(f"Starting values: {param}") #print starting values
             
+            param_out = param #set name of parameterlist for the input of the algorithm
+        
         else:         #initialise parameters for HMM without the probabilities as logit model
             A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
             pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
@@ -178,6 +181,14 @@ class HMM_eff:
             shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
             param = ef.param_matrices_to_list(self, n_segments, A = A, pi = pi, b = b) #convert parametermatrices to list
             param_out = param #set name of parameterlist for the input of the algorithm
+
+            
+        # If initial parameters had already been specified,
+        # Replace what we just initialised (but we can still use the shapes)
+        if (self.initparam != None): 
+            param_out = self.initparam
+        
+        print(f"Starting values: {param}") #print starting values
 
         #initialise
         self.iteration = 0
@@ -194,7 +205,7 @@ class HMM_eff:
         logl_out = 0
         start_EM = utils.get_time()
             
-        #Start EM procedure
+        #----------------------Start EM procedure-------------------------
         while difference:
                 
             #update parameters
@@ -268,6 +279,9 @@ class HMM_eff:
         return param_out, alpha_out, beta_out, shapes, hes, hess_inv
      
         
+     
+        
+     
     #------------Function for the expectation step------------
         
     def forward_backward_procedure(self, param, shapes, n_segments):
