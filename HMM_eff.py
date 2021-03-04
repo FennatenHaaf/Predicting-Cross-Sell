@@ -28,7 +28,7 @@ import copy
 
 class HMM_eff:
     
-    def __init__(self, list_dataframes, list_dep_var, 
+    def __init__(self, outdir, outname, list_dataframes, list_dep_var, 
                    list_covariates = [], covariates = False, iterprint = False,
                    initparam = None):
         """
@@ -48,11 +48,13 @@ class HMM_eff:
         """
         """Function for the Initialisation of a HMM object"""
            
+        self.outdir = outdir
+        self.outname = outname
         self.list_dataframes = list_dataframes
         self.list_dep_var = list_dep_var
         self.list_covariates = list_covariates
         self.initparam = initparam
-        
+    
         self.n_covariates = len(list_covariates) #initialise the number of covariates
         self.n_customers = self.list_dataframes[0].shape[0] #initialise the number of customers
         self.n_products = len(list_dep_var) #initialise the number of product
@@ -94,7 +96,7 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-4), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
+    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-3), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
         """
 
         Parameters
@@ -188,7 +190,9 @@ class HMM_eff:
         if (self.initparam != None): 
             param_out = self.initparam
         
-        print(f"Starting values: {param}") #print starting values
+            
+        print(f"Starting values: {utils.printarray(param)}") #print starting values
+        #print(f"Starting values: {param}") #print starting values
 
         #initialise
         self.iteration = 0
@@ -238,7 +242,27 @@ class HMM_eff:
                 #print(f"Gamma_sr_0: {gamma_sr_0}")
                 #print(f"Gamma_sk_t: {gamma_sk_t}")
                 #print(f"Beta: {beta}")
+                #print(f"{utils.printarray(param_out)}")
                 print(f"{param_out}")
+            
+            # Save the output to a text file
+            with open(f'{self.outdir}/{self.outname}.txt', 'w') as f:
+                
+                f.write(f"time: {utils.get_time()} \n")
+                f.write(f"iteration: {self.iteration} \n\n")
+                
+                f.write(f"dependent variable: {self.list_dep_var} \n")
+                f.write(f"dependent variable: {self.list_covariates} \n\n")   
+    
+                f.write(f"number of parameters: {len(param_out)}\n")
+                f.write(f"regularisation term: {reg_term}\n")
+                f.write(f"tolerance: {tolerance}\n")
+                f.write(f"maximization method: {max_method}\n")
+                f.write(f"random starting points: {random_starting_points}\n\n")
+
+                arraystring = utils.printarray(param_out)
+                paramstring = f"param_out = np.array({arraystring})"
+                f.write(paramstring)
 
             #compute difference to check convergence 
             if self.iteration != 0:
@@ -422,12 +446,12 @@ class HMM_eff:
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-3), 'fatol': 10**(-3)} #, 'maxfev': 99999}# 'maxiter': 99999999} 
+        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2)} 
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
         #run the minimisation
         if (max_method == 'Nelder-Mead') & (end == False): #if Nelder-Mead is used and it is not the last maximisation step
-            if self.iteration <= 200: #the first X iterations Nelder-Mead is used, thereafter BFGS
+            if self.iteration <= 9999999: #the first X iterations Nelder-Mead is used, thereafter BFGS
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                          n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
                                      method=max_method,options= minimize_options_NM)

@@ -71,6 +71,21 @@ def infer_date_frequency(date):
             return allowed_period_set[allowed_period]
 
     raise print(f"No valid value found for parsed date : {date}")
+    
+
+"""
+PRINTING
+"""   
+
+def printarray(array):
+    """Replaces all whitespaces with commas using regular expressions""" 
+    
+    pattern = re.compile(r'(\d|-)(\s+)(\d|-)')
+    arraystring = re.sub(pattern, r'\1, \3', str(array))
+    
+    return arraystring
+   
+    
 
 """
 EXPORTING FUNCTIONS
