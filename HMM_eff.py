@@ -188,11 +188,11 @@ class HMM_eff:
             
         # If initial parameters had already been specified,
         # Replace what we just initialised (but we can still use the shapes)
-        if (self.initparam != None): 
+        if not( isinstance(self.initparam, type(None)) ): 
             param_out = self.initparam
         
             
-        print(f"Starting values: {utils.printarray(param)}") #print starting values
+        print(f"Starting values: {utils.printarray(param_out)}") #print starting values
         #print(f"Starting values: {param}") #print starting values
 
         #initialise
@@ -262,8 +262,11 @@ class HMM_eff:
                 f.write(f"random starting points: {random_starting_points}\n\n")
 
                 arraystring = utils.printarray(param_out)
-                paramstring = f"param_out = np.array({arraystring})"
+                paramstring = f"param_out = np.array({arraystring}) \n\n"
                 f.write(paramstring)
+                
+                f.write(f"LogLikelihood value: {logl_out}")
+                
 
             #compute difference to check convergence 
             if self.iteration != 0:
@@ -296,12 +299,26 @@ class HMM_eff:
         #calculate hessian
         print(f"Calculating Hessian at {utils.get_time()}")
         hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
+        
         print(f"Done calculating at {utils.get_time()}!")
         
         #do one last minimisation of the loglikelihood itself to retrieve the hessian 
         param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
                                                      shapes, n_segments, reg_term,
                                                      max_method, bounded, end = True)
+
+        # Also save the hessians in a file
+        with open(f'{self.outdir}/{self.outname}_HESSIAN.txt', 'w') as f:
+                
+            f.write(f"time: {utils.get_time()} \n")
+            f.write("Hessian from our own calculation: \n")
+            f.write(f"{hes} \n\n")
+            f.write("Hessian from BFGS: \n")
+            f.write(f"{hess_inv} \n\n")       
+            # arraystring = utils.printarray(param_out)
+            # paramstring = f"param_out = np.array({arraystring}) \n\n"
+            # f.write(paramstring)
+    
 
         return param_out, alpha_out, beta_out, shapes, hes, hess_inv
      
