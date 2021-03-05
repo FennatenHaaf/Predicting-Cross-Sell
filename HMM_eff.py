@@ -96,7 +96,8 @@ class HMM_eff:
         # self.list_Y2 = np.split(data_frame_collection.loc[idx[:], idx[:, list_dep_var]].sort_index(axis=1).to_numpy(
         #     dtype='uint8'), 3,axis=1)
           
-    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-3), max_method = "BFGS", random_starting_points = False, seed = None, bounded = None):
+    def EM(self, n_segments, reg_term = 0.1, tolerance = 10**(-3), max_method = "BFGS", 
+           random_starting_points = False, seed = None, bounded = None):
         """
 
         Parameters
@@ -297,8 +298,10 @@ class HMM_eff:
         hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
         print(f"Done calculating at {utils.get_time()}!")
         
-        #do one last minimisation of the loglikelihood itself to retrive the hessian 
-        param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, shapes, n_segments, max_method, bounded, end = True)
+        #do one last minimisation of the loglikelihood itself to retrieve the hessian 
+        param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
+                                                     shapes, n_segments, reg_term,
+                                                     max_method, bounded, end = True)
 
         return param_out, alpha_out, beta_out, shapes, hes, hess_inv
      
