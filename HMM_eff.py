@@ -312,14 +312,18 @@ class HMM_eff:
                 
             f.write(f"time: {utils.get_time()} \n")
             f.write("Hessian from our own calculation: \n")
-            f.write(f"{hes} \n\n")
-            f.write("Hessian from BFGS: \n")
-            f.write(f"{hess_inv} \n\n")       
-            # arraystring = utils.printarray(param_out)
-            # paramstring = f"param_out = np.array({arraystring}) \n\n"
-            # f.write(paramstring)
-    
+            
+            hesstring = utils.printarray(hes)
+            paramstring = f"param_out = np.array({hesstring}) \n\n"
+            f.write(paramstring)
+            
+            f.write("Hessian inverse from BFGS: \n")
+            
+            hesinvstring = utils.printarray(hess_inv)
+            paramstring = f"param_out = np.array({hesinvstring}) \n\n"
+            f.write(paramstring)    
 
+    
         return param_out, alpha_out, beta_out, shapes, hes, hess_inv
      
         
