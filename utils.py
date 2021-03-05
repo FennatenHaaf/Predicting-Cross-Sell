@@ -80,7 +80,7 @@ PRINTING
 def printarray(array):
     """Replaces all whitespaces with commas using regular expressions""" 
     
-    pattern = re.compile(r'(\d|-)(\s+)(\d|-)')
+    pattern = re.compile(r'(\d|-|])(\s+)(\d|-|[)')
     arraystring = re.sub(pattern, r'\1, \3', str(array))
     
     return arraystring

@@ -297,25 +297,30 @@ class HMM_eff:
         print(f"Total EM duration: {diffEM}")
         
         #calculate hessian
-        print(f"Calculating Hessian at {utils.get_time()}")
-        hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
+        # print(f"Calculating Hessian at {utils.get_time()}")
+        # hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
         
-        print(f"Done calculating at {utils.get_time()}!")
+        # print(f"Done calculating at {utils.get_time()}!")
         
+        print(f"Doing another BFGS step for the covariance at {utils.get_time()}")
         #do one last minimisation of the loglikelihood itself to retrieve the hessian 
         param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
                                                      shapes, n_segments, reg_term,
                                                      max_method, bounded, end = True)
+        
+        print(f"Done calculating at {utils.get_time()}!")
 
         # Also save the hessians in a file
         with open(f'{self.outdir}/{self.outname}_HESSIAN.txt', 'w') as f:
                 
-            f.write(f"time: {utils.get_time()} \n")
-            f.write("Hessian from our own calculation: \n")
+            np.set_printoptions(threshold=np.inf) # so we can print the whole array?
             
-            hesstring = utils.printarray(hes)
-            paramstring = f"param_out = np.array({hesstring}) \n\n"
-            f.write(paramstring)
+            f.write(f"time: {utils.get_time()} \n")
+            # f.write("Hessian from our own calculation: \n")
+            
+            # hesstring = utils.printarray(hes)
+            # paramstring = f"param_out = np.array({hesstring}) \n\n"
+            # f.write(paramstring)
             
             f.write("Hessian inverse from BFGS: \n")
             
@@ -324,7 +329,7 @@ class HMM_eff:
             f.write(paramstring)    
 
     
-        return param_out, alpha_out, beta_out, shapes, hes, hess_inv
+        return param_out, alpha_out, beta_out, shapes, hess_inv #, hes
      
         
      
@@ -908,7 +913,7 @@ class HMM_eff:
         
         
     def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
-                         diverging = False):
+                         diverging = False, annotate = True):
         """Visualize a 2D matrix in a figure with labels and title"""
         plt.rcParams["axes.grid"] = False
         fig, ax = plt.subplots(figsize=(14, 8))
@@ -949,11 +954,13 @@ class HMM_eff:
         plt.ylabel(ylabel,fontsize = 13)
 
         # Loop over data dimensions and create text annotations.
-        for i in range(len(y_axis)):
-            for j in range(len(x_axis)):
-                text = ax.text(j, i, matrix[i, j],
-                               ha="center", va="center", color="w",
-                               fontsize = 10)
+        if annotate:
+            for i in range(len(y_axis)):
+                for j in range(len(x_axis)):
+                    text = ax.text(j, i, matrix[i, j],
+                                   ha="center", va="center", color="w",
+                                   fontsize = 10)
+        
         ax.set_title(title,fontsize = 20, fontweight='bold')
         fig.tight_layout()
         
