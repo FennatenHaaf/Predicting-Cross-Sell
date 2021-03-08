@@ -44,6 +44,7 @@ class HMM_eff:
             boolean indicating whether transition/state probabilities are modelled as logit model
         iterprint : boolean
             boolean indicating whether function evaluations within M-step are printed
+        initparam : 
 
         """
         """Function for the Initialisation of a HMM object"""
@@ -117,15 +118,15 @@ class HMM_eff:
 
         Returns
         -------
-        param_out : 1-D array
+        param_out : 1D array
             estimated parameters from the EM algorithm
-        alpha_out : 3-D array
+        alpha_out : 3D array
             estimated probabilities P[Y_{0:t}, X_{t}]
-        beta_out  : 3-D array
+        beta_out  : 3D array
             estimated probabilities P[Y_{t+1:T} | X_{t}]
-        shapes    : 2-D array
+        shapes    : 2D array
             array consisting of shape and size of every single parameters matrix
-        hes/hes_inv : 2-D array
+        hes/hes_inv : 2D array
         """
         """function for running the EM algorithm"""
         
@@ -333,34 +334,30 @@ class HMM_eff:
      
         
      
-        
-     
-    #------------Function for the expectation step------------
-        
     def forward_backward_procedure(self, param, shapes, n_segments, data = None):
         """
 
         Parameters
         ----------
-        param  : 1-D array
+        param  : 1D array
             estimated parameters from the previous M-step
-        shapes : 2-D array
+        shapes : 2D array
             array consisting of shape and size of every single parameter matrix
         n_segments : int
             number of segments being used for the estimation of the HMM
         data : list of dataframes
-            list of dataframes, has to be specified if one wants to get alpha/beta from customers outside the training set
+            dataset from which one wants to compute alpha and beta, has to be specified if one wants to get results from customers outside the training set
         Returns
         -------
-        alpha_return : 3-D array
+        alpha_return : 3D array
             estimated probabilities P[Y_{0:t}, X_{t}]
-        beta_return  : 3-D array
+        beta_return  : 3D array
             estimated probabilities P[Y_{t+1:T} | X_{t}]
         """
         """function for the E-step (forward and backward procedure)"""
         
-        
-        p_js = ef.prob_p_js(self, param, shapes, n_segments) #get probabilites P[Y_{itp} = c | X_{it} = s]
+        #get probabilites P[Y_{itp} = c | X_{it} = s]
+        p_js = ef.prob_p_js(self, param, shapes, n_segments)
         
         #initialise matrices for the return
         alpha_return = np.zeros((n_segments, self.n_customers, self.T)) 
@@ -432,13 +429,13 @@ class HMM_eff:
 
         Parameters
         ----------
-        alpha : 3-D array
+        alpha : 3D array
             estimated probabilities P[Y_{0:t}, X_{t}], coming from the E-step (forward and backward procedure)
-        beta  : 3-D array
+        beta  : 3D array
             estimated probabilities P[Y_{t+1:T} | X_{t}], coming from the E-step (forward and backward procedure)
-        param_in : 1-D array
+        param_in : 1D array
             parameters estimated at the previous M_step
-        shapes : 2-D array
+        shapes : 2D array
             array consisting of shape and size of every single parameter matrix
         n_segments : int
             number of segments being used for the estimation of the HMM
@@ -452,9 +449,9 @@ class HMM_eff:
             indicates whether it is the last iteration, and the hessian inverse has also to be returned
         Returns
         -------
-        param_out : 1-D array
+        param_out : 1D array
             estimated parameters in current M-step
-        hess_inv : 2-D array
+        hess_inv : 2D array
             estimated inverse of hessian
         """
         """function for the maximization step"""
@@ -538,25 +535,25 @@ class HMM_eff:
         """
         Parameters
         ----------
-        x     : 1-D array
+        x     : 1D array
             parameters over which the maximisation must be done
-        alpha : 3-D array
+        alpha : 3D array
             estimated probabilities P[Y_{0:t}, X_{t}], coming from the E-step (forward and backward procedure)
-        beta  : 3-D array
+        beta  : 3D array
             estimated probabilities P[Y_{t+1:T} | X_{t}], coming from the E-step (forward and backward procedure)
-        shapes : 2-D array
+        shapes : 2D array
             array consisting of shape and size of every single parameter matrix
         n_segments : int
             number of segments being used for the estimation of the HMM
-        P_s_given_Y_Z : 3-D array
+        P_s_given_Y_Z : 3D array
             probabilties P[X_{it} = s | Y_{it}, Z_{it}]
         list_P_s_given_r : list 
             probabilties P[X_{it} = s | X_{it} = r, Z_{it}]
         list_P_y_given_s : list
             probabilties P[Y_{it} = c | X_{it} = s]
-        p_js : 3-D array
+        p_js : 3D array
             probabilties P[Y_{itp} = c | X_{it} = s]
-        P_s_given_Y_Z_ut : 3-D array
+        P_s_given_Y_Z_ut : 3D array
             element-wise multiplication of alpha and beta
         Returns
         -------
@@ -627,6 +624,23 @@ class HMM_eff:
     
     
     def loglikelihood(self, param, shapes, n_segments):
+        """
+        Parameters
+        ----------
+        param     : 1D array
+            estimated parameters from the loglikelihood
+        shapes : 2D array
+            array consisting of shape and size of every single parameter matrix
+        n_segments : int
+            number of segments being used for the estimation of the HMM
+        Returns
+        -------
+        param_out : float
+            value of the loglikelihood
+
+        """
+        """function for calculating the loglikelihood""" 
+        
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param, shapes)
         
         p_js = ef.prob_p_js(self, param, shapes, n_segments)
@@ -683,6 +697,26 @@ class HMM_eff:
 # =============================================================================
 
     def predict_product_ownership(self, param, shapes, n_segments, alpha):
+        """
+        Parameters
+        ----------
+        param     : 1D array
+            estimated parameters of the HMM
+        shapes : 2D array
+            array consisting of shape and size of every single parameter matrix
+        n_segments : int
+            number of segments being used for the estimation of the HMM
+        alpha : 3D array
+            estimated probabilities P[Y_{0:t}, X_{t}], coming from the E-step (forward and backward procedure) from the HMM
+  
+        Returns
+        -------
+        prediction : 2D array
+            prediction of the amount every customer (rows) owns of a product (columns) 
+
+        """
+        """function for predicting the amount every customer owns of a product""" 
+        
         if self.covariates == True:
             Z = self.list_Z[self.T-1]
 
@@ -713,6 +747,26 @@ class HMM_eff:
             return prediction
 
     def active_value(self, param, n_segments, t, data = None):
+        """
+        Parameters
+        ----------
+        param     : 1D array
+            estimated parameters of the HMM
+        n_segments : int
+            number of segments being used for the estimation of the HMM
+        t : int
+            time for which one wants an active value
+        alpha : 3D array
+            estimated probabilities P[Y_{0:t}, X_{t}], coming from the E-step (forward and backward procedure) from the HMM
+        data : list of dataframes
+            dataset from which one wants to compute the active value, has to be specified if one wants to get results from customers outside the training set
+        Returns
+        -------
+        active_value : 1D array
+            active value for every customer
+        """
+        """function that computes an active value for every customer by means of the estimated parameters""" 
+
         #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
@@ -735,6 +789,35 @@ class HMM_eff:
 
 
     def cross_sell_yes_no(self, param, n_segments, active_value, data = None, tresholds = [0.5,0.8], order_active_high_to_low = [0,1,2]):
+        """
+        Parameters
+        ----------
+        param     : 1D array
+            estimated parameters of the HMM
+        n_segments : int
+            number of segments being used for the estimation of the HMM
+        active value : 1D array
+            active value of every customer
+        data : list of dataframes
+            dataset from which one wants to compute whether a cross sell is possible, has to be specified if one wants to get the result from customers outside the training set
+        tresholds : list
+            tresholds that indicate when a customers is eligible for a cross sell
+        order_active_high_to_low : list
+            because in the HMM it is not specified which segment represents the level of activeness, this list does
+        Returns
+        ------- 
+        dif_exp_own : 2D array
+            array representing for every customer (row) for every product (column) the difference between the expected ownership and the real ownership
+        cross_sell_target : 2D array
+            array representing whether a customers (row) is eligible for cross sell targeting regarding a certain product (columns)
+        cross_sell_self : 2D array
+            array representing whether a customers (row) cross sells a certain product (columns) itself
+        cross_sell_total : 2D array
+            array representing both cross_sell_target and cross_sell_self
+        """
+        """function that gives whether a customer is eligible for a cross sell""" 
+        
+
        #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
@@ -814,8 +897,26 @@ class HMM_eff:
         return dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total
     
     def number_of_cross_sells(self, cross_sell_target, cross_sell_self, cross_sell_total):
+        """
+        Parameters
+        ----------
+        cross_sell_target : 2D array
+            array representing whether a customers (row) is eligible for cross sell targeting regarding a certain product (columns)
+        cross_sell_self : 2D array
+            array representing whether a customers (row) cross sells a certain product (columns) itself
+        cross_sell_total : 2D array
+            array representing both cross_sell_target and cross_sell_self
+        Returns
+        -------
+        n_cross_sells : 2D array
+            array representing the number of cross sells for every product (row) and target/self/total (column)
+        """
+        """function calculates the number of cross sell that are predicted in cross_sell_yes_no""" 
+        
+        # initialise return
         n_cross_sells = np.zeros((self.n_products, 3))
         
+        # for every every product, calculat the number of cross sells
         for p in range(0,self.n_products):
                 n_cross_sells[p,0] = np.count_nonzero(cross_sell_target[:,p])
                 n_cross_sells[p,1] = np.count_nonzero(cross_sell_self[:,p])
@@ -986,15 +1087,44 @@ class HMM_eff:
         plt.show()
                 
         def cross_sell_new_cust(self, data, param_cross, param_act, n_segments_cross, act_obj, t,
-                                n_segments_act = 3, tresholds = [0.5, 0.8], order_active_high_to_low = [0,1,2]):
+                                n_segments_act = 3, tresholds = [0.5, 0.8], order_active_high_to_low = [0,1,2]): 
+        """
+        Parameters
+        ----------
+        data : list of dataframes
+            data of the customers for one wants to know whether a cross sell is possible
+        param_cross    : 1D array
+            estimated parameters of the HMM for cross sells
+        param_act : 1D array
+            estimated parameters of the HMM for the active value
+        n_segments_cross : int
+            number of segments being used for the estimation of the HMM for cross sells
+        act_obj : object
+            object of HMM_eff for estimating the active value
+        t : int
+            time on which one wants to know whether a cross sell is possible
+        n_segments_act : int
+            number of segments used for the HMM for the active value
+        tresholds : list
+            tresholds that indicate when a customers is eligible for a cross sell
+        order_active_high_to_low : list
+            because in the HMM it is not specified which segment represents the level of activeness, this list does
+        Returns
+        ------- 
+        cross_sell_target : 2D array
+            array representing whether a customers (row) is eligible for cross sell targeting regarding a certain product (columns)
+        cross_sell_self : 2D array
+            array representing whether a customers (row) cross sells a certain product (columns) itself
+        cross_sell_total : 2D array
+            array representing both cross_sell_target and cross_sell_self
+        """
+        """function that gives whether a customers outside the training set are eligible for a cross sell""" 
             
-            # get active value
-            active_value = act_obj.active_value(self, param_act, n_segments_act, t, data) 
+        active_value = act_obj.active_value(self, param_act, n_segments_act, t, data) 
             
-            # get cross
-            cross_sell = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
+        cross_sell_target, cross_sell_self, cross_sell_total = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
 
-            return cross_sell
+        return cross_sell_target, cross_sell_self, cross_sell_total
         
         
         
