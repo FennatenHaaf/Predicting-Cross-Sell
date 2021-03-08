@@ -337,7 +337,7 @@ class HMM_eff:
      
     #------------Function for the expectation step------------
         
-    def forward_backward_procedure(self, param, shapes, n_segments):
+    def forward_backward_procedure(self, param, shapes, n_segments, data = None):
         """
 
         Parameters
@@ -348,6 +348,8 @@ class HMM_eff:
             array consisting of shape and size of every single parameter matrix
         n_segments : int
             number of segments being used for the estimation of the HMM
+        data : list of dataframes
+            list of dataframes, has to be specified if one wants to get alpha/beta from customers outside the training set
         Returns
         -------
         alpha_return : 3-D array
@@ -364,18 +366,30 @@ class HMM_eff:
         alpha_return = np.zeros((n_segments, self.n_customers, self.T)) 
         beta_return = np.zeros((n_segments, self.n_customers, self.T))
         
-    
-        for i in range(0,self.n_customers):
-            for t in range(0,self.T):
+        if data == None:
+            n_cust = self.n_customers
+            T = self.T
+        else:
+            n_cust = len(data[0])
+            T = len(data)
+            
+        for i in range(0,n_cust):
+            for t in range(0,T):
                 v = self.T - t - 1
                 
-                #get the data from the right person at the right time, data_t is for the forward algorithm
-                Y_t = np.array([self.list_Y[t][i,:]])
-                if self.covariates == True:
-                    Z_t = np.array([self.list_Z[t][i,:]])
-                else:
-                    Z_t = []
-                
+                #get the data from the right person at the right time
+                if data == None: # if data is used from the trainingset
+                    Y_t = np.array([self.list_Y[t][i,:]])
+                    if self.covariates == True:
+                        Z_t = np.array([self.list_Z[t][i,:]])
+                    else:
+                        Z_t = []
+                else: # if data is used from a 'new' customer
+                    data_t = data[t]
+                    Y_t = np.array([ data[self.list_dep_var][t][i,:] ])
+                    if self.covariates == True:
+                        Z_t = np.array([ data[self.list_covariates][t][i,:] ])
+                    
                 #compute alpha and beta if t = 0
                 if t == 0:
                     P_y_given_s_t = ef.prob_P_y_given_s(self, Y_t, p_js, n_segments)
@@ -698,7 +712,7 @@ class HMM_eff:
 
             return prediction
 
-    def active_value(self, param, n_segments, t):
+    def active_value(self, param, n_segments, t, data = None):
         #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
@@ -712,7 +726,7 @@ class HMM_eff:
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
               
-        alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
+        alpha, beta = self.forward_backward_procedure(param, shapes, n_segments, data = data)
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
         active_value = np.argmax(P_s_given_Y_Z, axis = 0)
         active_value_t = active_value[:, t - 1]
@@ -720,7 +734,7 @@ class HMM_eff:
         return active_value_t
 
 
-    def cross_sell_yes_no(self, param, n_segments, active_value, tresholds = [0.5,0.8], order_active_high_to_low = [0,1,2]):
+    def cross_sell_yes_no(self, param, n_segments, active_value, data = None, tresholds = [0.5,0.8], order_active_high_to_low = [0,1,2]):
        #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
@@ -734,15 +748,18 @@ class HMM_eff:
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
         
-        alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
-        
+        if data == None:
+            alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
+            Y = self.list_Y[self.T-1]
+        else:
+            alpha, beta = self.forward_backward_procedure(param, shapes, n_segments, data)
+            Y = np.array([ data[self.list_dep_var][len(data)-1] ])
+
+
         prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha)
-        Y = self.list_Y[self.T-1]
         
         expected_n_prod = np.zeros((self.n_customers, self.n_products))
-
         dif_exp_own = np.zeros((self.n_customers, self.n_products))
-        
         cross_sell_target = np.zeros((self.n_customers, self.n_products))
         cross_sell_self = np.zeros((self.n_customers, self.n_products))
         cross_sell_total = np.zeros((self.n_customers, self.n_products))
@@ -968,3 +985,21 @@ class HMM_eff:
         #cbar.set_label('Probability')
         plt.show()
                 
+        def cross_sell_new_cust(self, data, param_cross, param_act, n_segments_cross, act_obj, t,
+                                n_segments_act = 3, tresholds = [0.5, 0.8], order_active_high_to_low = [0,1,2]):
+            
+            # get active value
+            active_value = act_obj.active_value(self, param_act, n_segments_act, t, data) 
+            
+            # get cross
+            cross_sell = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
+
+            return cross_sell
+        
+        
+        
+        
+        
+        
+        
+        
