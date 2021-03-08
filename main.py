@@ -573,7 +573,7 @@ if __name__ == "__main__":
         finergy_segment = "B04"
         
         predict_saldo = ps.predict_saldo()
-        extra_saldo = ps.get_extra_saldo(cross_sell_total, minimum, t, segment = finergy_segment)
+        extra_saldo,  X_var_final, ols_final = ps.get_extra_saldo(cross_sell_total, minimum, t, segment = finergy_segment)
         
 
 # =============================================================================
