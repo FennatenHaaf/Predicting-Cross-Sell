@@ -26,17 +26,21 @@ class predict_saldo:
         """
         Parameters
         ----------
-        predict_data : dataframe
-            -
-        interdir : float
-            -
-        drop_variables : string
-            -
-        base_variables : boolean
-            -
+        saldo_data : dataframe
+            dataframe consisting of all the data that is needed to estimate the parameters for the prediction
+        df_time_series : list of dataframes
+            dataframes on which saldo_data is based, needed for the prediction itself.
+        interdir : string
+            direction of the map where inter results are stored
+        cross_sell_types : list of strings
+            list consisting of strings that represent the products, thus the potential cross sells
+        drop_variables : list of strings
+            list consisting of variables that can be dropped from saldo_data
+        base_variables : list of strings
+            list consisting of the dummyvariables that are the base cases
             
         """
-        """function """
+        """function for the initialisation of an predict saldo object"""
         
         
         self.interdir = interdir
@@ -119,30 +123,27 @@ class predict_saldo:
         """
         Parameters
         ----------
-        predict_data : dataframe
-            -
-        interdir : float
-            -
-        drop_variables : string
-            -
-        base_variables : boolean
-            -
-            
+        test_set_prop : float
+            proportion of the data that is used for testing
+        random_state : int
+            seed for taking a random training/test set
+        p_bound : float
+            bound that indicates whether a variable is significant
         Returns
         -------
-        param_out :
-            -        
-        alpha_out :
-            -        
-        beta_out  :
-            -        
-        shapes    :
-            -        
-        hes_inv :
+        X_var_final : list
+            list of variables that turn out to be significant for predicing the extra saldo
+        ols_final : ols object
+            object of the final ols of the backward elimination for predicting the extra saldo
+        r2adjusted  : list
+            list of adjusted r2's of the backward elimination
+        r2 : list
+            list of r2's of the backward elimination
+        mse : list
+            list of mse's of the backward elimination
         """
-        """function """
+        """function for training the saldo prediction model"""
         
-
         X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size = test_set_prop, random_state = random_state) 
 
         olsmod = sm.OLS(y_train, X_train)
@@ -158,28 +159,30 @@ class predict_saldo:
         """
         Parameters
         ----------
-        predict_data : dataframe
-            -
-        interdir : float
-            -
-        drop_variables : string
-            -
-        base_variables : boolean
-            -
-            
+        olsres : ols object
+            ols object where all variables are included
+        X_train : dataframe
+            training set of the independent variables 
+        X_test : dataframe
+            test set of the independent variables 
+        y_train : dataframe
+            training set of the dependent variables 
+        y_test : dataframe
+            test set of the dependent variables 
         Returns
         -------
-        param_out :
-            -        
-        alpha_out :
-            -        
-        beta_out  :
-            -        
-        shapes    :
-            -        
-        hes_inv :
+        X_var_final : list
+            list of variables that turn out to be significant for predicing the extra saldo
+        ols_final : ols object
+            object of the final ols of the backward elimination for predicting the extra saldo
+        r2adjusted  : list
+            list of adjusted r2's of the backward elimination
+        r2 : list
+            list of r2's of the backward elimination
+        mse : list
+            list of mse's of the backward elimination
         """
-        """function """
+        """function for the backward elimination of the saldo predicition model"""
         
         r2adjusted = []   # Will store R Square adjusted value for each loop
         r2 = [] 
@@ -229,28 +232,29 @@ class predict_saldo:
             """
             Parameters
             ----------
-            predict_data : dataframe
-                -
-            interdir : float
-                -
-            drop_variables : string
-                -
-            base_variables : boolean
-                -
-                
+            cross_sell_types : list of strings
+                list consisting of strings that represent the products, thus the potential cross sells
+            cross_sell_yes_no : 2D array
+                array indicating whether customers (rows) are eligible for the cross sell of certain products (columns)
+            df_ts : dataframe
+                dataframe for predicting the extra saldo 
+            test_set_prop : float
+                proportion of the data that is used for testing
+            random_state : int
+                seed for taking a random training/test set
+            p_bound : float
+                bound that indicates whether a variable is significant
+                    
             Returns
             -------
-            param_out :
-                -        
-            alpha_out :
-                -        
-            beta_out  :
-                -        
-            shapes    :
-                -        
-            hes_inv :
+            fitted_values : 1D array
+                array with the fitted values of the saldo prediction model
+            X_var_final : list
+                list of variables that turn out to be significant for predicing the extra saldo
+            ols_final : ols object
+                object of the final ols of the backward elimination for predicting the extra saldo
             """
-            """function """
+            """function for calculating the fitted values of the saldo prediction model"""
         
             
             # train model to get parameters
@@ -281,28 +285,18 @@ class predict_saldo:
             """
             Parameters
             ----------
-            predict_data : dataframe
-                -
-            interdir : float
-                -
-            drop_variables : string
-                -
-            base_variables : boolean
-                -
-                
+            minimum : float
+                minimum of all the saldos of all customers over all the time
+            fitted_values : 1D array
+                array with the fitted values of the saldo prediction model
+            df : dataframe
+                dataframe for predicting the extra saldo 
             Returns
             -------
-            param_out :
-                -        
-            alpha_out :
-                -        
-            beta_out  :
-                -        
-            shapes    :
-                -        
-            hes_inv :
+            extra_saldo : 1D array
+                array consisting of all the extra saldos on the account balances when cross_sells are done   
             """
-            """function """
+            """function that derives the actual extra saldo from the fitted values"""
         
 
             prev_saldo = self.df[[["business","retail",
@@ -316,28 +310,30 @@ class predict_saldo:
             """
             Parameters
             ----------
-            predict_data : dataframe
-                -
-            interdir : float
-                -
-            drop_variables : string
-                -
-            base_variables : boolean
-                -
-                
+            cross_sell_yes_no : 2D array
+                array indicating whether customers (rows) are eligible for the cross sell of certain products (columns)
+            t : int
+                time for which one wants to calculate extra saldos
+            minimum : float
+                minimum of all the saldos of all customers over all the time
+            fin_segment : string
+                segments for which one wants to predict the extra saldos
+            test_set_prop : float
+                proportion of the data that is used for testing
+            random_state : int
+                seed for taking a random training/test set
+            p_bound : float
+                bound that indicates whether a variable is significant  
             Returns
             -------
-            param_out :
-                -        
-            alpha_out :
-                -        
-            beta_out  :
-                -        
-            shapes    :
-                -        
-            hes_inv :
+            extra_saldo : 1D array
+                array consisting of all the extra saldos on the account balances when cross_sells are done   
+            X_var_final : list
+                list of variables that turn out to be significant for predicing the extra saldo
+            ols_final : ols object
+                object of the final ols of the backward elimination for predicting the extra saldo
             """
-            """function """
+            """function that predicts the extra saldo on the account balances when cross sells are done"""
         
             # initialise the dataframes
             if fin_segment == None:
