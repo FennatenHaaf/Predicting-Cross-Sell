@@ -312,7 +312,7 @@ class predict_saldo:
             
             return extra_saldo
         
-        def get_extra_saldo(self, cross_sell_yes_no, t, minimum, segment = None, test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
+        def get_extra_saldo(self, cross_sell_yes_no, t, minimum, fin_segment = None, test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
             """
             Parameters
             ----------
@@ -340,11 +340,11 @@ class predict_saldo:
             """function """
         
             # initialise the dataframes
-            if segment == None:
+            if fin_segment == None:
                 df_ts = self.df_time_series[t]
             else: 
                 df_ts = self.df_time_series[t]     
-                df_ts = self.df_ts[df_ts['finergy_tp'] == segment]
+                df_ts = self.df_ts[df_ts['finergy_tp'] == fin_segment]
 
         
             fitted_values, X_var_final, ols_final = self.get_fitted_values(self.cross_sell_types, cross_sell_yes_no, df_ts, 
