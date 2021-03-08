@@ -711,8 +711,8 @@ class HMM_eff:
   
         Returns
         -------
-        prediction : 2D array
-            prediction of the amount every customer (rows) owns of a product (columns) 
+        prediction : 3D array
+            prediction of the amount (third index) every customer (first index) owns of a product (second index)
 
         """
         """function for predicting the amount every customer owns of a product""" 

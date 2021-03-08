@@ -228,7 +228,7 @@ class predict_saldo:
         return current_X_var, olsres, r2adjusted, r2, mse
     
     
-        def get_fitted_values(self, crosssell_types, cross_sell_yes_no, df_ts, test_set_prop, random_state, p_bound):
+        def get_fitted_values(self, cross_sell_types, cross_sell_yes_no, df_ts, test_set_prop, random_state, p_bound):
             """
             Parameters
             ----------
@@ -260,7 +260,7 @@ class predict_saldo:
             # train model to get parameters
             X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop, random_state, p_bound)
             
-            df_cross_sell = pd.DataFrame(data = cross_sell_yes_no, columns = crosssell_types)
+            df_cross_sell = pd.DataFrame(data = cross_sell_yes_no, columns = cross_sell_types)
 
             # create cross-effects dummies
             df_ts['business_retail_joint'] = df_cross_sell['business']* df_cross_sell['retail']*df_cross_sell['joint']
