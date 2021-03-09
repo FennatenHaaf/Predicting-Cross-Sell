@@ -28,7 +28,7 @@ class HMM_eff:
     
     def __init__( self, outdir, outname, list_dataframes, list_dep_var,
                   list_covariates = [], covariates = False, iterprint = False,
-                  initparam = None, do_backup_folder = False ):
+                  initparam = None, do_backup_folder = True):
         """
         Parameters
         ----------
@@ -273,7 +273,8 @@ class HMM_eff:
             #Backup files into backup folder
             if self.do_backup_folder:
                 utils.create_result_archive(self.outdir, archive_name = "hmm_iterations",subarchive_addition =
-                                    self.starting_datetime, files_string_to_archive_list = ['crosssell'] )
+                                    self.starting_datetime, files_string_to_archive_list = ['crosssell'],
+                                            file_string_to_exclude_list = ['_HESSIAN'] )
 
             #compute difference to check convergence 
             if self.iteration != 0:
@@ -338,6 +339,7 @@ class HMM_eff:
         if self.do_backup_folder:
             utils.create_result_archive(self.outdir, archive_name = "hmm_iterations", subarchive_addition =
             self.starting_datetime, files_string_to_archive_list = ['_HESSIAN'])
+
 
     
         return param_out, alpha_out, beta_out, shapes, hess_inv #, hes
@@ -489,8 +491,6 @@ class HMM_eff:
         x0 = param_in
             
         self.maximization_iters = 0
-        self.prev_x = x0
-        self.prev_x1000 = x0
 
         #set options for the different optimization routines
         #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
