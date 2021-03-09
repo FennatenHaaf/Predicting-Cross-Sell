@@ -46,12 +46,12 @@ class predict_saldo:
         self.interdir = interdir
         
         # initialise dataframes
-        if saldo_data == None:        
+        if isinstance(saldo_data, type(None)):        
             self.saldo_data = pd.read_csv(f'{interdir}/saldopredict.csv')
         else: 
             self.saldo_data = saldo_data
             
-        if df_time_series == None:
+        if isinstance(df_time_series, type(None)):
             name = "final_df"
             self.df_time_series = [pd.read_csv(f"{interdir}/{name}_2018Q1.csv"),
                             pd.read_csv(f"{interdir}/{name}_2018Q2.csv"),
@@ -68,7 +68,7 @@ class predict_saldo:
         else:
             self.df_times_series = df_time_series
             
-        if cross_sell_types == None:        
+        if isinstance(cross_sell_types, type(None)):        
             self.cross_sell_types = ["business",
                                      "retail",
                                      "joint",
@@ -81,7 +81,7 @@ class predict_saldo:
         y = self.saldo_data['percdiff']
         X = self.saldo_data.drop(columns = ['percdiff'])
 
-        if drop_variables == None:
+        if isinstance(drop_variables, type(None)):
             #Drop some of the variables that we do not use from x
             X = X.drop(columns = ['personid','portfolio_change','saldo_prev',
                                   'business_change','retail_change','joint_change',
@@ -96,7 +96,7 @@ class predict_saldo:
             X = X.drop(columns = drop_variables)
         
         
-        if base_variables == None:
+        if isinstance(base_variables, type(None)):
             # Drop the base cases
             X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 
                               'huidigewaarde_klasse_1.0', 'age_bins_(18, 30]', 
