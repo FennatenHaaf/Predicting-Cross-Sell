@@ -475,9 +475,6 @@ if __name__ == "__main__":
                                                                           n_segments, 
                                                                           param_cross, 
                                                                           shapes_cross)
-        # Also print the covariance
-        # cov = np.linalg.inv(-hes)
-        # print(f"Covariance: {cov}")
     
         endmodel = utils.get_time()
         diff = utils.get_time_diff(startmodel,endmodel)
@@ -545,11 +542,12 @@ if __name__ == "__main__":
             
         # Now interpret & visualise the parameters 
         p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
+        dfSE = hmm.get_standard_errors(param_cross, n_segments)
         
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
-            t = len(df_periods)
+            t = 9 
             active_value_pd = pd.read_csv(f"{outdirec}/active_value_t{t}.csv")
             active_value = active_value_pd.to_numpy()
             active_value = active_value[:,1]
@@ -559,21 +557,15 @@ if __name__ == "__main__":
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
              
         else:
-
-            t = len(df_periods)
+            t = 9 # de laatste periode die als input in hmm is gestopt
             active_value  = hmm.active_value(param_cross, n_segments, t)
             active_value_df = pd.DataFrame(active_value) 
 
             active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
 
-            #t = 10
-            #active_value  = hmm.active_value(param_cross, n_segments, t)
-            #active_value_df = pd.DataFrame(active_value) 
-
-            #active_value_df.to_csv(f"{outdirec}/active_value.csv")
 
         # get extra saldo 
-        t = 10
+        t = 10 # period for which we predict
         #minimum = 80000
         finergy_segment = "B04"
         
