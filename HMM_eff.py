@@ -15,7 +15,6 @@ This code aims to execute a Baum-Welch/forward-backward algorithm to estimate a 
 import extra_functions_HMM_eff as ef
 import numpy as np 
 from scipy.optimize import minimize
-from scipy.optimize import differential_evolution
 import utils
 from tqdm import tqdm
 from time import perf_counter
@@ -24,13 +23,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import copy
-#from pyswarm import pso
 
 class HMM_eff:
     
-    def __init__(self, outdir, outname, list_dataframes, list_dep_var, 
-                   list_covariates = [], covariates = False, iterprint = False,
-                   initparam = None):
+    def __init__( self, outdir, outname, list_dataframes, list_dep_var,
+                  list_covariates = [], covariates = False, iterprint = False,
+                  initparam = None, do_backup_folder = False ):
         """
         Parameters
         ----------
@@ -55,6 +53,7 @@ class HMM_eff:
         self.list_dep_var = list_dep_var
         self.list_covariates = list_covariates
         self.initparam = initparam
+        self.do_backup_folder = do_backup_folder
     
         self.n_covariates = len(list_covariates) #initialise the number of covariates
         self.n_customers = self.list_dataframes[0].shape[0] #initialise the number of customers
@@ -199,6 +198,9 @@ class HMM_eff:
         #initialise
         self.iteration = 0
         difference = True
+
+        if self.do_backup_folder:
+            self.starting_datetime = utils.get_datetime()
         
         print(f"****Starting EM prodecure, at {utils.get_time()}****")
         print(f"tolerance: {tolerance}")
@@ -221,9 +223,9 @@ class HMM_eff:
             logl_in = logl_out
             
             #perform forward-backward procedure (expectation step of EM) 
-            start1 = utils.get_time() 
+            start = utils.get_time()
             alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
-            start = utils.get_time() 
+            start1 = utils.get_time()
             print(f"E-step duration: {utils.get_time_diff(start,start1)} ")
 
 
@@ -267,7 +269,11 @@ class HMM_eff:
                 f.write(paramstring)
                 
                 f.write(f"LogLikelihood value: {logl_out}")
-                
+
+            #Backup files into backup folder
+            if self.do_backup_folder:
+                utils.create_result_archive(self.outdir, archive_name = "hmm_iterations",subarchive_addition =
+                                    self.starting_datetime, files_string_to_archive_list = ['crosssell'] )
 
             #compute difference to check convergence 
             if self.iteration != 0:
@@ -327,7 +333,11 @@ class HMM_eff:
             
             hesinvstring = utils.printarray(hess_inv)
             paramstring = f"param_out = np.array({hesinvstring}) \n\n"
-            f.write(paramstring)    
+            f.write(paramstring)
+
+        if self.do_backup_folder:
+            utils.create_result_archive(self.outdir, archive_name = "hmm_iterations", subarchive_addition =
+            self.starting_datetime, files_string_to_archive_list = ['_HESSIAN'])
 
     
         return param_out, alpha_out, beta_out, shapes, hess_inv #, hes
@@ -479,14 +489,17 @@ class HMM_eff:
         x0 = param_in
             
         self.maximization_iters = 0
-    
+        self.prev_x = x0
+        self.prev_x1000 = x0
+
         #set options for the different optimization routines
         #fatol_value = 1e-3 + (1e-1)/np.exp( ( self.iteration / 10) )
         #xatol_value = 1e-1 + (1 - 1e-1)/np.exp( ( self.iteration / 100) )
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 10**(-2), 'fatol': 10**(-2)} 
+        # minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 0.1, 'fatol': 0.1}
+        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 1e-2, 'fatol': 1e-2}
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
         #run the minimisation
@@ -497,6 +510,47 @@ class HMM_eff:
                                      method=max_method,options= minimize_options_NM)
                 #param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                  #                    method=max_method,options= minimize_options_NM)
+
+
+                ##EXTRACT SIMPLEX VALUES
+                # final_xs = param_out.final_simplex[0]
+                # final_fs = param_out.final_simplex[1]
+
+                # ##PRINT ITERATION DIFFERENCES BETWEEN SIMPLEX ITERS
+                # if final_xs.shape[0] > 1:
+                #     for j, x in reversed(list(enumerate(final_xs[:-1]))):
+                #         i = j + 1
+                #         print(f"For simplex iteration number {final_xs.shape[0] - j} :")
+                #         print(f"Log difference is {final_fs[j] - final_fs[i]:.4f} with previous logl {float(final_fs[i]):.5f} and "
+                #               f"current "
+                #               f"logl {float(final_fs[j]):.5f}")
+                #         xdiff = np.abs(final_xs[j] - final_xs[i])
+                #         x_max_loc = np.argmax(xdiff)
+                #         print(f"Maximal x difference between simplex iterations is {float(xdiff[x_max_loc]):.4f} at position"
+                #               f" {x_max_loc} "
+                #               f"with current x: "
+                #               f"{float(final_xs[j][x_max_loc])}:.5f and with previous x : {float(final_xs[i][x_max_loc])}:.5f")
+                # else:
+                #     print(f"Only one iteration")
+
+                ###SHOW LARGEST DIFFERENCE FOR STOPPING CRITERION
+                # nthlargest = 10
+                # if final_xs.shape[0] >= (nthlargest + 1):
+                #     with np.printoptions(threshold = np.inf):
+                #         print(f"\n 10 largest Differences in logl according to simplex before termination"
+                #               f": \n {np.sort(np.ravel(np.abs(final_fs[2:] - final_fs[1])))[-nthlargest:] }")
+                #         print(f"\n 10 largest Differences in logl according to simplex at termination"
+                #               f": \n {np.sort(np.ravel(np.abs(final_fs[1:] - final_fs[0])))[-nthlargest:] }")
+                #         print(f"\n 10 largest Differences in x according to simplex before termination"
+                #               f": \n {np.sort(np.ravel(np.abs(final_xs[2:] - final_xs[1])))[-nthlargest:] }")
+                #         print(f"\n 10 largest Differences in x according to simplex at termination"
+                #               f": \n {np.sort(np.ravel(np.abs(final_xs[1:] - final_xs[0])))[-nthlargest:] }")
+                # else:
+                #     print("Not enough simplex iterations to see largest differences according to method")
+
+
+
+
             else:
                 param_out = minimize(self.optimization_function, x0, args=(alpha, beta, shapes,
                                          n_segments, reg_term, P_s_given_Y_Z, list_P_s_given_r, list_P_y_given_s, p_js_cons, P_s_given_Y_Z_ut),
@@ -617,10 +671,11 @@ class HMM_eff:
         self.maximization_iters += 1
         if self.iterprint:
             if (self.maximization_iters % 1000 == 0):  # print alleen elke 1000 iterations
-                print('function value:', logl,' at iteration ',self.maximization_iters)
-                #print('x_tol : ',(np.max(np.ravel(np.abs(x[1:] - x[0])))), "  with x[0]",x[0], "others are \n",x[1:])
+               print('function value:', logl,' at iteration ',self.maximization_iters)
+
         return logl
-    
+
+
     
     
     def loglikelihood(self, param, shapes, n_segments):
@@ -780,7 +835,9 @@ class HMM_eff:
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
               
+
         alpha, beta = self.forward_backward_procedure(param, shapes, n_segments, data = data)
+
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
         active_value = np.argmax(P_s_given_Y_Z, axis = 0)
         active_value_t = active_value[:, t - 1]
@@ -830,7 +887,7 @@ class HMM_eff:
         #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
-        
+
         if data == None:
             alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
             Y = self.list_Y[self.T-1]
@@ -1088,43 +1145,43 @@ class HMM_eff:
                 
         def cross_sell_new_cust(self, data, param_cross, param_act, n_segments_cross, act_obj, t,
                                 n_segments_act = 3, tresholds = [0.5, 0.8], order_active_high_to_low = [0,1,2]): 
-        """
-        Parameters
-        ----------
-        data : list of dataframes
-            data of the customers for one wants to know whether a cross sell is possible
-        param_cross    : 1D array
-            estimated parameters of the HMM for cross sells
-        param_act : 1D array
-            estimated parameters of the HMM for the active value
-        n_segments_cross : int
-            number of segments being used for the estimation of the HMM for cross sells
-        act_obj : object
-            object of HMM_eff for estimating the active value
-        t : int
-            time on which one wants to know whether a cross sell is possible
-        n_segments_act : int
-            number of segments used for the HMM for the active value
-        tresholds : list
-            tresholds that indicate when a customers is eligible for a cross sell
-        order_active_high_to_low : list
-            because in the HMM it is not specified which segment represents the level of activeness, this list does
-        Returns
-        ------- 
-        cross_sell_target : 2D array
-            array representing whether a customers (row) is eligible for cross sell targeting regarding a certain product (columns)
-        cross_sell_self : 2D array
-            array representing whether a customers (row) cross sells a certain product (columns) itself
-        cross_sell_total : 2D array
-            array representing both cross_sell_target and cross_sell_self
-        """
-        """function that gives whether a customers outside the training set are eligible for a cross sell""" 
-            
-        active_value = act_obj.active_value(self, param_act, n_segments_act, t, data) 
-            
-        cross_sell_target, cross_sell_self, cross_sell_total = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
+            """
+            Parameters
+            ----------
+            data : list of dataframes
+                data of the customers for one wants to know whether a cross sell is possible
+            param_cross    : 1D array
+                estimated parameters of the HMM for cross sells
+            param_act : 1D array
+                estimated parameters of the HMM for the active value
+            n_segments_cross : int
+                number of segments being used for the estimation of the HMM for cross sells
+            act_obj : object
+                object of HMM_eff for estimating the active value
+            t : int
+                time on which one wants to know whether a cross sell is possible
+            n_segments_act : int
+                number of segments used for the HMM for the active value
+            tresholds : list
+                tresholds that indicate when a customers is eligible for a cross sell
+            order_active_high_to_low : list
+                because in the HMM it is not specified which segment represents the level of activeness, this list does
+            Returns
+            -------
+            cross_sell_target : 2D array
+                array representing whether a customers (row) is eligible for cross sell targeting regarding a certain product (columns)
+            cross_sell_self : 2D array
+                array representing whether a customers (row) cross sells a certain product (columns) itself
+            cross_sell_total : 2D array
+                array representing both cross_sell_target and cross_sell_self
+            """
+            """function that gives whether a customers outside the training set are eligible for a cross sell"""
 
-        return cross_sell_target, cross_sell_self, cross_sell_total
+            active_value = act_obj.active_value(self, param_act, n_segments_act, t, data)
+
+            cross_sell_target, cross_sell_self, cross_sell_total = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
+
+            return cross_sell_target, cross_sell_self, cross_sell_total
         
         
         

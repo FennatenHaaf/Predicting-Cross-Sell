@@ -166,10 +166,8 @@ def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0):
                           horizontalalignment='right', fontweight='light',
                           fontsize=18)
     plt.show()
-    
-    
-   
-    
+
+
     
 ### DATA EXPLORATION METHODS
 #TODO show PA explorer in here
