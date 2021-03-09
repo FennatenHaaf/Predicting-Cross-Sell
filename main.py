@@ -524,12 +524,12 @@ if __name__ == "__main__":
                         pd.read_csv(f"{interdir}/{namesal}_2020Q4.csv")]
         
             globalmin = np.inf    
-            for i, df in enumerate(dflist):    
-                df = dflist[i]
+            for i, df in enumerate(saldodflist):    
+                df = saldodflist[i]
                 df = additdata.aggregate_portfolio_types(df)
-                dflist[i]= additdata.transform_variables(df)
+                saldodflist[i]= additdata.transform_variables(df)
                 # Now also obtain a global minimum of all the datasets
-                saldo = dflist[i]['saldototaal']
+                saldo = saldodflist[i]['saldototaal']
                 globalmin = min(globalmin,saldo)
             
             print(f"overall minimum: {globalmin}")
@@ -557,7 +557,7 @@ if __name__ == "__main__":
             finergy_segment = "B04"
             
             predict_saldo = ps.predict_saldo(saldo_data = predictdata,
-                                             df_time_series = dflist,
+                                             df_time_series = saldodflist,
                                              interdir = interdir,
                                              )
             extra_saldo,  X_var_final, ols_final = ps.get_extra_saldo(cross_sell_total, globalmin, t, segment = finergy_segment)
