@@ -33,30 +33,64 @@ class AdditionalDataProcess(object):
         self.cross_compared_df = pd.DataFrame()
 
 
-    def create_saldo_data(self,dflist, interdir, filename ="saldodiff",
-                          select_variables = None, dummy_variables = None ):
-        """Make saldo data out of a df list"""
+    # 2 methodes: create full difference en in de main een get differences tussen
+    # 2 specifieke periodes??
+    def create_crosssell_data(self,dflist, interdir, filename ="crossselloverall"):
+        """Get a dataset containing all portfolio increases, decreases and
+        non-changes over all periods in dflist"""
         i=0
         for df in dflist:
-            if i==0:
-                # We assume our input is already transformed & aggregated!
-                #dfold = aggregate_portfolio_types(df)
+            if i==0:      
                 dfold = df
             else:
-                #dfnew = aggregate_portfolio_types(df)
                 dfnew = df
                 data = self.get_difference_data(dfnew,dfold,
-                                           select_variables = select_variables,
-                                           dummy_variables = dummy_variables)
+                                           select_variables = None,
+                                           dummy_variables = None,
+                                           select_no_decrease = False,
+                                           globalmin = None)
                 if i==1:
                     diffdata = data
                 else:
-                    # newcolumns = diffdata.columns.difference(data.columns)
-                    # for col in newcolumns:
-                    #     data[col]=0
-                    # -> not necessary, if there is a difference in columns it will
-                    # just become nan
+                    diffdata = pd.concat([diffdata,data], ignore_index= True) 
+                    diffdata = diffdata.fillna(0)
 
+                dfold = dfnew
+            i+=1
+            
+        # Select only the information that we have about portfolio changes
+        diffdata = diffdata["personid", "portfolio_change",
+                            "business_change", "retail_change",
+                            "joint_change","accountoverlay_change",
+                            "business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]
+        
+        print(f"Done creating cross-sell differences dataset at {utils.get_time()}" \
+              f", saving to {filename}")
+        utils.save_df_to_csv(diffdata, interdir, filename, add_time = False )
+        return diffdata
+        
+
+    def create_saldo_data(self,dflist, interdir, filename ="saldodiff",
+                          select_variables = None, dummy_variables = None,
+                          globalmin = None):
+        """Make saldo data out of a df list"""
+        
+        # We assume our input is already transformed & aggregated!
+        i=0
+        for df in dflist:
+            if i==0:      
+                dfold = df
+            else:
+                dfnew = df
+                data = self.get_difference_data(dfnew,dfold,
+                                           select_variables = select_variables,
+                                           dummy_variables = dummy_variables,
+                                           select_no_decrease = True,
+                                           globalmin = globalmin)
+                if i==1:
+                    diffdata = data
+                else:
                     diffdata = pd.concat([diffdata,data], ignore_index= True) #
                     diffdata = diffdata.fillna(0)
 
@@ -72,24 +106,20 @@ class AdditionalDataProcess(object):
 
 
     def get_difference_data(self,this_period,prev_period, log =True,
-                            select_variables=None, dummy_variables =None, select_no_decrease = True):
+                            select_variables=None, dummy_variables =None,
+                            select_no_decrease = True, globalmin = None,
+                            verbose = True):
         """Get the datapoints for which there is a difference of 1 or more
         portfolios"""
-        #TODO also add account overlay somehow so that we can also find the impact
-        # of that (if there is any??)
 
-        # Get the total number of portfolios in each period (excluding overlay)
-
-        #TODO wellicht dat dit het oplost?
-        #Andere Oplossing is om de personid als index te nemen
+        # Sorteer voor de zekerheid, andere Oplossing is om personid als index te nemen
         this_period.sort_values('personid', inplace = True)
         prev_period.sort_values('personid', inplace = True)
         this_period.reset_index(drop = True, inplace =  True)
         prev_period.reset_index(drop = True, inplace =  True)
 
-
-        #TODO wat zijn de benodigdheden om dit te runnen
-        #TODO schrijf dit om zodat dit verscihl per personid wordt gepakt
+        # Get the total number of portfolios in each period (excluding overlay)
+        #TODO schrijf dit om zodat dit verscihl per personid wordt gepakt?
         this_period['portfoliototaal']= this_period[["business","retail",
                                             "joint"]].sum(axis=1)
         prev_period['portfoliototaal']= prev_period[["business","retail",
@@ -100,25 +130,24 @@ class AdditionalDataProcess(object):
 
         saldo_prev = prev_period['saldototaal']
         saldo_now = this_period['saldototaal']
-        minoverall = min(saldo_prev.min(),saldo_now.min())
+        
+        if not( isinstance(globalmin, type(None)) ):
+            minoverall = globalmin
+        else:
+            minoverall = min(saldo_prev.min(),saldo_now.min())
 
-        if log:
-            # We take the log difference
-            #saldo_prev = getlogs(prev_period['saldototaal'])
-            #saldo_now = getlogs(this_period['saldototaal'])
-
+        if log: 
             # Need to subtract the same number of each to take the log
             # and then get the log difference
-            print(f"Taking log difference, min of both is {minoverall}")
+            #print(f"Taking log difference, min of both is {minoverall}")
             logprev = np.log(saldo_prev+1-minoverall)
             lognow = np.log(saldo_now+1-minoverall)
 
             this_period['percdiff'] =lognow-logprev
-
         else:
-            # Take the percentage - we add the minimum of the previous period to
+            # Take the percentage - we add the minimum of all periods to
             # deal with negative or zero values
-            print("Taking percentage difference, min of both is {minoverall}")
+            #print("Taking percentage difference, min of both is {minoverall}")
             saldo_prev2 = this_period['saldototaal']+1+minoverall
             saldo_now2 = prev_period['saldototaal']+1+minoverall
             this_period['percdiff'] =((saldo_now2-saldo_prev2) / saldo_prev2)*100
@@ -162,14 +191,12 @@ class AdditionalDataProcess(object):
                                                       "retail_change_dummy",
                                                       "joint_change_dummy",
                                                       "accountoverlay_change_dummy"]]
-
+        
         data["saldo_prev"] = saldo_prev
         data["saldo_now"] = saldo_now
 
         # get some extra variables of interest from the preceding period
-
         data = data.reset_index(drop=True)
-
         previous_period = prev_period.loc[select_portfoliogain].reset_index(drop=True)
 
         # Add dummies for if we had business, retail or joint already in the last period
@@ -177,12 +204,10 @@ class AdditionalDataProcess(object):
             data[f"prev_{name}_dummy"] = previous_period[f"{name}_dummy"]
 
         # Add other dummies from the previous period which we gave as input
-        if select_variables is not None:
+        if not( isinstance(select_variables, type(None)) ):
              data[select_variables] = previous_period[select_variables]
 
-        if dummy_variables is not None:
-            #dummycolumns =  prev_period.loc[select_portfoliogain,
-            #                                           dummy_variables]
+        if not( isinstance(dummy_variables, type(None)) ): 
             dummies,dummynames =  self.make_dummies(previous_period,
                                                dummy_variables) # use dummy variables as prefix
             data[dummynames] = dummies[dummynames]

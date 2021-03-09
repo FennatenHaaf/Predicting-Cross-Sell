@@ -39,8 +39,9 @@ if __name__ == "__main__":
     end_date = None # Until which moment do we want to use the information
     #end_date = "2020-12-31" # Until which moment do we want to use the information
     subsample = False # Do we want to take a subsample
-    sample_size = 500 # The sample size
-    finergy_segment = "B04" # The finergy segment that we want to be in the sample
+    sample_size = 1000 # The sample size
+    finergy_segment = "B04"
+    #"B04" # The finergy segment that we want to be in the sample
     # e.g.: "B04" - otherwise make it None
     
     # How to save the final result
@@ -253,7 +254,10 @@ if __name__ == "__main__":
             df = additdata.aggregate_portfolio_types(df)
             dflist[i]= additdata.transform_variables(df)
     
-       print("Doing a check that the ID columns are the same")
+        
+       print("Doing a check that the ID columns are the same, and getting minimum saldo")
+       
+       globalmin = np.inf    
        for i, df in enumerate(dflist):    
            if (i==0): 
                dfold = dflist[i]
@@ -265,6 +269,11 @@ if __name__ == "__main__":
                else:
                    print("noooooooooooo")
                dfold = dfnew
+               
+           # Now also obtain a global minimum of all the datasets
+           saldo = dfold['saldototaal']
+           globalmin = min(globalmin,saldo)
+           
     
     
     #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
@@ -282,7 +291,8 @@ if __name__ == "__main__":
         predictdata = additdata.create_saldo_data(dflist, interdir,
                                         filename= saldo_name,
                                         select_variables = selection,
-                                        dummy_variables = dummies)
+                                        dummy_variables = dummies,
+                                        globalmin = globalmin)
 
     #-----------------------------------------------------------------
     end = utils.get_time()
@@ -316,31 +326,28 @@ if __name__ == "__main__":
             print(counts)
         DI.plotCoocc(df, crosssell_types_dummies)
         
-        if (saldo_data & transform):
-            print("*****Visualising difference data*****")
-            # Now visualise cross sell events from the saldo prediction data
+        print("*****Visualising cross-sell difference data*****")
+        # Now visualise cross sell events from the full dataset
+       
+        diffdata = additdata.create_crosssell_data(dflist, interdir) 
+        visualize_variables = ["business_change_dummy", "retail_change_dummy",
+                               "joint_change_dummy",
+                               "accountoverlay_change_dummy",
+                              ]
+        # ["business_change",
+        #                        "retail_change",
+        #                        "joint_change",
+        #                        "accountoverlay_change",
+        #                       ]   
+        
+        for var in visualize_variables:
+            print(f"visualising {var}")
+            DI.plotCategorical(diffdata, var)
+            counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
+            print(counts)
             
-            saldodata = pd.read_csv(f"{interdir}/{saldo_name}.csv")
-            # Note: deze data bevat niet de mensen die portfolio hebben geloosd!
-            # -> aparte dataset voor maken?
-            visualize_variables = ["business_change_dummy", "retail_change_dummy",
-                                   "joint_change_dummy",
-                                   "accountoverlay_change_dummy",
-                                  ]
-            # ["business_change",
-            #                        "retail_change",
-            #                        "joint_change",
-            #                        "accountoverlay_change",
-            #                       ]   
-            
-            for var in visualize_variables:
-                print(f"visualising {var}")
-                DI.plotCategorical(df, var)
-                counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
-                print(counts)
-                
-            DI.plotCoocc(df,  visualize_variables  )
-            #TODO er gaat nog iets mis hier
+        #DI.plotCoocc(df,  visualize_variables  )
+        #TODO er gaat nog iets mis hier!
                 
             
         
@@ -430,24 +437,8 @@ if __name__ == "__main__":
         
         #---------------- Enter initial parameters ---------------
         
-        #initial_param = None 
-        initial_param = np.array([ 4.00279803e-01, 1.55148857e+00, 3.01075360e-01,
-                                  3.61195130e-01, 2.44142717e-01, 1.97377519e-01, -1.21491736e-01,
-                                  -3.76051007e-01, -1.09935554e+00, 1.69131815e-01, -3.71756994e-01,
-                                  1.03314763e+00, -4.57133282e-01, -1.86250226e-01, -1.82250901e-01, 
-                                  6.10375682e-01, 5.35357171e-01, 4.37577944e-01, 1.47101548e-01, 
-                                  1.46280268e-01, 8.81679443e+00, 1.38150859e-01, -9.14823349e+00, 
-                                  5.61651293e+00, 4.06077770e+00, -2.47700418e+00, 1.12583167e+00, 
-                                  1.23619704e-01, -7.40264237e-01, -6.67140557e-01, 1.23417985e-02, 
-                                  -5.47161920e-01, 4.94438786e-04, 5.38637909e-02, 4.70217916e-01, 
-                                  -8.63527345e-04, -1.02960062e+00, -1.12182604e+00, -1.33946194e+00,
-                                  4.75096107e-01, 3.23766601e-01, 2.61892254e-01, 1.10839026e+00,
-                                  -9.81763889e-02, -1.61596020e-03, -8.42801686e-01, 8.86826217e+00,
-                                  1.08790730e+01, 1.54395264e+01, 9.31398860e+00, 1.86251543e+01,
-                                  -4.15505145e-04, 2.08954057e+00, 7.48087332e+00, 3.96424280e+00,
-                                  5.74881298e+00, 6.32078146e+00, 8.66508230e+00, 8.10629803e+00, 
-                                  8.41172505e+00, 4.28800496e+00, -1.71701327e+00, -5.80770925e+00,
-                                  -3.19102183e+00, -8.70860889e+00]) # paste parameters here!
+        initial_param = None 
+        #initial_param = 
         
         #---------------- RUN THE HMM MODEL ---------------  
         
@@ -469,7 +460,7 @@ if __name__ == "__main__":
                          initparam = initial_param)
 
         # Run the EM algorithm - max method can be Nelder-Mead or BFGS
-        param_cross,alpha_cross,beta_cross,shapes_cross, hess_inv = hmm.EM(n_segments, 
+        param_cross,alpha_cross,beta_cross,shapes_cross,hess_inv = hmm.EM(n_segments, 
                                                              max_method = 'Nelder-Mead',
                                                              reg_term = reg,
                                                              random_starting_points = True)  
@@ -551,25 +542,105 @@ if __name__ == "__main__":
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
-            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+            t = len(df_periods)
+            active_value_pd = pd.read_csv(f"{outdirec}/active_value_t{t}.csv")
             active_value = active_value_pd.to_numpy()
             active_value = active_value[:,1]
-            dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total = hmm.cross_sell_yes_no(param_cross, n_segments,
+            dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
                                                                                                       active_value, tresholds, 
                                                                                                       order_active_high_to_low)
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
              
         else:
-            t = 5
+            t = len(df_periods)
             active_value  = hmm.active_value(param_cross, n_segments, t)
             active_value_df = pd.DataFrame(active_value) 
 
-            active_value_df.to_csv(f"{outdirec}/active_value.csv")
+            active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
 
+
+# =============================================================================
+# Evaluate output
+# =============================================================================
       
-
-
-
+        if run_cross_sell == True:    
+          print("****Evaluating cross-sell targeting results****")
+          t = len(df_periods)
+          last_period = df_periods[t-1]
+          testing_period = dflist[10] # period 10 or 11 can be used
+          # tODO: make something so that the testing period becomes a variable??
+         
+          #---------------- GINI COEFFICIENT CALCULATION -------------------------
+          
+          #TODO: right now this is only for 1 or 0 whether they own the product or not!!
+          # These describe product ownership yes/no in the new period
+          prod_ownership_new = testing_period[crosssell_types_dummies]
+          
+          # These describe product ownership yes/no in the previous period
+          prod_ownership_old = last_period[crosssell_types_dummies]
+          
+          
+          Gini = []
+          
+          for i, column in enumerate(["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]):
+              
+            # Number of households who did NOT have product
+            n_j = len(prod_ownership_old[:,i]==0) 
+            
+            # Percentage of those households who now do own the product
+            select = (prod_ownership_old[:,i]==0)
+            change = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
+            mu_j = (sum(change) / len(change))*100 # percentage that is 1
+            
+            # Ranked probabilities - 
+            # We want the person with the highest probability to get the lowest rank
+            probranks = prod_own[:,i].rank(method='max', ascending = False)
+            
+            sumrank = 0
+            for j in range(0,len(testing_period)):
+                sumrank += probranks[j] * prod_ownership_new[j,i]
+              
+                
+            Ginij = 1 + (1/n_j) - ( 2 / ( (n_j**2)*mu_j  ) )*sumrank 
+            Gini.append(Ginij)
+              
+         
+        #--------------------- TP/ NP calculation -------------------------
+          diffdata = additdata.get_difference_data(testing_period, last_period,
+                                           select_variables = None,
+                                           dummy_variables = None,
+                                           select_no_decrease = False,
+                                           globalmin = None)
+            
+        # These dummies describe whether an increase took place
+          diffdata = diffdata["personid", "business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]
+          
+          FPvec = []
+          TPvec = []
+          FNvec = []
+          TNvec = []
+          
+          for i, column in enumerate(["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]):
+            pred_labels = cross_sell_self[:,i]
+            true_labels = diffdata[:,i] # check that this selects the right things
+            
+            # True Positive (TP): we predict a label of 1 (positive), and the true label is 1.
+            TP = np.sum(np.logical_and(pred_labels == 1, true_labels == 1))
+            TPvec.append(TP)
+            # True Negative (TN): we predict a label of 0 (negative), and the true label is 0.
+            TN = np.sum(np.logical_and(pred_labels == 0, true_labels == 0))
+            TNvec.append(TN)
+            # False Positive (FP): we predict a label of 1 (positive), but the true label is 0.
+            FP = np.sum(np.logical_and(pred_labels == 1, true_labels == 0))
+            FPvec.append(FP)
+            # False Negative (FN): we predict a label of 0 (negative), but the true label is 1.
+            FN = np.sum(np.logical_and(pred_labels == 0, true_labels == 1))
+            FNvec.append(FN)
+            
+        # TODO: make accuracy score out of these
 
 # =============================================================================
 # Models testing

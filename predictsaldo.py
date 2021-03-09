@@ -40,7 +40,7 @@ class predict_saldo:
                                   'business_change','retail_change','joint_change',
                                   'accountoverlay_change','retail_change_dummy',
                                   'business_change_dummy','joint_change_dummy' ,
-                                  'accountoverlay_change_dummy',
+                                  #'accountoverlay_change_dummy',
                                   'saldo_now','saldo_prev'])
             # Drop lfase as well
             X = X.drop(columns = [ 'lfase_2.0', 'lfase_3.0', 'lfase_4.0', 'lfase_5.0', 
