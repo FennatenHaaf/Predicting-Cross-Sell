@@ -60,6 +60,7 @@ if __name__ == "__main__":
         else:
             final_name = "final_df"
             saldo_name = f"saldopredict"
+            
 # =============================================================================
 # DEFINE WHAT TO RUN
 # =============================================================================
@@ -416,6 +417,7 @@ if __name__ == "__main__":
             #Define number of segments
             n_segments = 5
             reg = 0.05 # Regularization term
+            max_method = 'Nelder-Mead'
             
             outname = f"crosssell_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
             
@@ -432,6 +434,7 @@ if __name__ == "__main__":
             #Define number of segments
             n_segments = 3
             reg = 0.1 # Regularization term
+            max_method = 'Nelder-Mead'
             
             outname = f"activity_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
         
@@ -455,14 +458,15 @@ if __name__ == "__main__":
         
         # Note: the input datasets have to be sorted / have equal ID columns!
         hmm = ht.HMM_eff(outdirec, outname,
-                         df_periods, name_dep_var, 
-                         name_covariates, covariates = True,
+                         df_periods, reg, max_method,
+                         name_dep_var, name_covariates, 
+                         covariates = True,
                          iterprint = True,
                          initparam = initial_param)
 
         # Run the EM algorithm - max method can be Nelder-Mead or BFGS
         param_cross,alpha_cross,beta_cross,shapes_cross,hess_inv = hmm.EM(n_segments, 
-                                                             max_method = 'Nelder-Mead',
+                                                             max_method = max_method,
                                                              reg_term = reg,
                                                              random_starting_points = True)  
 
@@ -519,17 +523,19 @@ if __name__ == "__main__":
                 #Define number of segments
                 n_segments = 3
                 reg = 0.1 # Regularization term
+                max_method = 'Nelder-Mead'
                 run_cross_sell = False
-            
+                
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
             print(f"number of periods: {len(df_periods)}")
             print(f"number of segments: {n_segments}")
             print(f"number of people: {len(dflist[0])}")
-            outname = "interpretparam"
+            outname = f"interpretparam_activity_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
             
             hmm = ht.HMM_eff(outdirec, outname,
-                         df_periods, name_dep_var, 
+                         df_periods, reg, max_method,
+                         name_dep_var, 
                          name_covariates, covariates = True,
                          iterprint = True,
                          initparam = param_cross)
