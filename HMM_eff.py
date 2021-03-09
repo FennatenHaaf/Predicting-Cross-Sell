@@ -14,6 +14,7 @@ This code aims to execute a Baum-Welch/forward-backward algorithm to estimate a 
 """
 import extra_functions_HMM_eff as ef
 import numpy as np 
+import pandas as pd
 from scipy.optimize import minimize
 import utils
 from tqdm import tqdm
@@ -26,8 +27,9 @@ import copy
 
 class HMM_eff:
     
-    def __init__( self, outdir, outname, list_dataframes, list_dep_var,
-                  list_covariates = [], covariates = False, iterprint = False,
+    def __init__( self, outdir, outname, list_dataframes, reg_term,
+                  max_method, list_dep_var, list_covariates = [], 
+                  covariates = False, iterprint = False,
                   initparam = None, do_backup_folder = True):
         """
         Parameters
@@ -54,7 +56,10 @@ class HMM_eff:
         self.list_covariates = list_covariates
         self.initparam = initparam
         self.do_backup_folder = do_backup_folder
-    
+        
+        
+        self.reg_term = reg_term
+        self.max_method = max_method
         self.n_covariates = len(list_covariates) #initialise the number of covariates
         self.n_customers = self.list_dataframes[0].shape[0] #initialise the number of customers
         self.n_products = len(list_dep_var) #initialise the number of product
@@ -318,22 +323,21 @@ class HMM_eff:
         
         print(f"Done calculating at {utils.get_time()}!")
 
+        
         # Also save the hessians in a file
-        with open(f'{self.outdir}/{self.outname}_HESSIAN.txt', 'w') as f:
+        with open(f'{self.outdir}/{self.outname}_HESSIAN_len{len(hess_inv)}.txt', 'w') as f:
                 
             np.set_printoptions(threshold=np.inf) # so we can print the whole array?
             
-            f.write(f"time: {utils.get_time()} \n")
+            #f.write(f"time: {utils.get_time()} \n")
             # f.write("Hessian from our own calculation: \n")
-            
             # hesstring = utils.printarray(hes)
             # paramstring = f"param_out = np.array({hesstring}) \n\n"
             # f.write(paramstring)
             
-            f.write("Hessian inverse from BFGS: \n")
-            
-            hesinvstring = utils.printarray(hess_inv)
-            paramstring = f"param_out = np.array({hesinvstring}) \n\n"
+            #f.write("Hessian inverse from BFGS: \n")
+            hesinvstring = utils.printarray(hess_inv, removenewlines = True)
+            paramstring = f"Hessian_out = np.array({hesinvstring}) \n\n"
             f.write(paramstring)
 
         if self.do_backup_folder:
@@ -991,10 +995,7 @@ class HMM_eff:
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
         gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
         beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
-        # for s in range(n_segments):
-        #     for p in range(0,self.n_products):
-        #         beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
-                
+   
         #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
@@ -1185,6 +1186,41 @@ class HMM_eff:
         
         
         
+        def get_standard_errors(self, param_in, n_segments):
+            """Print the standard errors given certain input parameters"""
+            
+             #----------- Initialise everything so that we get the shapes-------------
+            gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
+            gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
+            gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
+            beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
+       
+            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
+            shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
+                               [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
+
+            #----------------------- Do a single EM step --------------------------- 
+            
+            alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
+            param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
+                                                     shapes, n_segments, self.reg_term,
+                                                     self.max_method, bounded = None,
+                                                     end = True)
+            
+            #----------------------- get sd's from hessian --------------------------- 
+            diag = np.diag(hess_inv)
+            se = np.sqrt(diag)
+            
+    
+            # save the values to a dataframe and save to csv?
+            df = pd.DataFrame(columns = ["parameter","se"])
+            df["parameter"] = param_out # todo : of moet dit param in zijn?
+            df["se"] = se
+        
+            utils.save_df_to_csv(df, self.outdir, f"{self.outname}_standarderrors", 
+                                 add_time = False )
+        
+            return df
         
         
         

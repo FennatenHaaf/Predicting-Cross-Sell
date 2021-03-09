@@ -81,9 +81,14 @@ def infer_date_frequency(date):
 PRINTING
 """   
 
-def printarray(array):
+def printarray(array, removenewlines = False):
     """Replaces all whitespaces with commas using regular expressions""" 
     
+    if removenewlines:
+        string = re.sub(r"\r\n", " ", str(array))
+    else: 
+        string  = str(array)
+        
     pattern = re.compile(r'(\d|-|\])(\s+)(\d|-|\[)')
     arraystring = re.sub(pattern, r'\1, \3', str(array))
     

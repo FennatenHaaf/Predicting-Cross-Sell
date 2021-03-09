@@ -60,6 +60,7 @@ if __name__ == "__main__":
         else:
             final_name = "final_df"
             saldo_name = f"saldopredict"
+            
 # =============================================================================
 # DEFINE WHAT TO RUN
 # =============================================================================
@@ -416,6 +417,7 @@ if __name__ == "__main__":
             #Define number of segments
             n_segments = 4
             reg = 0.05 # Regularization term
+            max_method = 'Nelder-Mead'
             
             outname = f"crosssell_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
             
@@ -432,6 +434,7 @@ if __name__ == "__main__":
             #Define number of segments
             n_segments = 3
             reg = 0.1 # Regularization term
+            max_method = 'Nelder-Mead'
             
             outname = f"activity_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
         
@@ -503,14 +506,15 @@ if __name__ == "__main__":
         
         # Note: the input datasets have to be sorted / have equal ID columns!
         hmm = ht.HMM_eff(outdirec, outname,
-                         df_periods, name_dep_var, 
-                         name_covariates, covariates = True,
+                         df_periods, reg, max_method,
+                         name_dep_var, name_covariates, 
+                         covariates = True,
                          iterprint = True,
                          initparam = initial_param)
 
         # Run the EM algorithm - max method can be Nelder-Mead or BFGS
         param_cross,alpha_cross,beta_cross,shapes_cross,hess_inv = hmm.EM(n_segments, 
-                                                             max_method = 'Nelder-Mead',
+                                                             max_method = max_method,
                                                              reg_term = reg,
                                                              random_starting_points = True)  
 
@@ -519,9 +523,6 @@ if __name__ == "__main__":
                                                                           n_segments, 
                                                                           param_cross, 
                                                                           shapes_cross)
-        # Also print the covariance
-        # cov = np.linalg.inv(-hes)
-        # print(f"Covariance: {cov}")
     
         endmodel = utils.get_time()
         diff = utils.get_time_diff(startmodel,endmodel)
@@ -567,17 +568,19 @@ if __name__ == "__main__":
                 #Define number of segments
                 n_segments = 4
                 reg = 0.1 # Regularization term
+                max_method = 'Nelder-Mead'
                 run_cross_sell = False
-            
+                
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
             print(f"number of periods: {len(df_periods)}")
             print(f"number of segments: {n_segments}")
             print(f"number of people: {len(dflist[0])}")
-            outname = "interpretparam"
+            outname = f"interpretparam_activity_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
             
             hmm = ht.HMM_eff(outdirec, outname,
-                         df_periods, name_dep_var, 
+                         df_periods, reg, max_method,
+                         name_dep_var, 
                          name_covariates, covariates = True,
                          iterprint = True,
                          initparam = param_cross)
@@ -587,11 +590,12 @@ if __name__ == "__main__":
             
         # Now interpret & visualise the parameters 
         p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
+        dfSE = hmm.get_standard_errors(param_cross, n_segments)
         
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
-            t = len(df_periods)
+            t = 9 
             active_value_pd = pd.read_csv(f"{outdirec}/active_value_t{t}.csv")
             active_value = active_value_pd.to_numpy()
             active_value = active_value[:,1]
@@ -601,21 +605,15 @@ if __name__ == "__main__":
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
              
         else:
-
-            t = len(df_periods)
+            t = 9 # de laatste periode die als input in hmm is gestopt
             active_value  = hmm.active_value(param_cross, n_segments, t)
             active_value_df = pd.DataFrame(active_value) 
 
             active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
 
-            #t = 10
-            #active_value  = hmm.active_value(param_cross, n_segments, t)
-            #active_value_df = pd.DataFrame(active_value) 
-
-            #active_value_df.to_csv(f"{outdirec}/active_value.csv")
 
         # get extra saldo 
-        t = 10
+        t = 10 # period for which we predict
         #minimum = 80000
         finergy_segment = "B04"
         
