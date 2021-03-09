@@ -11,7 +11,7 @@ import additionalDataProcess as AD
 import HMM_eff as ht
 import extra_functions_HMM_eff as ef
 import dataInsight as DI
-import predict_saldo as ps
+import predictsaldo as ps
 
 from scipy.stats.distributions import chi2
 import pandas as pd
@@ -543,7 +543,7 @@ if __name__ == "__main__":
             
             # Run the data creation
             saldo_name = f"saldopredict"
-            predictdata = additdata.create_saldo_data(dflist, interdir,
+            predictdata = additdata.create_saldo_data(saldodflist, interdir,
                                             filename= saldo_name,
                                             select_variables = selection,
                                             dummy_variables = dummies,
