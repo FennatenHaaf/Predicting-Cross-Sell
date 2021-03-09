@@ -49,31 +49,29 @@ if __name__ == "__main__":
     if (finergy_segment != None):
         if subsample:
             final_name = f"final_df_fin{finergy_segment}_n{sample_size}"
-            saldo_name =  f"saldopredict_fin{finergy_segment}_n{sample_size}"
+            #saldo_name =  f"saldopredict_fin{finergy_segment}_n{sample_size}"
         else:
             final_name = f"final_df_fin{finergy_segment}"
-            saldo_name = f"saldopredict_fin{finergy_segment}"
+           #saldo_name = f"saldopredict_fin{finergy_segment}"
     else:
         if subsample:
             final_name = f"final_df_n{sample_size}"
-            saldo_name = f"saldopredict_n{sample_size}"
+            #saldo_name = f"saldopredict_n{sample_size}"
         else:
             final_name = "final_df"
-            saldo_name = f"saldopredict"
+           # saldo_name = f"saldopredict"
             
 # =============================================================================
 # DEFINE WHAT TO RUN
 # =============================================================================
     
-    cross_sec = False # Do we want to run the code for getting a single cross-sec
     time_series = False # Do we want to run the code for getting time series data
-    transform = True # Transform & aggregate the data
-    saldo_data = False # Do we want to create the dataset for predicting saldo
     visualize_data = False # make some graphs and figures
     
     run_hmm = True
     run_cross_sell = True # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
+    saldopredict = False # Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -158,27 +156,6 @@ if __name__ == "__main__":
         #"aantalproducten_totaal_bins"
         ]
     
-    # activity variables per portfolio
-    activity_perportfolio = []
-    activity_dummies_perportfolio = []
-    
-    for var in (["business","retail","joint"]):  
-       for name in activity_total:     
-            activity_perportfolio.append(f"log_{var}_{name}")
-       activity_dummies_perportfolio.append(f"activitystatus_{name}")
-     
-        
-    #------ Business characteristics variables --------
-    
-    business_dummies = [
-        "SBIname",
-        "SBIsectorName",
-        "businessAgeInYears_bins",
-        "businessType",
-        ]
-        
-    # also possible to get: logins web & logins app separately
-    # & the transaction information separately
     
 # =============================================================================
 # CREATE DATASETS
@@ -188,7 +165,7 @@ if __name__ == "__main__":
     start = utils.get_time()
     print(f"****Processing data, at {start}****")
     
-    if (cross_sec | time_series): 
+    if (time_series): 
         #initialise dataprocessor
         processor = KD.dataProcessor(indirec, interdir, outdirec,
                                 quarterly, start_date, end_date,
@@ -206,20 +183,9 @@ if __name__ == "__main__":
                              invalid = "invalid_ids",
                              use_file = True)
         
-    #----------------MAKE CROSS-SECTIONAL DATASETS-------------------
-    if cross_sec:
-        # Make the base cross-section
-        df_cross, cross_date = processor.create_base_cross_section(date_string="2020-12-31", 
-                            next_period = False, outname = "cross_experian")
-        # Now aggregate all of the information per portfolio
-        df_cross_link = processor.create_cross_section_perportfolio(df_cross, cross_date, 
-                                              outname = "df_cross_portfoliolink")
-        # Aggregate all of the portfolio information per person ID
-        df_out = processor.create_cross_section_perperson(df_cross, df_cross_link,
-                                            cross_date, outname = final_name)
     
     #----------------MAKE TIME SERIES DATASETS-------------------
-    if time_series:
+    #if time_series:
         print(f"final name:{final_name}")
         dflist = processor.time_series_from_cross(outname = final_name)
         
@@ -248,54 +214,29 @@ if __name__ == "__main__":
             
     #----------------AGGREGATE & TRANSFORM THE DATA-------------------
     additdata = AD.AdditionalDataProcess(indirec,interdir,outdirec)
-    if transform:    
-       print(f"****Transforming datasets & adding some variables at {utils.get_time()}****")
-       
-       for i, df in enumerate(dflist):    
-            df = dflist[i]
-            df = additdata.aggregate_portfolio_types(df)
-            dflist[i]= additdata.transform_variables(df)
+ 
+    print(f"****Transforming datasets & adding some variables at {utils.get_time()}****")
     
-        
-       print("Doing a check that the ID columns are the same, and getting minimum saldo")
-       
-       globalmin = np.inf    
-       for i, df in enumerate(dflist):    
-           if (i==0): 
-               dfold = dflist[i]
-           else:
-               dfnew = dflist[i]
-               if (dfold["personid"].equals(dfnew["personid"])):
-                   #print("check") 
-                   check=1 # we do nothing
-               else:
-                   print("noooooooooooo")
-               dfold = dfnew
-               
-           # Now also obtain a global minimum of all the datasets
-           saldo = dfold['saldototaal']
-           globalmin = min(globalmin,saldo)
-           
+    for i, df in enumerate(dflist):    
+         df = dflist[i]
+         df = additdata.aggregate_portfolio_types(df)
+         dflist[i]= additdata.transform_variables(df)
+ 
+     
+    print("Doing a check that the ID columns are the same, and getting minimum saldo")
     
-    
-    #--------------- GET DATA FOR REGRESSION ON SALDO ------------------
-    if (saldo_data & transform):
-        print(f"****Create data for saldo prediction at {utils.get_time()}****")
-        
-        # Define which 'normal' variables to use in the dataset
-        selection = activity_total # add activity vars
-        
-        # Define which dummy variables to use
-        dummies = person_dummies # get experian characteristics
-        dummies.extend(activity_dummies) # get activity status
-        
-        # Run the data creation
-        predictdata = additdata.create_saldo_data(dflist, interdir,
-                                        filename= saldo_name,
-                                        select_variables = selection,
-                                        dummy_variables = dummies,
-                                        globalmin = globalmin)
-
+    for i, df in enumerate(dflist):    
+        if (i==0): 
+            dfold = dflist[i]
+        else:
+            dfnew = dflist[i]
+            if (dfold["personid"].equals(dfnew["personid"])):
+                #print("check") 
+                check=1 # we do nothing
+            else:
+                print("noooooooooooo")
+            dfold = dfnew
+              
     #-----------------------------------------------------------------
     end = utils.get_time()
     diff = utils.get_time_diff(start,end)
@@ -358,51 +299,48 @@ if __name__ == "__main__":
 # RUN HMM MODEL
 # =============================================================================
     
-    if (transform):
-        
-        #---------MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER) ---------
-        # we don't use all experian variables yet
-        dummies_personal = ["income","age_bins","geslacht"] 
-        for i, df in enumerate(dflist):   
-            dummies, dummynames =  additdata.make_dummies(df,
-                                                 dummies_personal,
-                                                 drop_first = False)
-            df[dummynames] = dummies[dummynames]
-        print("Dummy variables made:")
-        print(dummynames)
-        # get the dummy names without base cases        
-        base_cases = ['income_1.0','age_bins_(0, 18]','age_bins_(18, 30]',
-                      'geslacht_Man','geslacht_Man(nen) en vrouw(en)']
-        # Note: we should drop man(nen) en vrouw(en) as well!! Which means we treat these
-        # occurrences as men
-        personal_variables = [e for e in dummynames if e not in base_cases]
+    #---------MAKE PERSONAL VARIABLES (ONLY INCOME, AGE, GENDER) ---------
+    # we don't use all experian variables yet
+    dummies_personal = ["income","age_bins","geslacht"] 
+    for i, df in enumerate(dflist):   
+        dummies, dummynames =  additdata.make_dummies(df,
+                                             dummies_personal,
+                                             drop_first = False)
+        df[dummynames] = dummies[dummynames]
+    print("Dummy variables made:")
+    print(dummynames)
+    # get the dummy names without base cases        
+    base_cases = ['income_1.0','age_bins_(0, 18]','age_bins_(18, 30]',
+                  'geslacht_Man','geslacht_Man(nen) en vrouw(en)']
 
-        #--------------------GET FULL SET OF COVARIATES----------------------
+    personal_variables = [e for e in dummynames if e not in base_cases]
 
-        # First add the continuous variables
-        full_covariates = ["log_logins_totaal","log_aantaltransacties_totaal"] 
+    #--------------------GET FULL SET OF COVARIATES----------------------
 
-        # Time to process dummies again
-        dummies_personal = ["income", "age_bins", "geslacht", "hh_size",
-                            "saldototaal_bins", "businessType"] 
-        for i, df in enumerate(dflist):   
-            dummies, dummynames =  additdata.make_dummies(df,
-                                                 dummies_personal,
-                                                 drop_first = False)
-            df[dummynames] = dummies[dummynames]
-        print("Dummy variables made:")
-        print(dummynames)
-        # get the dummy names without base cases        
-        base_cases = ['income_1.0','age_bins_(18, 30]','age_bins_(0, 18]',
-                      'geslacht_Man','geslacht_Man(nen) en vrouw(en)',
-                      'hh_size_1.0','saldototaal_bins_(0.0, 100.0]', 
-                      ]
-        dummies_final = [e for e in dummynames if e not in base_cases]
-        full_covariates.extend(dummies_final)
+    # First add the continuous variables
+    full_covariates = ["log_logins_totaal","log_aantaltransacties_totaal"] 
+
+    # Time to process dummies again
+    dummies_personal = ["income", "age_bins", "geslacht", "hh_size",
+                        "saldototaal_bins", "businessType"] 
+    for i, df in enumerate(dflist):   
+        dummies, dummynames =  additdata.make_dummies(df,
+                                             dummies_personal,
+                                             drop_first = False)
+        df[dummynames] = dummies[dummynames]
+    print("Dummy variables made:")
+    print(dummynames)
+    # get the dummy names without base cases        
+    base_cases = ['income_1.0','age_bins_(18, 30]','age_bins_(0, 18]',
+                  'geslacht_Man','geslacht_Man(nen) en vrouw(en)',
+                  'hh_size_1.0','saldototaal_bins_(0.0, 100.0]', 
+                  ]
+    dummies_final = [e for e in dummynames if e not in base_cases]
+    full_covariates.extend(dummies_final)
 
 
 
-    if (run_hmm & transform):
+    if (run_hmm):
         #---------------- SELECT VARIABLES ---------------
         print(f"****Defining variables to use at {utils.get_time()}****")
 
@@ -486,7 +424,7 @@ if __name__ == "__main__":
 # INTERPRET PARAMETERS
 # =============================================================================
 
-    if (transform & interpret):
+    if (interpret):
         print("****Checking HMM output****")
         
         if (not run_hmm): # read in parameters if we have not run hmm
@@ -564,14 +502,66 @@ if __name__ == "__main__":
             active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
 
 
-        # get extra saldo 
-        t = 10 # period for which we predict
-        #minimum = 80000
-        finergy_segment = "B04"
+# =============================================================================
+# SALDO PREDICTION
+# =============================================================================
+
+        if (saldopredict):
+            print(f"****Create data for saldo prediction at {utils.get_time()}****")
+            
+            namesal = "final_df" # We use the full dataset with all complete IDs
+            saldodflist = [pd.read_csv(f"{interdir}/{namesal}_2018Q1.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2018Q2.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2018Q3.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2018Q4.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2019Q1.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2019Q2.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2019Q3.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2019Q4.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2020Q1.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2020Q2.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2020Q3.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2020Q4.csv")]
         
-        predict_saldo = ps.predict_saldo()
-        extra_saldo,  X_var_final, ols_final = ps.get_extra_saldo(cross_sell_total, globalmin, t, segment = finergy_segment)
-        
+            globalmin = np.inf    
+            for i, df in enumerate(dflist):    
+                df = dflist[i]
+                df = additdata.aggregate_portfolio_types(df)
+                dflist[i]= additdata.transform_variables(df)
+                # Now also obtain a global minimum of all the datasets
+                saldo = dflist[i]['saldototaal']
+                globalmin = min(globalmin,saldo)
+            
+            print(f"overall minimum: {globalmin}")
+               
+            # Define which 'normal' variables to use in the dataset
+            selection = activity_total # add activity vars
+            
+            # Define which dummy variables to use
+            dummies = person_dummies # get experian characteristics
+            dummies.extend(activity_dummies) # get activity status
+            
+            # Run the data creation
+            saldo_name = f"saldopredict"
+            predictdata = additdata.create_saldo_data(dflist, interdir,
+                                            filename= saldo_name,
+                                            select_variables = selection,
+                                            dummy_variables = dummies,
+                                            globalmin = globalmin)
+            
+            print(f"****Create saldo prediction model at {utils.get_time()}****")
+            
+            # get extra saldo 
+            t = 10 # period for which we predict TODO make this a variable somewhere
+            #minimum = 80000
+            finergy_segment = "B04"
+            
+            predict_saldo = ps.predict_saldo(saldo_data = predictdata,
+                                             df_time_series = dflist,
+                                             interdir = interdir,
+                                             )
+            extra_saldo,  X_var_final, ols_final = ps.get_extra_saldo(cross_sell_total, globalmin, t, segment = finergy_segment)
+            
 
 # =============================================================================
 # Evaluate output
