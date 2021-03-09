@@ -1214,7 +1214,7 @@ class HMM_eff:
     
             # save the values to a dataframe and save to csv?
             df = pd.DataFrame(columns = ["parameter","se"])
-            df["parameter"] = param_out
+            df["parameter"] = param_out # todo : of moet dit param in zijn?
             df["se"] = se
         
             utils.save_df_to_csv(df, self.outdir, f"{self.outname}_standarderrors", 
