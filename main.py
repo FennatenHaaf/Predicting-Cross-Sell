@@ -11,6 +11,7 @@ import additionalDataProcess as AD
 import HMM_eff as ht
 import extra_functions_HMM_eff as ef
 import dataInsight as DI
+import predict_saldo as ps
 
 from scipy.stats.distributions import chi2
 import pandas as pd
@@ -552,12 +553,27 @@ if __name__ == "__main__":
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
              
         else:
+
             t = len(df_periods)
             active_value  = hmm.active_value(param_cross, n_segments, t)
             active_value_df = pd.DataFrame(active_value) 
 
             active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
 
+            #t = 10
+            #active_value  = hmm.active_value(param_cross, n_segments, t)
+            #active_value_df = pd.DataFrame(active_value) 
+
+            #active_value_df.to_csv(f"{outdirec}/active_value.csv")
+
+        # get extra saldo 
+        t = 10
+        #minimum = 80000
+        finergy_segment = "B04"
+        
+        predict_saldo = ps.predict_saldo()
+        extra_saldo,  X_var_final, ols_final = ps.get_extra_saldo(cross_sell_total, globalmin, t, segment = finergy_segment)
+        
 
 # =============================================================================
 # Evaluate output
@@ -641,6 +657,9 @@ if __name__ == "__main__":
             FNvec.append(FN)
             
         # TODO: make accuracy score out of these
+
+       
+
 
 # =============================================================================
 # Models testing

@@ -500,8 +500,8 @@ class AdditionalDataProcess(object):
             current_age = lambda x:today.year - x.birthyear
         )
 
-        self.input_cross.loc[(self.input_cross["geslacht"]=="Mannen"), "geslacht"]="Man"
-        self.input_cross.loc[(self.input_cross["geslacht"]=="Vrouwen"), "geslacht"]="Vrouw"
+        # self.input_cross.loc[(self.input_cross["geslacht"]=="Mannen"), "geslacht"]="Man"
+        # self.input_cross.loc[(self.input_cross["geslacht"]=="Vrouwen"), "geslacht"]="Vrouw"
 
         # Drop unnecessary columns
         list_to_drop = ['valid_to_dateeow', 'valid_from_dateeow', 'valid_from_min', 'valid_to_max', 'saldototaal_agg']
@@ -575,6 +575,8 @@ class AdditionalDataProcess(object):
                                     [incomplete_obs_person_jnt, joint_columns, 'has_jnt_prtf'], \
                                     [incomplete_obs_person_ret, retail_columns, 'has_ret_prtf']:
 
+            print(f"For '{indic}' , creating an interpolation of missing variables for the following columns: \n {cols} \n")
+
             incomplete_df_slice = incomplete_df[incomplete_df.personid.isin(persons)]
             incomplete_df_slice_persons = incomplete_df_slice.groupby(['personid'], as_index = False).apply(lambda x: x.loc[
                 x[indic] == 1, 'period_obs'].min())
@@ -633,24 +635,20 @@ class AdditionalDataProcess(object):
 
         # Concat to the larger set without NaN
         cross_df = pd.concat([cross_df, incomplete_final], ignore_index = True)
-
-        # Clean variables
-        del incomplete_df, incomplete_df_slice, incomplete_df_slice_persons, incomplete_final, incomplete_index, \
-            incomplete_obs, incomplete_obs_person_ret, incomplete_obs_person_jnt, incomplete_obs_person_bus, incomplete_person_list, \
-            indexed_df_slice, inner_df, inner_df_list, inner_and_outer, outer_merge_list, outer_df, outer_df_list, period_inner, \
-            period_outer, templist, templist2, templist3
-        gc.collect()
-
         cross_df.drop(indicators_list, axis = 1, inplace = True)
         cross_df = cross_df.groupby("personid").mean().reset_index()
 
-        remaining_vars = list(set(self.input_cross) - set(cross_df))
-        remaining_vars = ['personid'] + remaining_vars
+        remaining_vars = list(set(self.input_cross.columns) - set(cross_df.columns))
+        exclusion_list_total_vars = ['period_q']
+        exclusion_list_total_vars = utils.do_find_and_select_from_list(self.input_cross.columns, exclusion_list_total_vars)
+        remaining_vars = list( set( ['personid'] + remaining_vars )  - set(exclusion_list_total_vars) )
+        print(f" Remaining vars in larger set:\n :{remaining_vars} \n \n after excluding the following variables :\n"
+              f" {exclusion_list_total_vars}")
 
         #Takes last period and merges this to the variables who have just gotten a mean value
         partial_input_cross = self.input_cross.loc[self.input_cross.period_obs == period_list[-1], remaining_vars]
         self.cross_df = pd.merge(cross_df, partial_input_cross, on = 'personid')
-        print(f"Finished larger merge with final dimensions :{cross_df.shape}")
+        print(f"Finished larger merge with final dimensions :{cross_df.shape}\n")
 
         print(f"Finished transforming data for cross section {utils.get_time()}")
 

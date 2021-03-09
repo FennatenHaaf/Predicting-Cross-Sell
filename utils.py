@@ -30,6 +30,10 @@ def get_time():
     time_string = time.strftime("%H:%M:%S")   
     return time_string
 
+def get_datetime():
+    datetime_string = datetime.now().strftime("%m%d_%H%M")
+    return datetime_string
+
 
 def get_time_diff(start, end, time_format= '%H:%M:%S'):
     """ Gets the difference between two time strings""" 
@@ -85,7 +89,16 @@ def printarray(array):
     
     return arraystring
    
-    
+def print_seperated_list(a_list, seperator_char = "|"):
+    ''''
+    Returns a string with all items in a list printed in one string
+    and seperated by a seperator_char (default = '|').
+    '''
+    return_string = f" {seperator_char} "
+    for item in a_list:
+        return_string = f"{return_string} {str(item)} |"
+    return return_string
+
 
 """
 EXPORTING FUNCTIONS
@@ -124,41 +137,47 @@ def write_to_csv(data, outdir, filename):
             print(data[row])
             csv_writer.writerow(data[row])
 
-def importChunk(importString, chunksize=500000, **readerArg):
-    dfList = []
-    for chunk in pd.read_csv(importString, chunksize=chunksize, **readerArg):
-        dfList.append(chunk)
-    return pd.concat(dfList, ignore_index=True)
+def create_result_archive(subfolder = None, archive_name = "archive",subarchive_addition = None,
+                          files_string_to_archive_list = [], file_string_to_exclude_list = []):
+    """
+    Creates a folder to create an archive for different results.
+    |archive_name| = name of folder where archive will be created
+    |subarchive_addition| = addition to the subarchive name to distuinguish from other results for the same
+    analysis
+    |files_string_to_archive| = will look for the string in this list
+    |files_string_to_exclude| = will exclude items that contain these strings
+    """
+    if subfolder != None:
+        subfolder = f"{subfolder}/"
 
-def exportChunk(data, chunkSize, exportString, check_if_exists = True ,**writeArgs):
-    if os.path.isfile(exportString) and check_if_exists:
-        print("File already exists")
-        return
-    nRows = data.shape[0]
-    startIndex = 0
-    endIndex = min(startIndex + chunkSize,nRows)
-    headerBool = True
+    archive_folder_name = f"{subfolder}{archive_name}/"
+    if not os.path.exists(archive_folder_name):
+        os.mkdir(archive_folder_name)
 
-    while startIndex < nRows:
-        data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a",header=headerBool,
-                                                 **writeArgs)
-        startIndex = endIndex
-        endIndex += chunkSize
-        endIndex = min(endIndex, nRows)
-        headerBool = False
+    if subarchive_addition != None:
+        subarchive_folder_path = f"{archive_folder_name}{archive_name}{subarchive_addition}/"
+        if not os.path.exists(subarchive_folder_path):
+            os.mkdir(subarchive_folder_path)
+    else:
+        subarchive_folder_path = archive_folder_name
 
-    print("Export of {} completed".format(exportString))
+    time_string = datetime.now().strftime("%m%d_%H%M%S")
+    for item in os.listdir(subfolder):
+        not_include = False
+        for include_string in files_string_to_archive_list:
+            if not_include:
+                continue
 
-def importAndConcat(listOfDataLocations, chunkSize=0, **readArgs):
-    importList = []
-    for dataLocation in listOfDataLocations:
-        print("Importing from " + dataLocation)
-        if chunkSize > 0:
-            imported = importChunk(dataLocation, chunkSize, **readArgs)
-        else:
-            imported = pd.read_csv(dataLocation, **readArgs)
-        importList.append(imported)
-    return pd.concat(importList, ignore_index=True)
+            if include_string in item:
+                for exclude_string in file_string_to_exclude_list:
+                    if exclude_string in item:
+                        not_include = True
+                        break
+                if not_include:
+                    continue
+                else:
+                    shutil.copy2(f"{subfolder}{item}", f"{subarchive_folder_path}{time_string}_{item}")
+                break
 
 def create_subfolder_and_import_files(first_date, last_date, subfolder = "", folder_name_addition = "", find_list = [] ):
     """
@@ -195,6 +214,7 @@ def create_subfolder_and_import_files(first_date, last_date, subfolder = "", fol
                 break
     print("Files have been copied to new Folder")
 
+
 def replace_time_period_folder(first_date = "", last_date= "", subfolder = None, remove_list = [] ):
     "Replaces all the files for the final_df with another time period"
     if subfolder != None:
@@ -210,6 +230,48 @@ def replace_time_period_folder(first_date = "", last_date= "", subfolder = None,
         new_folder = f"{subfolder}{first_date}_{last_date}"
         for item in os.listdir(new_folder):
             shutil.copy2(f"{new_folder}/{item}", f"{subfolder}")
+
+def importChunk(importString, chunksize=500000, **readerArg):
+    dfList = []
+    for chunk in pd.read_csv(importString, chunksize=chunksize, **readerArg):
+        dfList.append(chunk)
+    return pd.concat(dfList, ignore_index=True)
+
+def exportChunk(data, chunkSize, exportString, check_if_exists = True ,**writeArgs):
+    if os.path.isfile(exportString) and check_if_exists:
+        print("File already exists")
+        return
+    nRows = data.shape[0]
+    startIndex = 0
+    endIndex = min(startIndex + chunkSize,nRows)
+    headerBool = True
+
+    while startIndex < nRows:
+        data.iloc[startIndex:endIndex, :].to_csv(path_or_buf=exportString, mode="a",header=headerBool,
+                                                 **writeArgs)
+        startIndex = endIndex
+        endIndex += chunkSize
+        endIndex = min(endIndex, nRows)
+        headerBool = False
+
+    print("Export of {} completed".format(exportString))
+
+def importAndConcat(listOfDataLocations, chunkSize=0, **readArgs):
+    importList = []
+    for dataLocation in listOfDataLocations:
+        print("Importing from " + dataLocation)
+        if chunkSize > 0:
+            imported = importChunk(dataLocation, chunkSize, **readArgs)
+        else:
+            imported = pd.read_csv(dataLocation, **readArgs)
+        importList.append(imported)
+    return pd.concat(importList, ignore_index=True)
+
+
+
+
+
+
 
 
 """
@@ -272,12 +334,3 @@ def do_find_and_select_from_list(list_to_search,search_string_list, exclusion_st
                 if append_if_found:
                     variable_list.append(variable)
     return variable_list
-
-def check_and_drop_columns(data: pd.DataFrame, columns_to_drop):
-    drop_list = doListIntersect(data.columns, columns_to_drop)
-    data.drop(drop_list, inplace = True)
-    return data
-
-def check_and_select_columns(data: pd.DataFrame, columns_to_select):
-    select_list = doListIntersect(columns_to_select, data.columns)
-    return data

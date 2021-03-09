@@ -12,8 +12,28 @@ import numexpr as ne
 
 
 def param_list_to_matrices(self, n_segments, param, shapes):
-    """change the shape of the parameters to separate matrices"""
-
+    """
+    Parameters
+    ----------
+    n_segments : int
+            number of segments being used for the estimation of the HMM
+    param : 1D array
+            parameters of the HMM
+    shapes : 2D array
+            array consisting of shape and size of every single parameter matrix
+    Returns
+    -------
+    gamma_0 : 2D array
+        values of the parameters for the initialisation probabilities P(S_0 = s|Z)
+    gamma_sr_0 : 2D array
+        values of the intercept parameters for the transition probabilities P(S_t = s | S_t-1 = r)
+    gamma_sr_0 : 2D array
+        values of the covariates coefficient parameters for the transition probabilities P(S_t = s | S_t-1 = r)
+    beta : 3D array
+        values of the parameters for the ownership probabilities P(Y| S_t = s)
+    """
+    """function for converting the parameters 1D array to seperate parameter matrices """ 
+        
     if self.covariates == True:
 
         n_gamma_0 = shapes[0,1]
@@ -61,8 +81,26 @@ def param_list_to_matrices(self, n_segments, param, shapes):
         
         
 def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = [], gamma_sr_0 = [], gamma_sk_t = [], beta = []):
-    """transform parameter matrices to one vector"""
-
+    """
+    Parameters
+    ----------
+    n_segments : int
+            number of segments being used for the estimation of the HMM
+    gamma_0 : 2D array
+        values of the parameters for the initialisation probabilities P(S_0 = s|Z)
+    gamma_sr_0 : 2D array
+        values of the intercept parameters for the transition probabilities P(S_t = s | S_t-1 = r)
+    gamma_sr_0 : 2D array
+        values of the covariates coefficient parameters for the transition probabilities P(S_t = s | S_t-1 = r)
+    beta : 3D array
+        values of the parameters for the ownership probabilities P(Y| S_t = s)
+    Returns
+    -------
+    param : 1D array
+            parameters of the HMM
+    """
+    """function for converting the seperate parameter matrices to one parameter 1D array""" 
+        
     if self.covariates == True:
         
         beta_vec = np.array([0])
@@ -93,6 +131,20 @@ def param_matrices_to_list(self, n_segments, A = [], pi = [], b = [], gamma_0 = 
 # =============================================================================
 
 def prob_p_js(self, param, shapes, n_segments): 
+    """
+    Parameters
+    ----------
+    param : 1D array
+            parameters of the HMM
+    shapes : 2D array
+            array consisting of shape and size of every single parameter matrix
+    n_segments : int
+            number of segments being used for the estimation of the HMM
+    Returns
+    -------
+    p_js : 3D array
+        probabilities P(Y_{pcs}| S_t = s), with segments on the first index, products on the second and category on the third 
+    """
     """function to compute p(j,c,s) with parameters beta/b"""
         
     p_js = np.zeros((n_segments, self.n_products, max(self.n_categories)))
@@ -122,10 +174,21 @@ def prob_p_js(self, param, shapes, n_segments):
 
 def prob_P_y_given_s(self, Y, p_js, n_segments):
     """
-    Function to compute P(Y_it | X_it = s)  with probabilities p.
-    This is done by calculating P(Y_ijt| X_it) for every j
-
+    Parameters
+    ----------
+    Y : 2D array
+        dependent variables of the HMM algorithm
+    p_js : 3D array
+        probabilities P(Y_{pcs}| S_t = s), with segments on the first index, products on the second and category on the third 
+    n_segments : int
+        number of segments being used for the estimation of the HMM
+    Returns
+    -------
+    P_y_given_s : 2D array
+        probabilities P(Y_{it} | X_{it} = s), with rows representing customers and columns representing segments 
     """
+    """function for computing probabilities P(Y_it | X_it = s) with probabilities p_js"""
+        
     row_Y = len(Y)
 
     P_y_given_s = np.ones((row_Y, n_segments))
@@ -137,7 +200,24 @@ def prob_P_y_given_s(self, Y, p_js, n_segments):
     return P_y_given_s
 
 def prob_P_s_given_Z(self, param, shapes, Z, n_segments):   
-    """function to compute P(X_i0 = s| Z_i0) with parameters gamma_0"""
+    """
+    Parameters
+    ----------
+    param : 1D array
+            parameters of the HMM
+    shapes : 2D array
+            array consisting of shape and size of every single parameter matrix  
+    Z : 2D array
+        covariates of the HMM
+    n_segments : int
+            number of segments being used for the estimation of the HMM
+    Returns
+    -------
+    P_s_given_Z : 2D array
+         probabilities P(S_{i0} = s | Z_{it}), rows representing customers and columns representing columns
+
+    """
+    """function to compute probabilties P(X_{i0} = s| Z_{i0}) with parameters gamma_0"""
     
     row_Z = len(Z)
     
@@ -158,7 +238,24 @@ def prob_P_s_given_Z(self, param, shapes, Z, n_segments):
         
     
 def prob_P_s_given_r(self, param, shapes, Z, n_segments):
-    """function to compute P(X_it = s | X_it-1 = r, Z_it)"""
+    """
+    Parameters
+    ----------
+    param : 1D array
+            parameters of the HMM
+    shapes : 2D array
+            array consisting of shape and size of every single parameter matrix  
+    Z : 2D array
+        covariates of the HMM
+    n_segments : int
+            number of segments being used for the estimation of the HMM
+    Returns
+    -------
+    P_s_given_r : 3D array
+         probabilities P(S_{it} = s | S_{it-1} = r), with first index representing customers, second representing new segment, third representing origin segment
+
+    """
+    """function to compute probabilties P(S_{it} = s | S_{it-1} = r) with parameters gamma_sr_0 and gamma_sk_t"""
     
     row_Z = len(Z)
 
@@ -191,7 +288,22 @@ def prob_P_s_given_r(self, param, shapes, Z, n_segments):
 
 
 def gamma_sr_0_to_trans(self, param, shapes, n_segments):
-    """Makes the transition matrix out of gamma_sr_0"""
+    """
+    Parameters
+    ----------
+    param : 1D array
+            parameters of the HMM
+    shapes : 2D array
+            array consisting of shape and size of every single parameter matrix  
+    n_segments : int
+            number of segments being used for the estimation of the HMM
+    Returns
+    -------
+    P_s_given_r : 3D array
+         probabilities P(S_{it} = s | S_{it-1} = r), with first index representing new segment, second representing origin segment
+
+    """
+    """function to compute probabilties P(S_{it} = s | S_{it-1} = r) with parameters gamma_sr_0, so the 'base' transition probabilites (without using covariates)"""
     if self.covariates == True:
         gamma_0, gamma_sr_0, gamma_sk_t, beta = param_list_to_matrices(self, n_segments, param, shapes)
         gamma_sr_0 = np.vstack((gamma_sr_0, np.zeros((1,n_segments))))
@@ -213,25 +325,32 @@ def gamma_sr_0_to_trans(self, param, shapes, n_segments):
 
 
 def joint_event(self, alpha, beta, t, n_segments,
-                P_s_given_Y_Z_ut, P_s_given_r, P_y_given_s):#for all person
-    """function to compute P(X_it-1 = s_t-1, X_it = s_t|Y_i, Z_i)"""
-    
-    #P_s_given_Y_Z_ut = np.multiply(alpha, beta)
-    #P_s_given_r = prob_P_s_given_r(self, param, shapes, Z, n_segments)
-    #P_y_given_s = prob_P_y_given_s(self, Y, prob_p_js(self, param, shapes, n_segments), n_segments)
-    
-    #P_sr_given_Y_Z = np.multiply(alpha[r,:,t-1], P_s_given_r[:,s,r])  #sxixt ixsxs  
-    #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, P_y_given_s[:,s])
-    #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, beta[s,:,t])
-    #P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.sum(P_s_given_Y_Z[:,:,t], axis = 0))
-    
-    #P_sr_given_Y_Z = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
-    #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
-    #P_sr_given_Y_Z = np.multiply(P_sr_given_Y_Z, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixs]
-    #P_sr_given_Y_Z = np.divide(P_sr_given_Y_Z, np.transpose([np.sum(P_s_given_Y_Z_ut[:,:,t], axis = 0)])) 
-    
-    #new:
-        
+                P_s_given_Y_Z_ut, P_s_given_r, P_y_given_s):
+    """
+    Parameters
+    ----------
+    alpha : 3D array
+        estimated probabilities P(Y_{0:t}, X_{t})
+    beta  : 3D array
+        estimated probabilities P(Y_{t+1:T} | X_{t})
+    t : int
+        time for which one wants to compute the return
+    n_segments : int
+        number of segments being used for the estimation of the HMM
+    P_s_given_Y_Z_ut : 3D array
+        element-wise multiplication of alpha and beta
+    P_s_given_r : 3D array
+        probabilities P(S_{it} = s | S_{it-1} = r), with first index representing new segment, second representing origin segment
+    P_y_given_s : 2D array
+        probabilities P(Y_{it} | X_{it} = s), with rows representing customers and columns representing segments 
+    Returns
+    -------
+    P_sr_given_Y_Z : 3D array
+         joint event probabilities P(X_{i,t-1} = s_{t-1}, X_{it} = s_t | Y_{it}, Z_{it}), with first index representing customers, second representing s_t, third representing s_{t-1}
+
+    """
+    """function to compute joint event P(X_{it-1} = s_{t-1}, X_{it} = s_t | Y_{it}, Z_{it})"""
+      
     P_sr_given_Y_Z = np.zeros((self.n_customers, n_segments, n_segments))
     for s in range(0,n_segments):
         mat = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
@@ -246,8 +365,20 @@ def joint_event(self, alpha, beta, t, n_segments,
     return P_sr_given_Y_Z 
 
 
-def state_event(self, alpha, beta): #alpha/beta = s, i, t
-    """function to compute P(X_it = s|Y_i, Z_i)"""
+def state_event(self, alpha, beta):
+    """
+    Parameters
+    ----------
+    alpha : 3D array
+        estimated probabilities P[Y_{0:t}, X_{t}]
+    beta  : 3D array
+        estimated probabilities P[Y_{t+1:T} | X_{t}]
+    Returns
+    -------
+    P_s_given_Y_Z : 3D array
+        probabilities P(X_{it} = s|Y_{it}, Z_{it}), with first index representing segments, second representing customers and third representing time
+    """
+    """function to compute P(X_{it} = s|Y_{it}, Z_{it})"""
 
     P_s_given_Y_Z = np.multiply(alpha, beta)  #s x i x t
     P_Y_given_Z = np.sum(P_s_given_Y_Z, axis = 0) 
@@ -256,16 +387,31 @@ def state_event(self, alpha, beta): #alpha/beta = s, i, t
     return P_s_given_Y_Z
 
 
-def logsumexp(x, axis = 0, row_Z = 1, reshape = False):
-    
+def logsumexp(x, axis = 0, reshape = False):
+    """
+    Parameters
+    ----------
+    x : array 
+        array of which a sum needs to taken
+    axis : int
+        axis of which the sum needs to be taken
+    reshape : boolean
+        boolean that indicates whether a reshape is necessary to correctly take the sum
+    Returns
+    -------
+    logsumexp : array
+        array consisting of the sums of x
+    """
+    """function for avoiding the overflow/underflow"""
     c = x.max(axis = axis)
     
     if reshape == False:
         diff = x - c 
     else:
         diff = x - c[:,np.newaxis,:]
-        
-    return c + np.log(np.sum(np.exp(diff), axis = axis))
+    
+    logsumexp =  c + np.log(np.sum(np.exp(diff), axis = axis))
+    return logsumexp
 
 
 
