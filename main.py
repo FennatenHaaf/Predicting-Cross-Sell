@@ -530,7 +530,7 @@ if __name__ == "__main__":
                 saldodflist[i]= additdata.transform_variables(df)
                 # Now also obtain a global minimum of all the datasets
                 saldo = saldodflist[i]['saldototaal']
-                globalmin = min(globalmin,saldo)
+                globalmin = min(globalmin,min(saldo))
             
             print(f"overall minimum: {globalmin}")
                
@@ -560,6 +560,7 @@ if __name__ == "__main__":
                                              df_time_series = saldodflist,
                                              interdir = interdir,
                                              )
+            
             extra_saldo,  X_var_final, ols_final = ps.get_extra_saldo(cross_sell_total, globalmin, t, segment = finergy_segment)
             
 

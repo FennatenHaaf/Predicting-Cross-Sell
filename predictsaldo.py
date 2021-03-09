@@ -8,11 +8,11 @@ Erasmus School of Economics
 import numpy as np 
 import pandas as pd
 import math
-
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from sklearn.model_selection import train_test_split 
 
+import utils
 
 # =============================================================================
 # SELECT DATA
@@ -22,7 +22,8 @@ class predict_saldo:
     
     
     def __init__(self, saldo_data = None, df_time_series = None, interdir = "./interdata", 
-                 cross_sell_types = None, drop_variables = None, base_variables = None):
+                 outdir = "./output", cross_sell_types = None, drop_variables = None, 
+                 base_variables = None):
         """
         Parameters
         ----------
@@ -44,6 +45,7 @@ class predict_saldo:
         
         
         self.interdir = interdir
+        self.outdir = outdir
         
         # initialise dataframes
         if isinstance(saldo_data, type(None)):        
@@ -99,8 +101,9 @@ class predict_saldo:
         if isinstance(base_variables, type(None)):
             # Drop the base cases
             X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 
-                              'huidigewaarde_klasse_1.0', 'age_bins_(18, 30]', 
-                              'geslacht_Man','activitystatus_1.0' ])
+                              'huidigewaarde_klasse_1.0','age_bins_(0, 18]','age_bins_(18, 30]', 
+                              'geslacht_Man', 'geslacht_Man(nen) en vrouw(en)',
+                              'activitystatus_1.0' ])
         else: 
             X = X.drop(columns = base_variables)
 
@@ -119,7 +122,8 @@ class predict_saldo:
         self.X = X
 
 
-    def train_predict(self, test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
+    def train_predict(self, outname ="predictsaldo_output",
+                      test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
         """
         Parameters
         ----------
@@ -151,6 +155,32 @@ class predict_saldo:
 
         X_var_final, ols_final, r2adjusted, r2, mse = self.backwardel(olsres, X_train, X_test, y_train, y_test, p_bound)
         print(ols_final.summary())
+        
+        
+        print(f"saving OLS results to {outname}.csv")
+         
+        df = pd.DataFrame(columns = [ "coef", "stderr", "pval", 'coefprint'])  
+        df["coef"]  = ols_final.params
+        df["stderr"] = ols_final.bse
+        df["pval"] = ols_final.pvalues
+        df = df.reset_index()
+        df = df.rename(columns={"index": "covariate"})
+        
+        # Add the stars to the string so that it becomes easier to copy 
+        for i in range(0,len(df)):
+           coeff = round(df.loc[i, "coef"],3)
+           std =  round(df.loc[i, "stderr"],3)
+    
+           if (df.loc[i,"pval"] <= 0.05):
+               if (df.loc[i,"pval"] <= 0.01):
+                  df.loc[i, "coefprint"] = f"{coeff}** ({std})"
+               else:
+                  df.loc[i, "coefprint"] = f"{coeff}* ({std})"
+           else:
+               df.loc[i, "coefprint"] = f"{coeff} ({std})"
+        
+    
+        utils.save_df_to_csv(df, self.outdir, outname, add_time = False )  
         
         return X_var_final, ols_final, r2adjusted, r2, mse 
 
