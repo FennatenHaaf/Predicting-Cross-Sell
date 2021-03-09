@@ -261,7 +261,8 @@ class HMM_eff:
                 f.write(f"iteration: {self.iteration} \n\n")
                 
                 f.write(f"dependent variable: {self.list_dep_var} \n")
-                f.write(f"covariates: {self.list_covariates} \n\n")   
+                f.write(f"covariates: {self.list_covariates} \n")   
+                f.write(f"number of covariates: {len(self.list_covariates)} \n\n")   
     
                 f.write(f"number of parameters: {len(param_out)}\n")
                 f.write(f"regularisation term: {reg_term}\n")
