@@ -475,9 +475,9 @@ if __name__ == "__main__":
                 run_cross_sell = False
                 outname = f"interpretparam_activity_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
                 
-                df = pd.read_csv(f"{outdirec}/{outname}_standarderrors.csv")
-                arr = df.to_numpy()
-                param_cross = arr[:,1].astype('float64')
+                #df = pd.read_csv(f"{outdirec}/{outname}_standarderrors.csv")
+                #arr = df.to_numpy()
+                #param_cross = arr[:,1].astype('float64')
                 
             if (source == "crosssell4seg"):
                 
