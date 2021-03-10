@@ -378,7 +378,19 @@ if __name__ == "__main__":
         #---------------- Enter initial parameters ---------------
         
         initial_param = None 
-        #initial_param = 
+        # initial_param = np.array([ 3.99872551e-01, 1.55174007e+00, 3.01236578e-01, 3.60653223e-01,
+        #         2.44391119e-01, 1.97533254e-01, -1.21325482e-01, -3.75900089e-01, -1.09597705e+00, 1.69133466e-01, 
+        #         -3.71668823e-01, 1.03317680e+00, -4.56861382e-01, -1.86047755e-01, -1.82113764e-01, 6.10210129e-01,
+        #         5.35256621e-01, 4.37430282e-01, 1.46450243e-01, 1.46182996e-01, 8.81644633e+00, 1.38062593e-01, 
+        #         -9.14871380e+00, 5.61629100e+00, 4.06053603e+00, -2.47751929e+00, 1.12557711e+00, 1.23822825e-01, 
+        #         -7.39454264e-01, -6.66564174e-01, 1.24907110e-02, -5.47088303e-01, 5.10578630e-04, 5.36773181e-02,
+        #         4.70270887e-01, -8.83672811e-04, -1.02892266e+00, -1.12122780e+00, -1.33884713e+00, 4.74891845e-01,
+        #         3.23462965e-01, 2.61437448e-01, 1.10933134e+00, -9.80237698e-02, -1.57410914e-03, -8.42882097e-01, 
+        #         8.86916524e+00, 1.08789822e+01, 1.54395082e+01, 9.31348666e+00, 1.86245690e+01, -4.32810937e-04, 
+        #         2.08956735e+00, 7.48082274e+00, 3.96433823e+00, 5.74870230e+00, 6.32090251e+00, 8.66492623e+00, 
+        #         8.10626061e+00, 8.41162052e+00, 4.28823154e+00, -1.71701599e+00, -5.80767319e+00, -3.19105463e+00, 
+        #         -8.70848005e+00]) 
+
         
         #---------------- RUN THE HMM MODEL ---------------  
         
@@ -532,7 +544,7 @@ if __name__ == "__main__":
         # Now interpret & visualise the parameters 
         p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
         
-        print("getting standard errors")
+        print("-----getting standard errors-----")
         hess_inv, dfSE = hmm.get_standard_errors(param_cross, n_segments)
         
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
@@ -548,75 +560,14 @@ if __name__ == "__main__":
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
              
         else:
-            print("Calculating active value")
+            print("-----Calculating active value-----")
             active_value  = hmm.active_value(param_cross, n_segments, len(df_periods))
             active_value_df = pd.DataFrame(active_value) 
 
             utils.save_df_to_csv(active_value_df, outdirec, f"active_value", 
-                             add_time = True )
-            #active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
+                            add_time = False )
+            #active_value_df.to_csv(f"{outdirec}/active_value.csv")
 
-# =============================================================================
-# SALDO PREDICTION
-# =============================================================================
-
-        if (saldopredict):
-            print(f"****Create data for saldo prediction at {utils.get_time()}****")
-            
-            namesal = "final_df" # We use the full dataset with all complete IDs
-            saldodflist = [pd.read_csv(f"{interdir}/{namesal}_2018Q1.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2018Q2.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2018Q3.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2018Q4.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2019Q1.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2019Q2.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2019Q3.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2019Q4.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2020Q1.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2020Q2.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2020Q3.csv"),
-                        pd.read_csv(f"{interdir}/{namesal}_2020Q4.csv")]
-        
-            globalmin = np.inf    
-            for i, df in enumerate(saldodflist):    
-                df = saldodflist[i]
-                df = additdata.aggregate_portfolio_types(df)
-                saldodflist[i]= additdata.transform_variables(df)
-                # Now also obtain a global minimum of all the datasets
-                saldo = saldodflist[i]['saldototaal']
-                globalmin = min(globalmin,min(saldo))
-            
-            print(f"overall minimum: {globalmin}")
-               
-            # Define which 'normal' variables to use in the dataset
-            selection = activity_total # add activity vars
-            
-            # Define which dummy variables to use
-            dummies = person_dummies # get experian characteristics
-            dummies.extend(activity_dummies) # get activity status
-            
-            # Run the data creation
-            saldo_name = f"saldopredict"
-            predictdata = additdata.create_saldo_data(saldodflist, interdir,
-                                            filename= saldo_name,
-                                            select_variables = selection,
-                                            dummy_variables = dummies,
-                                            globalmin = globalmin)
-            
-            print(f"****Create saldo prediction model at {utils.get_time()}****")
-            
-            # get extra saldo 
-            t = 10 # period for which we predict TODO make this a variable somewhere
-            #minimum = 80000
-            finergy_segment = "B04"
-            
-            predict_saldo = ps.predict_saldo(saldo_data = predictdata,
-                                             df_time_series = saldodflist,
-                                             interdir = interdir,
-                                             )
-            
-            extra_saldo,  X_var_final, ols_final = ps.get_extra_saldo(cross_sell_total, globalmin, t, segment = finergy_segment)
-            
 
 # =============================================================================
 # Evaluate output
@@ -691,7 +642,71 @@ if __name__ == "__main__":
             precision = TP / (TP+FP)
             accuracyvec.append(accuracy)
             
-        print(f"Accuracy output: {accuracyvec}")
+          print(f"Accuracy output: {accuracyvec}")
+
+
+
+# =============================================================================
+# SALDO PREDICTION
+# =============================================================================
+
+        if (saldopredict):
+            print(f"****Create data for saldo prediction at {utils.get_time()}****")
+            
+            namesal = "final_df" # We use the full dataset with all complete IDs
+            saldodflist = [pd.read_csv(f"{interdir}/{namesal}_2018Q1.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2018Q2.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2018Q3.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2018Q4.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2019Q1.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2019Q2.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2019Q3.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2019Q4.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2020Q1.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2020Q2.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2020Q3.csv"),
+                        pd.read_csv(f"{interdir}/{namesal}_2020Q4.csv")]
+        
+            globalmin = np.inf    
+            for i, df in enumerate(saldodflist):    
+                df = saldodflist[i]
+                df = additdata.aggregate_portfolio_types(df)
+                saldodflist[i]= additdata.transform_variables(df)
+                # Now also obtain a global minimum of all the datasets
+                saldo = saldodflist[i]['saldototaal']
+                globalmin = min(globalmin,min(saldo))
+            
+            print(f"overall minimum: {globalmin}")
+               
+            # Define which 'normal' variables to use in the dataset
+            selection = activity_total # add activity vars
+            
+            # Define which dummy variables to use
+            dummies = person_dummies # get experian characteristics
+            dummies.extend(activity_dummies) # get activity status
+            
+            # Run the data creation
+            saldo_name = f"saldopredict"
+            predictdata = additdata.create_saldo_data(saldodflist, interdir,
+                                            filename= saldo_name,
+                                            select_variables = selection,
+                                            dummy_variables = dummies,
+                                            globalmin = globalmin)
+            
+            print(f"****Create saldo prediction model at {utils.get_time()}****")
+            
+            # get extra saldo 
+            t = 10 # period for which we predict TODO make this a variable somewhere
+            #minimum = 80000
+            finergy_segment = "B04"
+            
+            predict_saldo = ps.predict_saldo(saldo_data = predictdata,
+                                             df_time_series = saldodflist,
+                                             interdir = interdir,
+                                             )
+            
+            extra_saldo,  X_var_final, ols_final = predict_saldo.get_extra_saldo(cross_sell_total, globalmin, t, segment = finergy_segment)
+            
 
 
 # =============================================================================

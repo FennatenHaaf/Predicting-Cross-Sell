@@ -257,128 +257,128 @@ class predict_saldo:
 
         return current_X_var, olsres, r2adjusted, r2, mse
     
+
+    def get_fitted_values(self, cross_sell_types, cross_sell_yes_no, df_ts, test_set_prop, random_state, p_bound):
+        """
+        Parameters
+        ----------
+        cross_sell_types : list of strings
+            list consisting of strings that represent the products, thus the potential cross sells
+        cross_sell_yes_no : 2D array
+            array indicating whether customers (rows) are eligible for the cross sell of certain products (columns)
+        df_ts : dataframe
+            dataframe for predicting the extra saldo 
+        test_set_prop : float
+            proportion of the data that is used for testing
+        random_state : int
+            seed for taking a random training/test set
+        p_bound : float
+            bound that indicates whether a variable is significant
+                
+        Returns
+        -------
+        fitted_values : 1D array
+            array with the fitted values of the saldo prediction model
+        X_var_final : list
+            list of variables that turn out to be significant for predicing the extra saldo
+        ols_final : ols object
+            object of the final ols of the backward elimination for predicting the extra saldo
+        """
+        """function for calculating the fitted values of the saldo prediction model"""
     
-        def get_fitted_values(self, cross_sell_types, cross_sell_yes_no, df_ts, test_set_prop, random_state, p_bound):
-            """
-            Parameters
-            ----------
-            cross_sell_types : list of strings
-                list consisting of strings that represent the products, thus the potential cross sells
-            cross_sell_yes_no : 2D array
-                array indicating whether customers (rows) are eligible for the cross sell of certain products (columns)
-            df_ts : dataframe
-                dataframe for predicting the extra saldo 
-            test_set_prop : float
-                proportion of the data that is used for testing
-            random_state : int
-                seed for taking a random training/test set
-            p_bound : float
-                bound that indicates whether a variable is significant
-                    
-            Returns
-            -------
-            fitted_values : 1D array
-                array with the fitted values of the saldo prediction model
-            X_var_final : list
-                list of variables that turn out to be significant for predicing the extra saldo
-            ols_final : ols object
-                object of the final ols of the backward elimination for predicting the extra saldo
-            """
-            """function for calculating the fitted values of the saldo prediction model"""
         
-            
-            # train model to get parameters
-            X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop, random_state, p_bound)
-            
-            df_cross_sell = pd.DataFrame(data = cross_sell_yes_no, columns = cross_sell_types)
-
-            # create cross-effects dummies
-            df_ts['business_retail_joint'] = df_cross_sell['business']* df_cross_sell['retail']*df_cross_sell['joint']
-            df_ts['business_retail'] = df_cross_sell['business']* df_cross_sell['retail']*(1 - df_cross_sell['joint'])
-            df_ts['business'] = df_cross_sell['business']* (1 - df_cross_sell['retail'])*(1 - df_cross_sell['joint'])
-            df_ts['business_joint'] = df_cross_sell['business']* (1 - df_cross_sell['retail'])*(df_cross_sell['joint'])
-            df_ts['joint'] = (1 - df_cross_sell['business'])* (1 - df_cross_sell['retail'])*(df_cross_sell['joint'])  
-            df_ts['retail_joint'] = (1-df_cross_sell['business'])* (df_cross_sell['retail'])*(df_cross_sell['joint'])
-            df_ts['retail'] = (1-df_cross_sell['business'])* (df_cross_sell['retail'])*(1 -df_cross_sell['joint'])
-            df_ts['constant'] = [1]* df_ts.shape[0]
-            
-            # use significant variables and corresponding parameters
-            df_ts_final = df_ts[X_var_final]
-            beta = ols_final.params
-            
-            # calculate fitted values
-            fitted_values = self.df_ts_final.dot(beta)
-            
-            return fitted_values, X_var_final, ols_final
-
-        def fitted_values_to_saldo(self, minimum, fitted_values, df):
-            """
-            Parameters
-            ----------
-            minimum : float
-                minimum of all the saldos of all customers over all the time
-            fitted_values : 1D array
-                array with the fitted values of the saldo prediction model
-            df : dataframe
-                dataframe for predicting the extra saldo 
-            Returns
-            -------
-            extra_saldo : 1D array
-                array consisting of all the extra saldos on the account balances when cross_sells are done   
-            """
-            """function that derives the actual extra saldo from the fitted values"""
+        # train model to get parameters
+        X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop, random_state, p_bound)
         
+        df_cross_sell = pd.DataFrame(data = cross_sell_yes_no, columns = cross_sell_types)
 
-            prev_saldo = self.df[[["business","retail",
-                                            "joint"]].sum(axis=1)]
-            
-            extra_saldo = math.exp(fitted_values) * (prev_saldo + minimum) - minimum
-            
-            return extra_saldo
+        # create cross-effects dummies
+        df_ts['business_retail_joint'] = df_cross_sell['business']* df_cross_sell['retail']*df_cross_sell['joint']
+        df_ts['business_retail'] = df_cross_sell['business']* df_cross_sell['retail']*(1 - df_cross_sell['joint'])
+        df_ts['business'] = df_cross_sell['business']* (1 - df_cross_sell['retail'])*(1 - df_cross_sell['joint'])
+        df_ts['business_joint'] = df_cross_sell['business']* (1 - df_cross_sell['retail'])*(df_cross_sell['joint'])
+        df_ts['joint'] = (1 - df_cross_sell['business'])* (1 - df_cross_sell['retail'])*(df_cross_sell['joint'])  
+        df_ts['retail_joint'] = (1-df_cross_sell['business'])* (df_cross_sell['retail'])*(df_cross_sell['joint'])
+        df_ts['retail'] = (1-df_cross_sell['business'])* (df_cross_sell['retail'])*(1 -df_cross_sell['joint'])
+        df_ts['constant'] = [1]* df_ts.shape[0]
         
-        def get_extra_saldo(self, cross_sell_yes_no, t, minimum, fin_segment = None, test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
-            """
-            Parameters
-            ----------
-            cross_sell_yes_no : 2D array
-                array indicating whether customers (rows) are eligible for the cross sell of certain products (columns)
-            t : int
-                time for which one wants to calculate extra saldos
-            minimum : float
-                minimum of all the saldos of all customers over all the time
-            fin_segment : string
-                segments for which one wants to predict the extra saldos
-            test_set_prop : float
-                proportion of the data that is used for testing
-            random_state : int
-                seed for taking a random training/test set
-            p_bound : float
-                bound that indicates whether a variable is significant  
-            Returns
-            -------
-            extra_saldo : 1D array
-                array consisting of all the extra saldos on the account balances when cross_sells are done   
-            X_var_final : list
-                list of variables that turn out to be significant for predicing the extra saldo
-            ols_final : ols object
-                object of the final ols of the backward elimination for predicting the extra saldo
-            """
-            """function that predicts the extra saldo on the account balances when cross sells are done"""
+        # use significant variables and corresponding parameters
+        df_ts_final = df_ts[X_var_final]
+        beta = ols_final.params
         
-            # initialise the dataframes
-            if fin_segment == None:
-                df_ts = self.df_time_series[t]
-            else: 
-                df_ts = self.df_time_series[t]     
-                df_ts = self.df_ts[df_ts['finergy_tp'] == fin_segment]
+        # calculate fitted values
+        fitted_values = self.df_ts_final.dot(beta)
+        
+        return fitted_values, X_var_final, ols_final
 
-        
-            fitted_values, X_var_final, ols_final = self.get_fitted_values(self.cross_sell_types, cross_sell_yes_no, df_ts, 
-                                                                                             test_set_prop, random_state, p_bound)
-            
-            extra_saldo = self.fitted_values_to_saldo(fitted_values, df_ts, minimum)
+    def fitted_values_to_saldo(self, minimum, fitted_values, df):
+        """
+        Parameters
+        ----------
+        minimum : float
+            minimum of all the saldos of all customers over all the time
+        fitted_values : 1D array
+            array with the fitted values of the saldo prediction model
+        df : dataframe
+            dataframe for predicting the extra saldo 
+        Returns
+        -------
+        extra_saldo : 1D array
+            array consisting of all the extra saldos on the account balances when cross_sells are done   
+        """
+        """function that derives the actual extra saldo from the fitted values"""
+    
 
-            return extra_saldo, X_var_final, ols_final
+        prev_saldo = self.df[[["business","retail",
+                                        "joint"]].sum(axis=1)]
+        
+        extra_saldo = math.exp(fitted_values) * (prev_saldo + minimum) - minimum
+        
+        return extra_saldo
+    
+    def get_extra_saldo(self, cross_sell_yes_no, t, minimum, fin_segment = None, test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
+        """
+        Parameters
+        ----------
+        cross_sell_yes_no : 2D array
+            array indicating whether customers (rows) are eligible for the cross sell of certain products (columns)
+        t : int
+            time for which one wants to calculate extra saldos
+        minimum : float
+            minimum of all the saldos of all customers over all the time
+        fin_segment : string
+            segments for which one wants to predict the extra saldos
+        test_set_prop : float
+            proportion of the data that is used for testing
+        random_state : int
+            seed for taking a random training/test set
+        p_bound : float
+            bound that indicates whether a variable is significant  
+        Returns
+        -------
+        extra_saldo : 1D array
+            array consisting of all the extra saldos on the account balances when cross_sells are done   
+        X_var_final : list
+            list of variables that turn out to be significant for predicing the extra saldo
+        ols_final : ols object
+            object of the final ols of the backward elimination for predicting the extra saldo
+        """
+        """function that predicts the extra saldo on the account balances when cross sells are done"""
+    
+        # initialise the dataframes
+        if fin_segment == None:
+            df_ts = self.df_time_series[t]
+        else: 
+            df_ts = self.df_time_series[t]     
+            df_ts = self.df_ts[df_ts['finergy_tp'] == fin_segment]
+
+    
+        fitted_values, X_var_final, ols_final = self.get_fitted_values(self.cross_sell_types, cross_sell_yes_no, df_ts, 
+                                                                                         test_set_prop, random_state, p_bound)
+        
+        extra_saldo = self.fitted_values_to_saldo(fitted_values, df_ts, minimum)
+
+        return extra_saldo, X_var_final, ols_final
 
 
 

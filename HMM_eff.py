@@ -1,17 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Feb 11 11:32:43 2021
-
-@author: matth
-"""
-
-# -*- coding: utf-8 -*-
 """
 This code aims to execute a Baum-Welch/forward-backward algorithm to estimate a Hidden Markov Model 
 (with or without modelling the transition and initialisation probabilities by covariates) 
 
-@author: Matthijs van Heese
+
+Written for the Quantitative Marketing & Business Analytics seminar
+Erasmus School of Economics
 """
+
 import extra_functions_HMM_eff as ef
 import numpy as np 
 import pandas as pd
@@ -1218,9 +1213,12 @@ class HMM_eff:
         df["parameter"] = param_in # TODO : of moet dit param_out zijn?
         df["se"] = se
         df["t"] = df["parameter"] / df["se"]
-        df["p-value"] = t.pdf(t, (self.n_customers - len(param_in)))
-
-
+        
+        degrees= (self.n_customers - len(param_in))
+        for i in range(0,len(df)):
+            tval = df.loc[i,"t"]
+            df.loc[i,"p-value"] = t.pdf(tval,df = degrees)  #1 - t.cdf(tval,df=degrees)
+            
         a = gamma_0.size
         b = gamma_sr_0.size
         c = gamma_sk_t.size
@@ -1235,6 +1233,8 @@ class HMM_eff:
                              add_time = False )
     
         return hess_inv, df
+    
+    
     
     def calculate_gini(prod_ownership_new, prod_ownership_old, product_probs,
                       binary = True):
