@@ -1210,14 +1210,14 @@ class HMM_eff:
         
         # save the values to a dataframe and save to csv?
         df = pd.DataFrame(columns = ["source","parameter","se","t", "p-value"])
-        df["parameter"] = param_in # TODO : of moet dit param_out zijn?
+        df["parameter"] = param_in
         df["se"] = se
         df["t"] = df["parameter"] / df["se"]
         
         degrees= (self.n_customers - len(param_in))
         for i in range(0,len(df)):
             tval = df.loc[i,"t"]
-            df.loc[i,"p-value"] = t.pdf(tval,df = degrees)  #1 - t.cdf(tval,df=degrees)
+            df.loc[i,"p-value"] = t.pdf(tval,df = degrees)
             
         a = gamma_0.size
         b = gamma_sr_0.size
@@ -1232,7 +1232,7 @@ class HMM_eff:
         utils.save_df_to_csv(df, self.outdir, f"{self.outname}_standarderrors", 
                              add_time = False )
     
-        return hess_inv, df
+        return hess_inv, df, param_out
     
     
     
