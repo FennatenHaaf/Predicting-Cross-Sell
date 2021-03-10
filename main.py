@@ -536,7 +536,8 @@ if __name__ == "__main__":
                          name_dep_var, 
                          name_covariates, covariates = True,
                          iterprint = True,
-                         initparam = param_cross)
+                         initparam = param_cross,
+                             visualize_data = True)
 
             
         #----------------------------------------------------------------------------

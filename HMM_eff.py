@@ -26,7 +26,7 @@ class HMM_eff:
     def __init__( self, outdir, outname, list_dataframes, reg_term,
                   max_method, list_dep_var, list_covariates = [], 
                   covariates = False, iterprint = False,
-                  initparam = None, do_backup_folder = True):
+                  initparam = None, do_backup_folder = True, visualize_data = True):
         """
         Parameters
         ----------
@@ -52,6 +52,7 @@ class HMM_eff:
         self.list_covariates = list_covariates
         self.initparam = initparam
         self.do_backup_folder = do_backup_folder
+        self.visualize_data = visualize_data
         
         
         self.reg_term = reg_term
@@ -500,6 +501,7 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
         # minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 0.1, 'fatol': 0.1}
+        # minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 1, 'fatol': 0.1}
         minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 1e-2, 'fatol': 1e-2}
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
@@ -1088,6 +1090,9 @@ class HMM_eff:
     def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
                          diverging = False, annotate = True):
         """Visualize a 2D matrix in a figure with labels and title"""
+        if not self.visualize_data:
+            return
+
         plt.rcParams["axes.grid"] = False
         fig, ax = plt.subplots(figsize=(14, 8))
 
@@ -1304,9 +1309,56 @@ class HMM_eff:
                        
         return Gini
            
-           
-               
+    
+    def hypo_customers(self, param, n_segments, interdir):
         
+         #----------- Initialise everything so that we get the shapes-------------
+        gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
+        gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
+        gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
+        beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
+   
+        #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
+        shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
+                           [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)        
+           
+        Z = pd.read_csv(f"{interdir}/hypothetical_data.csv")
+        
+        n_possible = 5*5*2*5*7*6
+        
+        inc_dummy = np.zeros((n_possible, 4))
+        age_dummy = np.zeros((n_possible, 4))
+        gender_dummy = np.zeros((n_possible, 1))
+        hh_dummy = np.zeros((n_possible, 4))
+        saldo_dummy = np.zeros((n_possible, 6))
+        bus_dummy = np.zeros((n_possible, 5))
+        rest = np.zeros((n_possible, 2))
+        
+        
+        div = n_possible/2
+        gender_dummy[div : 2*div, 0] = np.ones(div)
+        
+        for i in range(1,5):
+            div = n_possible/5
+            inc_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+            age_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+            hh_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+
+        for i in range(1,6):
+            div = n_possible/6
+            bus_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+          
+        for i in range(1,7):
+            div = n_possible/7
+            saldo_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+            
+        Z = np.hstack((inc_dummy,age_dummy,gender_dummy,hh_dummy, saldo_dummy,bus_dummy,rest))
+        P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
+        P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
+
+        P_s_given_r = np.swapaxes(P_s_given_r, 0, 2)
+        P_s_given_r = np.swapaxes(P_s_given_r, 1, 2)
+
         
         
         
