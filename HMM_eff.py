@@ -1225,5 +1225,82 @@ class HMM_eff:
         
         
         
+        def calculateGini(prod_ownership_new, prod_ownership_old, product_probs,
+                          binary = True):
+            """Calculate gini coefficient"""
+            
+            # if binary then prod ownership is 1 and 0 for each
+            # if not then prod ownership should be ownership numbers for each
+            
+            Gini =[]
+            
+            if binary:
+                for i in range(0, len(prod_ownership_new.columns)):
+                    prod_probs = product_probs[:,:,i] # Check dat dit de goede index pakt!
+                    
+                    
+                    # Number of households who did NOT have product
+                    n_i = len(prod_ownership_old[:,i]==0) 
+                    
+                    # Percentage of those households who now do own the product
+                    select = (prod_ownership_old[:,i]==0)
+                    change = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
+                    mu_i = (sum(change) / len(change))*100 # percentage that is 1
+                
+                    # Get the sum of probabilities for >0 of the product
+                    prod_own = prod_probs[:,1:].sum(axis=1) 
+                    # Ranked probabilities - 
+                    # We want the person with the highest probability to get the lowest rank
+                    probranks = prod_own[:,i].rank(method='max', ascending = False)
+                    
+                    sumrank = 0
+                    for k in range(0,len(probranks)):
+                        sumrank += probranks[k] * prod_ownership_new[k,i]
+                      
+                    Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
+                    Gini.append(Gini_i) # We get it for each product type
+                    
+            else: # the prod ownerships should be numbers of products
+               for i in range(0, len(prod_ownership_new.columns)):
+                   # get the different possible values of ownerships
+                   values = pd.Series(prod_ownership_old[:,i].unique())
+                   prod_probs = product_probs[:,:,i] # Check dat dit de goede index pakt!
+                   
+                   for j in values:
+                       # Number of households who did NOT have product
+                       n_i = len(prod_ownership_old[:,i]!=j)
+                       
+                       # Make a dummy for product ownership in the new period
+                       ownership_new_dummy = pd.Series(np.zeros(len(prod_ownership_new)))
+                       ownership_new_dummy[prod_ownership_new == j] = 1
+                       
+                       # Percentage of those households who now do own the product
+                       select = (prod_ownership_old[:,i]!=j)
+                       changegroup = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
+                       changed = changegroup[changegroup == j] # people who now do have the product
+                      
+                       mu_i = (len(changed) / len(changegroup))*100 # percentage that has changed
+                       
+                       # Get the sum of probabilities for exactly j of the product
+                       prod_own = prod_probs[:,j]
+                       # Ranked probabilities - 
+                       # We want the person with the highest probability to get the lowest rank
+                       probranks = prod_own[:,i].rank(method='max', ascending = False)
+                    
+                       sumrank = 0
+                       for k in range(0,len(probranks))
+                           sumrank += probranks[j] * ownership_new_dummy[k]
+                      
+                       Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
+                       Gini.append(Gini_i) # We get it for each product type 
+                           
+               
+               
+               
+               
+        
+        
+        
+        
         
         

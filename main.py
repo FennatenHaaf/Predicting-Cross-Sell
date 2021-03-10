@@ -577,6 +577,7 @@ if __name__ == "__main__":
          
           #---------------- GINI COEFFICIENT CALCULATION -------------------------
           
+          print("Caclulating gini coefficient")
           #TODO: right now this is only for 1 or 0 whether they own the product or not!!
           # These describe product ownership yes/no in the new period
           prod_ownership_new = testing_period[crosssell_types_dummies]
@@ -584,48 +585,32 @@ if __name__ == "__main__":
           # These describe product ownership yes/no in the previous period
           prod_ownership_old = last_period[crosssell_types_dummies]
           
+          ginivec = hmm.calculateGini(prod_ownership_new, prod_ownership_old, prod_own,
+                          binary = True)
+          print(ginivec)
           
-          Gini = []
+          # Now do it with the actual numbers of ownership
+          prod_ownership_new = testing_period[crosssell_types_max]
+          prod_ownership_old = last_period[crosssell_types_max]
+          ginivec2 = hmm.calculateGini(prod_ownership_new, prod_ownership_old, prod_own,
+                          binary = False)
+          print(ginivec2)
           
-          for i, column in enumerate(["business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]):
-              
-            # Number of households who did NOT have product
-            n_j = len(prod_ownership_old[:,i]==0) 
-            
-            # Percentage of those households who now do own the product
-            select = (prod_ownership_old[:,i]==0)
-            change = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
-            mu_j = (sum(change) / len(change))*100 # percentage that is 1
-            
-            # Ranked probabilities - 
-            # We want the person with the highest probability to get the lowest rank
-            probranks = prod_own[:,i].rank(method='max', ascending = False)
-            
-            sumrank = 0
-            for j in range(0,len(testing_period)):
-                sumrank += probranks[j] * prod_ownership_new[j,i]
-              
-                
-            Ginij = 1 + (1/n_j) - ( 2 / ( (n_j**2)*mu_j  ) )*sumrank 
-            Gini.append(Ginij)
-              
-         
-        #--------------------- TP/ NP calculation -------------------------
+          #--------------------- TP/ NP calculation -------------------------
           diffdata = additdata.get_difference_data(testing_period, last_period,
                                            select_variables = None,
                                            dummy_variables = None,
                                            select_no_decrease = False,
                                            globalmin = None)
             
-        # These dummies describe whether an increase took place
+          # These dummies describe whether an increase took place
           diffdata = diffdata["personid", "business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]
-          
+                            "joint_change_dummy","accountoverlay_change_dummy"]  
           FPvec = []
           TPvec = []
           FNvec = []
           TNvec = []
+          accuracyvec = []
           
           for i, column in enumerate(["business_change_dummy", "retail_change_dummy",
                             "joint_change_dummy","accountoverlay_change_dummy"]):
@@ -634,20 +619,25 @@ if __name__ == "__main__":
             
             # True Positive (TP): we predict a label of 1 (positive), and the true label is 1.
             TP = np.sum(np.logical_and(pred_labels == 1, true_labels == 1))
-            TPvec.append(TP)
             # True Negative (TN): we predict a label of 0 (negative), and the true label is 0.
             TN = np.sum(np.logical_and(pred_labels == 0, true_labels == 0))
-            TNvec.append(TN)
             # False Positive (FP): we predict a label of 1 (positive), but the true label is 0.
             FP = np.sum(np.logical_and(pred_labels == 1, true_labels == 0))
-            FPvec.append(FP)
             # False Negative (FN): we predict a label of 0 (negative), but the true label is 1.
             FN = np.sum(np.logical_and(pred_labels == 0, true_labels == 1))
-            FNvec.append(FN)
             
-        # TODO: make accuracy score out of these
-
-       
+            TPvec.append( TP / (TP + FN))
+            TNvec.append( TN / (TN + FP))
+            FPvec.append( FP / (FP + TN))
+            FNvec.append( FN / (FN + TP))
+            
+            accuracy = (TP+TN) / (TP+TN+FP+FN)
+            sensitivity = TP / (TP+FN)
+            specificity = TN/ (TN+FP)
+            precision = TP / (TP+FP)
+            accuracyvec.append(accuracy)
+            
+        print(f"Accuracy output: {accuracyvec}")
 
 
 # =============================================================================
