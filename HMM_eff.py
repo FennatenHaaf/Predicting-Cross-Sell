@@ -307,11 +307,11 @@ class HMM_eff:
         diffEM = utils.get_time_diff(start_EM,end_EM)
         print(f"Total EM duration: {diffEM}")
         
-        #calculate hessian
+        #-----------------------calculate hessian------------------------------
         
         print(f"Calculating Hessian at {utils.get_time()}")
         # hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
-       # print(f"Done calculating at {utils.get_time()}!")
+        # print(f"Done calculating at {utils.get_time()}!")
         
         print(f"Doing another BFGS step for the covariance at {utils.get_time()}")
         #do one last minimisation of the loglikelihood itself to retrieve the hessian 
@@ -319,10 +319,26 @@ class HMM_eff:
         # param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
         #                                              shapes, n_segments, reg_term,
         #                                              max_method, bounded, end = True)
+        logl_outafterBFGS = self.loglikelihood(param_afterBFGS, shapes, n_segments)
         
+ 
         print(f"Done calculating at {utils.get_time()}!")
 
         
+        with open(f'{self.outdir}/{self.outname}_afterBFGS.txt', 'w') as f:
+                
+            f.write(f"time: {utils.get_time()} \n")
+       
+            f.write(f"dependent variable: {self.list_dep_var} \n")
+            f.write(f"covariates: {self.list_covariates} \n")   
+            f.write(f"number of covariates: {len(self.list_covariates)} \n\n")   
+            
+            arraystring = utils.printarray(param_afterBFGS)
+            paramstring = f"param_out = np.array({arraystring}) \n\n"
+            f.write(paramstring)
+            
+            f.write(f"LogLikelihood value: {logl_outafterBFGS}")
+
         # Also save the hessians in a file
         with open(f'{self.outdir}/{self.outname}_HESSIAN_len{len(hess_inv)}.txt', 'w') as f:
                 
@@ -343,11 +359,11 @@ class HMM_eff:
             utils.create_result_archive(self.outdir, archive_name = "hmm_iterations", subarchive_addition =
             self.starting_datetime, files_string_to_archive_list = ['_HESSIAN'])
 
-
     
         return param_out, alpha_out, beta_out, shapes, hess_inv #, hes
      
         
+     
      
     def forward_backward_procedure(self, param, shapes, n_segments, data = None):
         """
