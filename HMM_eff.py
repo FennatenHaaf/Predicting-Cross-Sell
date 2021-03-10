@@ -26,7 +26,7 @@ class HMM_eff:
     def __init__( self, outdir, outname, list_dataframes, reg_term,
                   max_method, list_dep_var, list_covariates = [], 
                   covariates = False, iterprint = False,
-                  initparam = None, do_backup_folder = True):
+                  initparam = None, do_backup_folder = True, visualize_data = True):
         """
         Parameters
         ----------
@@ -52,6 +52,7 @@ class HMM_eff:
         self.list_covariates = list_covariates
         self.initparam = initparam
         self.do_backup_folder = do_backup_folder
+        self.visualize_data = visualize_data
         
         
         self.reg_term = reg_term
@@ -500,6 +501,7 @@ class HMM_eff:
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
         # minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 0.1, 'fatol': 0.1}
+        # minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 1, 'fatol': 0.1}
         minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 1e-2, 'fatol': 1e-2}
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
@@ -1088,6 +1090,9 @@ class HMM_eff:
     def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
                          diverging = False, annotate = True):
         """Visualize a 2D matrix in a figure with labels and title"""
+        if not self.visualize_data:
+            return
+
         plt.rcParams["axes.grid"] = False
         fig, ax = plt.subplots(figsize=(14, 8))
 
