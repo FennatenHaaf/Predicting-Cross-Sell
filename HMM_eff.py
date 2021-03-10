@@ -308,10 +308,11 @@ class HMM_eff:
         print(f"Total EM duration: {diffEM}")
         
         #calculate hessian
-        # print(f"Calculating Hessian at {utils.get_time()}")
-        # hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
         
-        # print(f"Done calculating at {utils.get_time()}!")
+        print(f"Calculating Hessian at {utils.get_time()}")
+        # hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
+        hess_inv, dfSE, param_afterBFGS = self.get_standard_errors(param_out, n_segments)
+        print(f"Done calculating at {utils.get_time()}!")
         
         print(f"Doing another BFGS step for the covariance at {utils.get_time()}")
         #do one last minimisation of the loglikelihood itself to retrieve the hessian 
@@ -1216,7 +1217,7 @@ class HMM_eff:
         
         # save the values to a dataframe and save to csv?
         df = pd.DataFrame(columns = ["source","parameter","se","t", "p-value"])
-        df["parameter"] = param_in
+        df["parameter"] = param_out
         df["se"] = se
         df["t"] = df["parameter"] / df["se"]
         
@@ -1242,8 +1243,7 @@ class HMM_eff:
     
     
     
-    def calculate_gini(prod_ownership_new, prod_ownership_old, product_probs,
-                      binary = True):
+    def calculate_gini(self,prod_ownership_new, prod_ownership_old, product_probs, binary = True):
         """Calculate gini coefficient. If binary then prod ownership is 1 
         and 0 for each, if not then prod ownership should be ownership 
         numbers for each"""
@@ -1251,25 +1251,26 @@ class HMM_eff:
         Gini =[]  
         if binary:
             for i in range(0, len(prod_ownership_new.columns)):
-                prod_probs = product_probs[:,:,i] # Check dat dit de goede index pakt!
+                prod_probs = product_probs[:,i,:] 
                 
                 # Number of households who did NOT have product
-                n_i = len(prod_ownership_old[:,i]==0) 
+                n_i = len(prod_ownership_old.iloc[:,i]==0) 
                 
                 # Percentage of those households who now do own the product
-                select = (prod_ownership_old[:,i]==0)
-                change = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
+                select = (prod_ownership_old.iloc[:,i]==0)
+                col = prod_ownership_new.columns[i]
+                change = prod_ownership_new.loc[select,col] # todo check that this selects the right thing
                 mu_i = (sum(change) / len(change))*100 # percentage that is 1
             
                 # Get the sum of probabilities for >0 of the product
                 prod_own = prod_probs[:,1:].sum(axis=1) 
                 # Ranked probabilities - 
                 # We want the person with the highest probability to get the lowest rank
-                probranks = prod_own[:,i].rank(method='max', ascending = False)
+                probranks = pd.DataFrame(prod_own).rank(method='max', ascending = False)
                 
                 sumrank = 0
                 for k in range(0,len(probranks)):
-                    sumrank += probranks[k] * prod_ownership_new[k,i]
+                    sumrank += probranks.iloc[k] * prod_ownership_new.loc[k,col]
                   
                 Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
                 Gini.append(Gini_i) # We get it for each product type
@@ -1277,20 +1278,21 @@ class HMM_eff:
         else: # the prod ownerships should be numbers of products
            for i in range(0, len(prod_ownership_new.columns)):
                # get the different possible values of ownerships
-               values = pd.Series(prod_ownership_old[:,i].unique())
-               prod_probs = product_probs[:,:,i] # Check dat dit de goede index pakt!
+               values = pd.Series(prod_ownership_old.iloc[:,i].unique())
+               prod_probs = product_probs[:,i,:] 
                
                for j in values:
                    # Number of households who did NOT have product
-                   n_i = len(prod_ownership_old[:,i]!=j)
+                   n_i = len(prod_ownership_old.iloc[:,i]!=j)
                    
                    # Make a dummy for product ownership in the new period
                    ownership_new_dummy = pd.Series(np.zeros(len(prod_ownership_new)))
-                   ownership_new_dummy[prod_ownership_new == j] = 1
+                   ownership_new_dummy[prod_ownership_new.iloc[:,i] == j] = 1
                    
                    # Percentage of those households who now do own the product
-                   select = (prod_ownership_old[:,i]!=j)
-                   changegroup = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
+                   select = (prod_ownership_old.iloc[:,i]!=j)
+                   col = prod_ownership_new.columns[i]
+                   changegroup = prod_ownership_new.loc[select,col] # todo check that this selects the right thing
                    changed = changegroup[changegroup == j] # people who now do have the product
                   
                    mu_i = (len(changed) / len(changegroup))*100 # percentage that has changed
@@ -1299,11 +1301,11 @@ class HMM_eff:
                    prod_own = prod_probs[:,j]
                    # Ranked probabilities - 
                    # We want the person with the highest probability to get the lowest rank
-                   probranks = prod_own[:,i].rank(method='max', ascending = False)
+                   probranks = prod_own.rank(method='max', ascending = False)
                 
                    sumrank = 0
                    for k in range(0,len(probranks)):
-                       sumrank += probranks[k] * ownership_new_dummy[k]
+                       sumrank += probranks.iloc[k] * ownership_new_dummy.iloc[k]
                   
                    Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
                    Gini.append(Gini_i) # We get it for each product type 
