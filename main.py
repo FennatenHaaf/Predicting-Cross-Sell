@@ -475,6 +475,10 @@ if __name__ == "__main__":
                 run_cross_sell = False
                 outname = f"interpretparam_activity_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
                 
+                #df = pd.read_csv(f"{outdirec}/{outname}_standarderrors.csv")
+                #arr = df.to_numpy()
+                #param_cross = arr[:,1].astype('float64')
+                
             if (source == "crosssell4seg"):
                 
                 # ivan results met loglikelihood 11599.8611774401
@@ -500,6 +504,9 @@ if __name__ == "__main__":
                 run_cross_sell = True
                 outname = f"interpretparam_crosssell_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
                 
+                #df = pd.read_csv(f"{outdirec}/{outname}_standarderrors.csv")
+                #arr = df.to_numpy()
+                #param_cross = arr[:,1].astype('float64')
                 
             if (source == "crosssell5seg"):
                 # fenna results met loglikelihood 8502.154086118475
@@ -527,6 +534,10 @@ if __name__ == "__main__":
                 run_cross_sell = True
                 outname = f"interpretparam_crosssell_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
                 
+                #df = pd.read_csv(f"{outdirec}/{outname}_standarderrors.csv")
+                #arr = df.to_numpy()
+                #param_cross = arr[:,1].astype('float64')
+                
             if (source == "crosssell6seg"):
                 # fenna results met loglikelihood 8502.154086118475
                 # note: dataset used is "final_df_finB04"
@@ -550,8 +561,12 @@ if __name__ == "__main__":
                 n_segments = 6
                 reg = 0.05 # Regularization term
                 max_method = 'Nelder-Mead'
-                run_cross_sell = True
+                run_cross_sell = True    
                 outname = f"interpretparam_crosssell_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
+                
+                #df = pd.read_csv(f"{outdirec}/{outname}_standarderrors.csv")
+                #arr = df.to_numpy()
+                #param_cross = arr[:,1].astype('float64')
 
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
@@ -574,9 +589,9 @@ if __name__ == "__main__":
         # Now interpret & visualise the parameters 
         p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
         
-        # print("-----getting standard errors-----")
-        # hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
-        # print(f"Done calculating standard errors at {utils.get_time()}")
+        print("-----getting standard errors-----")
+        hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
+        print(f"Done calculating standard errors at {utils.get_time()}")
          
          
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
