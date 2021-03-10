@@ -471,17 +471,12 @@ class AdditionalDataProcess(object):
         fillna_columns = utils.doListIntersect(fillna_columns,self.input_cross.columns)
         self.input_cross[fillna_columns] = self.input_cross[fillna_columns].fillna(value = 0)
 
+        ##RENAMING SEVERAL VARIABLES
         rename_dict = {
-            # 'retail_dummy'  : 'has_ret_prtf',
-            # 'joint_dummy'   : 'has_jnt_prtf',
-            # 'business_dummy': 'has_bus_prtf',
-            # 'accountoverlay_dummy' : 'has_accountoverlay',
             'business': 'business_prtf_counts',
             'joint' : 'joint_prtf_counts',
             'retail': 'retail_prtf_counts',
             'accountoverlay': 'aantalproducten_accountoverlay',
-            # 'accountoverlay_dummy': 'has_accountoverlay',
-            # 'portfoliototaal': 'portfolio_total_counts'
         }
         rename_dict = utils.doDictIntersect(self.input_cross.columns, rename_dict)
         self.input_cross.rename(rename_dict, axis = 1, inplace = True)
@@ -497,11 +492,14 @@ class AdditionalDataProcess(object):
             has_bus_prtf = lambda x: np.where(x.business_prtf_counts > 0,1,0),
             has_accountoverlay =  lambda x: np.where(x.aantalproducten_accountoverlay > 0,1,0),
             portfolio_total_counts = lambda x: x.business_prtf_counts + x.joint_prtf_counts + x.retail_prtf_counts,
-            current_age = lambda x:today.year - x.birthyear
+            current_age = lambda x:today.year - x.birthyear,
+            finergy_super = lambda x: x.finergy_tp.str[0]
         )
 
-        # self.input_cross.loc[(self.input_cross["geslacht"]=="Mannen"), "geslacht"]="Man"
-        # self.input_cross.loc[(self.input_cross["geslacht"]=="Vrouwen"), "geslacht"]="Vrouw"
+        if 'hh_size' in self.input_cross.columns:
+            self.input_cross.loc[self.input_cross['hh_size'] == 11, 'hh_size'] = 1
+            self.input_cross.loc[self.input_cross['hh_size'] == 10, 'hh_size'] = 1
+
 
         # Drop unnecessary columns
         list_to_drop = ['valid_to_dateeow', 'valid_from_dateeow', 'valid_from_min', 'valid_to_max', 'saldototaal_agg']
@@ -652,6 +650,8 @@ class AdditionalDataProcess(object):
 
         print(f"Finished transforming data for cross section {utils.get_time()}")
 
+
+
     def add_longterm_change(self, benchmark_period):
         """"
         Uses cross section, however does add variables which compare a certain historical point with
@@ -694,8 +694,6 @@ class AdditionalDataProcess(object):
         df_to_merge = pd.concat([indicator_df1,indicator_df2,benchmark_slice], axis = 1)
         self.cross_long_df.sort_index(axis = 1,inplace = True)
         self.cross_long_df = pd.merge(self.cross_df, df_to_merge, left_on = 'personid', right_index =  True)
-
-
         pass
 
     def transform_for_panel( self ):
@@ -740,7 +738,6 @@ class AdditionalDataProcess(object):
 
         print("number of positively changed variables is :\n", self.panel_df.iloc[:, -len(templist):].sum(), f"\nFrom a total of" \
                                                                                                          f" {self.panel_df.shape[0]} observations")
-        #TODO Onderzoek 035bafd486c3223b24e1e76008847b64fb6c3cdc,
         print(f"Finished aggregating data for change in products at {utils.get_time()}")
 
     def import_data( self, import_string: str, first_date: str, last_date = "", addition_to_file_name = "" ):
