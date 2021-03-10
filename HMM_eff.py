@@ -744,7 +744,7 @@ class HMM_eff:
                     
         logl_i = np.log(likelihood + 10**(-300))
             
-        logl = - np.sum(logl_i)
+        logl = - np.sum(logl_i) + np.sum(abs(param)) * self.reg_term
         
         return logl
 
