@@ -68,10 +68,10 @@ if __name__ == "__main__":
     time_series = False # Do we want to run the code for getting time series data
     visualize_data = False # make some graphs and figures
     
-    run_hmm = True
+    run_hmm = False
     run_cross_sell = True # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    saldopredict = False # Do we want to run the methods for predicting saldo
+    saldopredict = True # Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -291,8 +291,6 @@ if __name__ == "__main__":
             
         #DI.plotCoocc(df,  visualize_variables  )
         #TODO er gaat nog iets mis hier!
-                
-            
         
     
 # =============================================================================
@@ -480,7 +478,9 @@ if __name__ == "__main__":
             print("-----Reading in existing parameters-----")
              
             source = "finalActivity"
-                          
+            #source = "crosssell4seg"
+            #source = "crosssell5seg"        
+            
             if (source == "finalActivity"):
                 
                 # note: dataset used is "final_df_finB04"
@@ -530,6 +530,57 @@ if __name__ == "__main__":
                 max_method = 'Nelder-Mead'
                 run_cross_sell = False
                 
+            if (source == "crosssell4seg"):
+                
+                # ivan results met loglikelihood 11599.8611774401
+                # note: dataset used is "final_df_finB04"
+                param_cross = np.array([ 3.45964482e-05, -5.95053017e-04, -1.01707154e+00, -8.89764111e-04, -7.64125808e-01, 7.52693657e-05, -2.04091137e-16, -5.13153589e+00, 1.46161913e+00, 4.61799705e-04, -3.06432797e-04, -1.01685186e-04, 1.56473814e-05, -3.23723949e+00, 3.93821215e-01, -3.36437535e-05, -3.08204756e-04, 3.08238111e-06, 4.43163053e-08, 3.22788171e+00, 1.47269763e+00, 1.15266559e-04, -1.29857217e-06, 2.89076870e+01, 2.52897017e-05, 2.45215985e+01, 2.46398987e-08, 5.43649329e+00, -1.26835397e+00, 3.05540346e-01, -1.63492742e-04, 4.40136704e+00, -5.14369363e-04,
+                                        2.10332941e+00, -3.67557972e+00, 1.32053694e+00, -1.94006180e+00, -2.58182273e-05, -1.64448312e+00, -9.72071725e-07, -4.47298442e-01, 2.81418175e+00, -4.27496510e-04, -3.90112560e-04, -2.46829325e+00, -4.50948360e-03, 5.84382348e+00, 2.16838703e+00, 1.87682395e-01, 1.77765842e+01, 8.94753990e-09, 2.33722077e-10, 9.57805122e+00, -6.55235990e-01, 1.55045700e+01, -1.32778125e+00, 2.02596439e-01, -1.02892638e-05, 9.20574886e-01, -1.82353830e-01, 3.66289597e-04, -1.70343897e+00, 2.42745313e+00, -1.67392557e-04, 7.81450078e-04, 3.11011873e-06, 
+                                        2.86964770e-04, -7.82324151e-01, 1.99115541e+00, -2.37238747e-04, 4.10889870e-05, -5.72096374e-04, -5.17937054e-05, 4.71548164e+00, 1.61665340e+00, -3.90264300e-01, -1.19498654e-03, -3.02782244e-07, -1.26749320e+01, 1.48529585e-15, -1.65057568e+01, 8.54597218e-01, -1.97499167e-06, 1.51620975e-04, -5.25331304e-04, 1.44526716e-04, 5.63062247e-04, -4.75204952e-04, -1.54755035e-05, 9.74492205e-01, 1.68915524e+00, 8.30147216e+00, 6.23140699e-04, 7.63199795e-05, 9.45925241e-01, -2.97332985e-06, 3.56657235e-06, -1.60074574e-07, -1.97283503e-05, 
+                                        7.16401937e-05, 2.74850783e-05, -7.83424173e+00, -1.07287186e-04, -4.02059419e-07, -1.85657463e-04, -3.94185351e-01, -3.42039721e-06, 4.25803177e-05, 5.16238280e-05, -1.40402195e-05, -4.46718150e-06, 1.83502986e-04, 8.40511118e-05, -3.30517186e-04, 9.00965817e-04, -6.29315032e-05, 5.24131548e+00, 1.71677140e-06, -9.22600786e-04, 9.12416408e-01, 3.71321354e-01, 2.19118002e-04, -3.57747915e-04, -1.62358636e-05, 2.02460508e-01, 3.39886361e-04, 5.12208599e-04, -3.00347603e-07, 1.27998892e-04, -1.93466775e-01, -8.17274196e-13, 1.11033400e-06, 
+                                        -2.75951301e-06, -1.67568433e-07, -7.30824895e-07, 1.07386073e-05, -2.60818334e-05, 4.27063683e-06, 2.81090789e-03, 5.84412654e-04, 1.62310672e+01, 1.74531679e+01, -3.10924519e-05, 1.34364160e+01, 1.32697252e+01, 1.19382198e+00, 3.76931030e-01, -1.10272273e-03, 1.58061171e+00, 1.36204867e+00, 1.88374818e+00, 5.21299490e-01, -3.95856531e-10, -1.51015778e-05, 1.76684917e-07, -3.28265940e-08, 3.16214611e-04, 1.23009849e-04, 1.88294418e-01, 1.49218317e-04, -2.63911731e-04, -1.28471865e-04, -5.52817671e-04, 1.65933514e-04, 8.73216476e-04, 
+                                        -2.28018703e-04, -7.13803564e-03, 8.30829344e-09, -9.29670194e+00, 8.65765145e-14, 4.10642709e-04, 8.70954936e+00, 7.24865245e+00, -6.45411152e+00, 7.13514435e-02, -6.65518311e-01, 8.06614773e-01, -6.39196817e+00, 9.62442928e+00, 1.14488889e+01, 7.72161856e-01, 1.72495903e-01, -7.70915449e-01, 9.71104363e-01, -5.97076228e-01, -1.15817066e+01, -8.37944596e+00, -1.79967357e+01, 1.39282306e+00, -4.64875777e-01, -9.71724875e+00, -9.50947676e+00, 2.29431767e-02, -3.16229218e+00, 6.45131773e+00, 1.30575579e+00, -2.40785912e-01, -1.82436247e+00,
+                                        -2.03783144e+00]) 
+
+                # Define the dependent variable
+                name_dep_var = crosssell_types_max
+                # Say which covariates we are going to use
+                name_covariates = full_covariates
+                # take a subset of the number of periods
+                df_periods  = dflist[4:10]  # use periods 5,6,7,8,9 and 10
+                #Define number of segments
+                n_segments = 4
+                reg = 0.05 # Regularization term
+                max_method = 'Nelder-Mead'
+                run_cross_sell = True
+                
+                
+            if (source == "crosssell5seg"):
+                # fenna results met loglikelihood 8502.154086118475
+                # note: dataset used is "final_df_finB04"
+                param_cross = np.array([ 4.19867310e+00, 6.06015209e+00, 2.37976143e-01, -6.64865721e-01, -4.12053659e-05, -6.80088543e-02, -4.11376847e-03, 3.88857655e-01, 2.00450931e-05, 2.70608141e-07, -5.61241559e-01, 8.43083490e-05, 1.40596669e-06, -1.07061592e-08, 8.04423755e-02, 6.13768356e-02, -1.28354986e-04, -1.32369389e+00, -6.80543286e-07, 3.80317376e-03, -3.52459625e-02, -2.65383337e-02, -1.26437996e+01, -9.70072510e+00, 3.74489452e-05, -1.84209430e-08, -1.21529891e-10, -1.63393508e+00, 6.31001746e+00, 1.85973035e-01, -4.60900509e-01, 7.23505477e-01,
+                                        -5.79910905e-11, -2.78709427e-05, -1.92956881e+00, -2.01952351e+00, -3.50593768e+00, -3.30149668e+00, 8.02344788e-07, 1.37244256e+00, -4.54699358e-15, 7.18617469e-01, -1.16574293e+00, -4.76513301e-05, -4.58481882e+00, -9.43100317e-01, 3.30139559e-01, -1.46519473e+00, 3.07170955e-07, 3.51960406e+00, 1.88931152e+00, 1.28357709e+01, 1.59580860e+01, 1.65564415e+01, 7.96072920e+00, 5.36006759e+00, 1.18622758e-02, 3.59979256e-05, 5.13486582e-01, 2.83701522e-01, 1.01562202e-01, -4.17664495e-02, 1.54737505e-01, 2.04681547e-01,
+                                        -5.36179216e-17, 4.17843227e-01, -3.68866810e-01, -1.51643262e-01, -4.71683549e-03, -2.44488990e-04, -1.07947955e-02, -4.21503291e-01, 6.60551326e-01, 3.37311599e-01, 2.19870127e-01, 3.30004375e-01, -1.28057777e+01, -8.80375263e+00, 3.47121964e-05, 2.68272331e-05, 6.21237363e-06, -3.59373459e-01, 4.68925560e+00, -1.01379959e+00, -2.90753957e-06, -2.02851290e+00, 2.37750017e-03, -3.47973644e-01, 2.27099315e-01, 1.83661799e+00, 3.92795598e+00, 3.00608272e+00, -1.90014319e-03, -4.83057482e+00, 2.12331386e-13, -2.36358215e+00,
+                                        1.70372776e-06, 1.38746349e-03, -1.70887363e-08, 2.14184329e-01, -2.81959270e-03, 7.35118180e-01, -1.13808522e-06, 7.05625839e+00, 1.92285717e+01, -5.41823924e-05, -2.50050767e-05, -2.46973589e-07, 4.80097531e+00, -3.31949076e+00, -6.49927513e-04, -5.44693344e+00, -4.97340890e-03, 7.01561306e-07, -1.51167574e+00, 5.27260920e-04, -4.21267979e+00, 1.67109460e-03, 
+                                        5.15070350e+00, 2.47285507e+00, 1.01765190e+01, 1.48357221e-07, 3.15744426e-03, 6.95551206e-06, 4.41770872e-09, -3.76411655e-08, 1.44150438e-12, -1.68356833e-04, 6.20942979e+00, -2.54743875e-04, 6.20261687e-01, 2.96150320e+00, 1.84176795e+00, 2.56780672e+00, 1.12594573e+00, 8.83447047e-01, 1.14236507e+00, 2.47078658e-07, -4.45529788e-03, -4.47564065e-01, 3.70626452e-08, 2.37388164e-04, -3.90460792e-01, 4.09616521e-05, -1.18740436e+00, -1.10752691e+00, -1.76559471e-01, 2.04921820e-06, -7.49737179e-03, -1.04269540e-02, 
+                                        3.61952370e-08, -9.60019557e+00, -1.25433200e+01, -3.16697240e-03, 6.04063434e+00, -2.36234755e-01, -1.27128770e-07, -5.91423830e-01, -3.47314386e-08, -7.77108894e-04, -1.83758536e-02, -1.89584563e-01, 1.76745863e-03, 1.08429244e-07, -1.18947761e-02, -5.49556582e-04, 4.03984868e-06, -7.98963107e-07, 8.66756613e-07, 2.71381004e-05, -3.89614418e-06, -4.67892884e-07, 3.11030459e-03, 4.80101427e-06, -3.53152511e-03, 1.50484916e+01, 1.46637387e+01, 1.37479574e-09, -8.07259516e-04, 1.28559140e+01, 5.91512085e+00, -2.00813625e-01, 
+                                        9.38313418e-05, -1.55120343e-01, -8.91438504e-05, 3.12055261e-01, 2.85778729e-07, -1.44033727e-07, -1.75668296e-05, -1.61330781e-05, -1.32107096e-02, -1.49776879e-04, -3.59865093e-04, 2.68147489e-03, 1.54207356e-04, 8.32957884e-01, -1.87100044e-08, 2.36860609e-02, 1.18913391e-06, -1.93672636e-01, -1.86530104e-02, -9.98431150e-11, -1.10390211e+00, -1.30094217e+01, -1.15755666e+01, -4.32047055e-05, 5.33452413e-04, 1.39561332e-11, -1.29667900e-02, 7.41593409e-01, 2.45370857e-03, 2.00631345e-04, 2.32166274e-06, -2.91257026e-07, 
+                                        -1.71838677e-04, 1.02135909e-07, -2.65456311e-03, 1.00946766e-07, 3.67319529e-04, -8.96608429e-07, 6.10268937e-06, -8.08933588e-10, 6.23259601e-01, -1.72753249e-05, -1.57391102e-02, -2.05761239e-07, 4.38671335e-08, 5.25111097e-04, 1.25285441e+01, 1.48192241e-06, 7.19880991e+00, -1.41556688e-04, -2.51362919e+00, -7.95536688e+00, -1.25125228e+01, 1.06597625e-02,
+                                        -2.48728797e-08, -1.04578075e+01, -7.30495286e+00, 1.68686343e+01, 1.00449793e+01, 4.47533368e+00, 6.57446264e-02, -9.34506970e+00, -8.59056760e-01, 4.74698051e-01, -3.19128972e+00, -8.71488273e+00, -1.31997583e+01, 9.73555967e+00, -1.92787375e+01, -1.11493867e+01, -8.01254111e+00, 1.88225717e+01, -9.50835965e-10, -8.63422627e-04, -2.33724213e-01, -9.46339233e+00, -9.95915257e-01, -5.25865714e+00, -7.93216746e+00, -2.47030362e+00, 2.07958549e+00, 1.43403669e+00, 8.35978601e+00, 3.63464444e-14, -3.11424080e+00]) 
+
+                # Define the dependent variable
+                name_dep_var = crosssell_types_max
+                # Say which covariates we are going to use
+                name_covariates = full_covariates
+                # take a subset of the number of periods
+                df_periods  = dflist[4:10]  # use periods 5,6,7,8,9 and 10
+                #Define number of segments
+                n_segments = 5
+                reg = 0.05 # Regularization term
+                max_method = 'Nelder-Mead'
+                run_cross_sell = True
+                
+
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
             print(f"number of periods: {len(df_periods)}")
@@ -549,13 +600,15 @@ if __name__ == "__main__":
             
         # Now interpret & visualise the parameters 
         p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
-        dfSE = hmm.get_standard_errors(param_cross, n_segments)
+        
+        print("getting standard errors")
+        hess_inv, dfSE = hmm.get_standard_errors(param_cross, n_segments)
         
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
             t = 9 
-            active_value_pd = pd.read_csv(f"{outdirec}/active_value_t{t}.csv")
+            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
             active_value = active_value[:,1]
             dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
@@ -564,12 +617,13 @@ if __name__ == "__main__":
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
              
         else:
-            t = 9 # de laatste periode die als input in hmm is gestopt
-            active_value  = hmm.active_value(param_cross, n_segments, t)
+            print("Calculating active value")
+            active_value  = hmm.active_value(param_cross, n_segments, len(df_periods))
             active_value_df = pd.DataFrame(active_value) 
 
-            active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
-
+            utils.save_df_to_csv(active_value_df, outdirec, f"active_value", 
+                             add_time = True )
+            #active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
 
 # =============================================================================
 # SALDO PREDICTION
@@ -647,15 +701,14 @@ if __name__ == "__main__":
           #---------------- GINI COEFFICIENT CALCULATION -------------------------
           
           print("Caclulating gini coefficient")
-          #TODO: right now this is only for 1 or 0 whether they own the product or not!!
           # These describe product ownership yes/no in the new period
-          prod_ownership_new = testing_period[crosssell_types_dummies]
-          
+          prod_ownership_new = testing_period[crosssell_types_dummies]  
           # These describe product ownership yes/no in the previous period
           prod_ownership_old = last_period[crosssell_types_dummies]
           
-          ginivec = hmm.calculateGini(prod_ownership_new, prod_ownership_old, prod_own,
+          ginivec = hmm.calculate_gini(prod_ownership_new, prod_ownership_old, prod_own,
                           binary = True)
+          print("Ginicoefficient for the binary ownership dummies")
           print(ginivec)
           
           # Now do it with the actual numbers of ownership
@@ -663,6 +716,7 @@ if __name__ == "__main__":
           prod_ownership_old = last_period[crosssell_types_max]
           ginivec2 = hmm.calculateGini(prod_ownership_new, prod_ownership_old, prod_own,
                           binary = False)
+          print("Ginicoefficient for the (non-binary) ownership variables")
           print(ginivec2)
           
           #--------------------- TP/ NP calculation -------------------------
@@ -751,10 +805,6 @@ if __name__ == "__main__":
             print("Model 1 is significantly better according to LR test")
         
         # So 5 is significantly better than 4?
-
-        
-        
-        
         
         
         

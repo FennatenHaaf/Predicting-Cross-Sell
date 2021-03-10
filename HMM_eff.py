@@ -845,7 +845,7 @@ class HMM_eff:
 
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
         active_value = np.argmax(P_s_given_Y_Z, axis = 0)
-        active_value_t = active_value[:, t - 1]
+        active_value_t = active_value[:, t-1]
         
         return active_value_t
 
@@ -1145,158 +1145,155 @@ class HMM_eff:
         #cbar.set_label('Probability')
         plt.show()
                 
-        def cross_sell_new_cust(self, data, param_cross, param_act, n_segments_cross, act_obj, t,
-                                n_segments_act = 3, tresholds = [0.5, 0.8], order_active_high_to_low = [0,1,2]): 
-            """
-            Parameters
-            ----------
-            data : list of dataframes
-                data of the customers for one wants to know whether a cross sell is possible
-            param_cross    : 1D array
-                estimated parameters of the HMM for cross sells
-            param_act : 1D array
-                estimated parameters of the HMM for the active value
-            n_segments_cross : int
-                number of segments being used for the estimation of the HMM for cross sells
-            act_obj : object
-                object of HMM_eff for estimating the active value
-            t : int
-                time on which one wants to know whether a cross sell is possible
-            n_segments_act : int
-                number of segments used for the HMM for the active value
-            tresholds : list
-                tresholds that indicate when a customers is eligible for a cross sell
-            order_active_high_to_low : list
-                because in the HMM it is not specified which segment represents the level of activeness, this list does
-            Returns
-            -------
-            cross_sell_target : 2D array
-                array representing whether a customers (row) is eligible for cross sell targeting regarding a certain product (columns)
-            cross_sell_self : 2D array
-                array representing whether a customers (row) cross sells a certain product (columns) itself
-            cross_sell_total : 2D array
-                array representing both cross_sell_target and cross_sell_self
-            """
-            """function that gives whether a customers outside the training set are eligible for a cross sell"""
+    def cross_sell_new_cust(self, data, param_cross, param_act, n_segments_cross, act_obj, t,
+                            n_segments_act = 3, tresholds = [0.5, 0.8], order_active_high_to_low = [0,1,2]): 
+        """
+        Parameters
+        ----------
+        data : list of dataframes
+            data of the customers for one wants to know whether a cross sell is possible
+        param_cross    : 1D array
+            estimated parameters of the HMM for cross sells
+        param_act : 1D array
+            estimated parameters of the HMM for the active value
+        n_segments_cross : int
+            number of segments being used for the estimation of the HMM for cross sells
+        act_obj : object
+            object of HMM_eff for estimating the active value
+        t : int
+            time on which one wants to know whether a cross sell is possible
+        n_segments_act : int
+            number of segments used for the HMM for the active value
+        tresholds : list
+            tresholds that indicate when a customers is eligible for a cross sell
+        order_active_high_to_low : list
+            because in the HMM it is not specified which segment represents the level of activeness, this list does
+        Returns
+        -------
+        cross_sell_target : 2D array
+            array representing whether a customers (row) is eligible for cross sell targeting regarding a certain product (columns)
+        cross_sell_self : 2D array
+            array representing whether a customers (row) cross sells a certain product (columns) itself
+        cross_sell_total : 2D array
+            array representing both cross_sell_target and cross_sell_self
+        """
+        """function that gives whether a customers outside the training set are eligible for a cross sell"""
 
-            active_value = act_obj.active_value(self, param_act, n_segments_act, t, data)
+        active_value = act_obj.active_value(self, param_act, n_segments_act, t, data)
 
-            cross_sell_target, cross_sell_self, cross_sell_total = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
+        cross_sell_target, cross_sell_self, cross_sell_total = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
 
-            return cross_sell_target, cross_sell_self, cross_sell_total
-        
-        
-        
-        def get_standard_errors(self, param_in, n_segments):
-            """Print the standard errors given certain input parameters"""
-            
-             #----------- Initialise everything so that we get the shapes-------------
-            gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
-            gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
-            gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
-            beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
-       
-            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
-            shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
-                               [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
-
-            #----------------------- Do a single EM step --------------------------- 
-            
-            alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
-            param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
-                                                     shapes, n_segments, self.reg_term,
-                                                     self.max_method, bounded = None,
-                                                     end = True)
-            
-            #----------------------- get sd's from hessian --------------------------- 
-            diag = np.diag(hess_inv)
-            se = np.sqrt(diag)
-            
+        return cross_sell_target, cross_sell_self, cross_sell_total
     
-            # save the values to a dataframe and save to csv?
-            df = pd.DataFrame(columns = ["parameter","se"])
-            df["parameter"] = param_out # todo : of moet dit param in zijn?
-            df["se"] = se
+    
+    
+    def get_standard_errors(self, param_in, n_segments):
+        """Print the standard errors given certain input parameters"""
         
-            utils.save_df_to_csv(df, self.outdir, f"{self.outname}_standarderrors", 
-                                 add_time = False )
+         #----------- Initialise everything so that we get the shapes-------------
+        gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
+        gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
+        gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
+        beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
+   
+        #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
+        shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
+                           [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
+
+        #----------------------- Do a single EM step --------------------------- 
         
-            return df
+        alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
+        param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
+                                                 shapes, n_segments, self.reg_term,
+                                                 self.max_method, bounded = None,
+                                                 end = True)
         
+        #----------------------- get sd's from hessian --------------------------- 
+        diag = np.diag(hess_inv)
+        se = np.sqrt(diag)
         
-        
-        def calculateGini(prod_ownership_new, prod_ownership_old, product_probs,
-                          binary = True):
-            """Calculate gini coefficient"""
-            
-            # if binary then prod ownership is 1 and 0 for each
-            # if not then prod ownership should be ownership numbers for each
-            
-            Gini =[]
-            
-            if binary:
-                for i in range(0, len(prod_ownership_new.columns)):
-                    prod_probs = product_probs[:,:,i] # Check dat dit de goede index pakt!
-                    
-                    
-                    # Number of households who did NOT have product
-                    n_i = len(prod_ownership_old[:,i]==0) 
-                    
-                    # Percentage of those households who now do own the product
-                    select = (prod_ownership_old[:,i]==0)
-                    change = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
-                    mu_i = (sum(change) / len(change))*100 # percentage that is 1
+
+        # save the values to a dataframe and save to csv?
+        df = pd.DataFrame(columns = ["parameter","se"])
+        df["parameter"] = param_in # TODO : of moet dit param_out zijn?
+        df["se"] = se
+    
+        utils.save_df_to_csv(df, self.outdir, f"{self.outname}_standarderrors", 
+                             add_time = False )
+    
+        return hess_inv, df
+    
+    
+    
+    def calculate_gini(prod_ownership_new, prod_ownership_old, product_probs,
+                      binary = True):
+        """Calculate gini coefficient. If binary then prod ownership is 1 
+        and 0 for each, if not then prod ownership should be ownership 
+        numbers for each"""
+    
+        Gini =[]  
+        if binary:
+            for i in range(0, len(prod_ownership_new.columns)):
+                prod_probs = product_probs[:,:,i] # Check dat dit de goede index pakt!
                 
-                    # Get the sum of probabilities for >0 of the product
-                    prod_own = prod_probs[:,1:].sum(axis=1) 
-                    # Ranked probabilities - 
-                    # We want the person with the highest probability to get the lowest rank
-                    probranks = prod_own[:,i].rank(method='max', ascending = False)
-                    
-                    sumrank = 0
-                    for k in range(0,len(probranks)):
-                        sumrank += probranks[k] * prod_ownership_new[k,i]
-                      
-                    Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
-                    Gini.append(Gini_i) # We get it for each product type
-                    
-            else: # the prod ownerships should be numbers of products
-               for i in range(0, len(prod_ownership_new.columns)):
-                   # get the different possible values of ownerships
-                   values = pd.Series(prod_ownership_old[:,i].unique())
-                   prod_probs = product_probs[:,:,i] # Check dat dit de goede index pakt!
+                # Number of households who did NOT have product
+                n_i = len(prod_ownership_old[:,i]==0) 
+                
+                # Percentage of those households who now do own the product
+                select = (prod_ownership_old[:,i]==0)
+                change = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
+                mu_i = (sum(change) / len(change))*100 # percentage that is 1
+            
+                # Get the sum of probabilities for >0 of the product
+                prod_own = prod_probs[:,1:].sum(axis=1) 
+                # Ranked probabilities - 
+                # We want the person with the highest probability to get the lowest rank
+                probranks = prod_own[:,i].rank(method='max', ascending = False)
+                
+                sumrank = 0
+                for k in range(0,len(probranks)):
+                    sumrank += probranks[k] * prod_ownership_new[k,i]
+                  
+                Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
+                Gini.append(Gini_i) # We get it for each product type
+                
+        else: # the prod ownerships should be numbers of products
+           for i in range(0, len(prod_ownership_new.columns)):
+               # get the different possible values of ownerships
+               values = pd.Series(prod_ownership_old[:,i].unique())
+               prod_probs = product_probs[:,:,i] # Check dat dit de goede index pakt!
+               
+               for j in values:
+                   # Number of households who did NOT have product
+                   n_i = len(prod_ownership_old[:,i]!=j)
                    
-                   for j in values:
-                       # Number of households who did NOT have product
-                       n_i = len(prod_ownership_old[:,i]!=j)
+                   # Make a dummy for product ownership in the new period
+                   ownership_new_dummy = pd.Series(np.zeros(len(prod_ownership_new)))
+                   ownership_new_dummy[prod_ownership_new == j] = 1
+                   
+                   # Percentage of those households who now do own the product
+                   select = (prod_ownership_old[:,i]!=j)
+                   changegroup = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
+                   changed = changegroup[changegroup == j] # people who now do have the product
+                  
+                   mu_i = (len(changed) / len(changegroup))*100 # percentage that has changed
+                   
+                   # Get the sum of probabilities for exactly j of the product
+                   prod_own = prod_probs[:,j]
+                   # Ranked probabilities - 
+                   # We want the person with the highest probability to get the lowest rank
+                   probranks = prod_own[:,i].rank(method='max', ascending = False)
+                
+                   sumrank = 0
+                   for k in range(0,len(probranks)):
+                       sumrank += probranks[k] * ownership_new_dummy[k]
+                  
+                   Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
+                   Gini.append(Gini_i) # We get it for each product type 
                        
-                       # Make a dummy for product ownership in the new period
-                       ownership_new_dummy = pd.Series(np.zeros(len(prod_ownership_new)))
-                       ownership_new_dummy[prod_ownership_new == j] = 1
-                       
-                       # Percentage of those households who now do own the product
-                       select = (prod_ownership_old[:,i]!=j)
-                       changegroup = prod_ownership_new.loc[select,i] # todo check that this selects the right thing
-                       changed = changegroup[changegroup == j] # people who now do have the product
-                      
-                       mu_i = (len(changed) / len(changegroup))*100 # percentage that has changed
-                       
-                       # Get the sum of probabilities for exactly j of the product
-                       prod_own = prod_probs[:,j]
-                       # Ranked probabilities - 
-                       # We want the person with the highest probability to get the lowest rank
-                       probranks = prod_own[:,i].rank(method='max', ascending = False)
-                    
-                       sumrank = 0
-                       for k in range(0,len(probranks))
-                           sumrank += probranks[j] * ownership_new_dummy[k]
-                      
-                       Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
-                       Gini.append(Gini_i) # We get it for each product type 
-                           
-               
-               
-               
+        return Gini
+           
+           
                
         
         
