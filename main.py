@@ -440,10 +440,10 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
-            source = "finalActivity"
+            #source = "finalActivity"
             #source = "crosssell4seg"
             #source = "crosssell5seg" 
-            #source = "crosssell6seg"
+            source = "crosssell6seg"
             
             if (source == "finalActivity"):
                 
@@ -551,6 +551,7 @@ if __name__ == "__main__":
                 reg = 0.05 # Regularization term
                 max_method = 'Nelder-Mead'
                 run_cross_sell = True
+                outname = f"interpretparam_crosssell_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
 
             print(f"dependent variable: {name_dep_var}")
             print(f"covariates: {name_covariates}")
@@ -643,18 +644,17 @@ if __name__ == "__main__":
                                            globalmin = None)
             
           # These dummies describe whether an increase took place
-          diffdata = diffdata["personid", "business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]  
+          diffdummies = diffdata[["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]  
           FPvec = []
           TPvec = []
           FNvec = []
           TNvec = []
           accuracyvec = []
           
-          for i, column in enumerate(["business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]):
+          for i in range(0, len(diffdummies.columns)):
             pred_labels = cross_sell_self[:,i]
-            true_labels = diffdata[:,i] # check that this selects the right things
+            true_labels = diffdummies.iloc[:,i] # check that this selects the right things
             
             # True Positive (TP): we predict a label of 1 (positive), and the true label is 1.
             TP = np.sum(np.logical_and(pred_labels == 1, true_labels == 1))
@@ -665,19 +665,32 @@ if __name__ == "__main__":
             # False Negative (FN): we predict a label of 0 (negative), but the true label is 1.
             FN = np.sum(np.logical_and(pred_labels == 0, true_labels == 1))
             
-            TPvec.append( TP / (TP + FN))
-            TNvec.append( TN / (TN + FP))
-            FPvec.append( FP / (FP + TN))
-            FNvec.append( FN / (FN + TP))
+            TPvec.append(TP)
+            TNvec.append(TN)
+            FPvec.append(FP)
+            FNvec.append(FN)
             
             accuracy = (TP+TN) / (TP+TN+FP+FN)
-            sensitivity = TP / (TP+FN)
-            specificity = TN/ (TN+FP)
-            precision = TP / (TP+FP)
+            #sensitivity = TP / (TP+FN)
+            #specificity = TN/ (TN+FP)
+            #precision = TP / (TP+FP) # Note: goes wrong if nothing is predicted positive
             accuracyvec.append(accuracy)
             
           print(f"Accuracy output: {accuracyvec}")
+          print(f"TP: {TPvec}")
+          print(f"TN: {TNvec}")
+          print(f"FP: {FPvec}")
+          print(f"FN: {FNvec}")
+          
+          # PUT THE RESULTS INTO A DATAFRAME
+          evaluation = pd.DataFrame(columns = diffdummies.columns)
+          evaluation.iloc[0,:] = pd.Series(accuracyvec)
+          evaluation.iloc[1,:] = pd.Series(TPvec)
+          evaluation.iloc[2,:] = pd.Series(TNvec)
+          evaluation.iloc[3,:] = pd.Series(FPvec)
+          evaluation.iloc[4,:] = pd.Series(FNvec)
 
+          evaluation["measure"] = ["accuracy","TP","TN","FP","FN"]
 
 
 # =============================================================================

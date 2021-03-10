@@ -1264,68 +1264,78 @@ class HMM_eff:
         and 0 for each, if not then prod ownership should be ownership 
         numbers for each"""
     
-        Gini =[]  
+        #Gini=[]
+        Gini = pd.DataFrame(columns = prod_ownership_new.columns) 
         if binary:
             for i in range(0, len(prod_ownership_new.columns)):
                 prod_probs = product_probs[:,i,:] 
                 
-                # Number of households who did NOT have product
-                n_i = len(prod_ownership_old.iloc[:,i]==0) 
-                
-                # Percentage of those households who now do own the product
+                # Get the households who did NOT have product in prev period
+                n_i = len(prod_ownership_old[prod_ownership_old.iloc[:,i]==0]) 
                 select = (prod_ownership_old.iloc[:,i]==0)
                 col = prod_ownership_new.columns[i]
+                 
+                # Percentage of those households who now do own the product
                 change = prod_ownership_new.loc[select,col] # todo check that this selects the right thing
                 mu_i = (sum(change) / len(change))*100 # percentage that is 1
             
                 # Get the sum of probabilities for >0 of the product
                 prod_own = prod_probs[:,1:].sum(axis=1) 
+                
+                # NOW SELECT THE ONES THAT BELONG TO THE NON-OWNING GROUP
+                prod_own = prod_own[select]
+                
                 # Ranked probabilities - 
                 # We want the person with the highest probability to get the lowest rank
-                probranks = pd.DataFrame(prod_own).rank(method='max', ascending = False)
+                probranks = pd.DataFrame(prod_own).rank( ascending = False) #method = 'max'
                 
                 sumrank = 0
-                for k in range(0,len(probranks)):
-                    sumrank += probranks.iloc[k] * prod_ownership_new.loc[k,col]
+                for k in range(0,len(probranks)): # we sum only over the select households?
+                    #sumrank += probranks.iloc[k,0] * prod_ownership_new.loc[k,col]
+                    sumrank += probranks.iloc[k,0] * change.reset_index(drop=True)[k]
                   
                 Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
-                Gini.append(Gini_i) # We get it for each product type
+                Gini.loc[0,col] = Gini_i
                 
         else: # the prod ownerships should be numbers of products
            for i in range(0, len(prod_ownership_new.columns)):
                # get the different possible values of ownerships
-               values = pd.Series(prod_ownership_old.iloc[:,i].unique())
-               prod_probs = product_probs[:,i,:] 
+               values = pd.Series(prod_ownership_old.iloc[:,i].unique()).sort_values()
+               prod_probs = product_probs[:,i,:] # get probs for this segment
                
-               for j in values:
-                   # Number of households who did NOT have product
-                   n_i = len(prod_ownership_old.iloc[:,i]!=j)
-                   
-                   # Make a dummy for product ownership in the new period
-                   ownership_new_dummy = pd.Series(np.zeros(len(prod_ownership_new)))
-                   ownership_new_dummy[prod_ownership_new.iloc[:,i] == j] = 1
-                   
-                   # Percentage of those households who now do own the product
+               for j in values: 
+                   # Number of households who did NOT have this exact number of products
+                   n_i = len(prod_ownership_old[prod_ownership_old.iloc[:,i]!=j])
                    select = (prod_ownership_old.iloc[:,i]!=j)
                    col = prod_ownership_new.columns[i]
-                   changegroup = prod_ownership_new.loc[select,col] # todo check that this selects the right thing
-                   changed = changegroup[changegroup == j] # people who now do have the product
+                   
+                   # Make a dummy for # of products ownership in the new period
+                   ownership_new_dummy = pd.Series(np.zeros(len(prod_ownership_new)))
+                   ownership_new_dummy[prod_ownership_new.iloc[:,i] == j] = 1
+                   ownership_new_dummy = ownership_new_dummy[select]
                   
-                   mu_i = (len(changed) / len(changegroup))*100 # percentage that has changed
+                   # Percentage of the selected households who now do own the product
+                   mu_i = (sum(ownership_new_dummy) / len(ownership_new_dummy))*100 # percentage that has changed
+                   #TODO does this need to be *100 ????
                    
                    # Get the sum of probabilities for exactly j of the product
-                   prod_own = prod_probs[:,j]
+                   prod_own = prod_probs[:,int(j)]
+                   
+                   # NOW SELECT THE ONES THAT BELONG TO THE NON-OWNING GROUP
+                   prod_own = prod_own[select]
+                   
                    # Ranked probabilities - 
                    # We want the person with the highest probability to get the lowest rank
-                   probranks = prod_own.rank(method='max', ascending = False)
+                   probranks =pd.DataFrame(prod_own).rank(ascending = False) #method='max', 
                 
                    sumrank = 0
                    for k in range(0,len(probranks)):
-                       sumrank += probranks.iloc[k] * ownership_new_dummy.iloc[k]
+                       sumrank += probranks.iloc[k,0] * ownership_new_dummy.iloc[k]
                   
                    Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
-                   Gini.append(Gini_i) # We get it for each product type 
-                       
+                
+                   Gini.loc[int(j),col] = Gini_i               
+                   
         return Gini
            
     
