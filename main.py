@@ -440,8 +440,8 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
-            source = "finalActivity"
-            #source = "crosssell4seg"
+            #source = "finalActivity"
+            source = "crosssell4seg"
             #source = "crosssell5seg"        
             
             if (source == "finalActivity"):
@@ -651,7 +651,7 @@ if __name__ == "__main__":
 # SALDO PREDICTION
 # =============================================================================
 
-        if (saldopredict):
+        if (saldopredict & run_cross_sell):
             print(f"****Create data for saldo prediction at {utils.get_time()}****")
             
             namesal = "final_df" # We use the full dataset with all complete IDs
