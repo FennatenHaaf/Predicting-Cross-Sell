@@ -24,6 +24,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import copy
+from scipy.stats import t
 
 class HMM_eff:
     
@@ -1213,10 +1214,13 @@ class HMM_eff:
         se = np.sqrt(diag)
         
         # save the values to a dataframe and save to csv?
-        df = pd.DataFrame(columns = ["source","parameter","se"])
+        df = pd.DataFrame(columns = ["source","parameter","se","t", "p-value"])
         df["parameter"] = param_in # TODO : of moet dit param_out zijn?
         df["se"] = se
-        
+        df["t"] = df["parameter"] / df["se"]
+        df["p-value"] = t.pdf(t, (self.n_customers - len(param_in)))
+
+
         a = gamma_0.size
         b = gamma_sr_0.size
         c = gamma_sk_t.size
@@ -1231,8 +1235,6 @@ class HMM_eff:
                              add_time = False )
     
         return hess_inv, df
-    
-    
     
     def calculate_gini(prod_ownership_new, prod_ownership_old, product_probs,
                       binary = True):
