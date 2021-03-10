@@ -1355,7 +1355,7 @@ class HMM_eff:
         P_s_given_r = np.swapaxes(P_s_given_r, 1, 2)
 
         
-        
+        return P_s_given_Z, P_s_given_r
         
         
         
