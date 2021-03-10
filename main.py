@@ -539,7 +539,7 @@ if __name__ == "__main__":
             tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
             t = 9 
-            active_value_pd = pd.read_csv(f"{outdirec}/active_value_t{t}.csv")
+            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
             active_value = active_value[:,1]
             dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
@@ -549,11 +549,10 @@ if __name__ == "__main__":
              
         else:
             print("Calculating active value")
-            t = 9 # de laatste periode die als input in hmm is gestopt
-            active_value  = hmm.active_value(param_cross, n_segments, t)
+            active_value  = hmm.active_value(param_cross, n_segments, len(df_periods))
             active_value_df = pd.DataFrame(active_value) 
 
-            utils.save_df_to_csv(active_value_df, outdirec, f"active_value_t{t}", 
+            utils.save_df_to_csv(active_value_df, outdirec, f"active_value", 
                              add_time = True )
             #active_value_df.to_csv(f"{outdirec}/active_value_t{t}.csv")
 
