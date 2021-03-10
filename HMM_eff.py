@@ -1204,6 +1204,7 @@ class HMM_eff:
         #----------------------- Do a single EM step --------------------------- 
         
         alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
+        print("Doing BFGS M-step to get Hessian") 
         param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
                                                  shapes, n_segments, self.reg_term,
                                                  self.max_method, bounded = None,
