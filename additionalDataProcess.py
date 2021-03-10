@@ -223,7 +223,7 @@ class AdditionalDataProcess(object):
 
     def getlogs(self,Y):
         minY = Y.min()
-        print(f"Taking log of {Y.name}, minimum that gets added to log: {minY}")
+        #print(f"Taking log of {Y.name}, minimum that gets added to log: {minY}")
         # add the smallest amount of Y
         logY = np.log(Y+1-minY)
         return logY
