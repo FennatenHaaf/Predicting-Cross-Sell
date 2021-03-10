@@ -69,9 +69,9 @@ if __name__ == "__main__":
     visualize_data = False # make some graphs and figures
     
     run_hmm = False
-    run_cross_sell = True # do we want to run the model for cross sell or activity
+    run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    saldopredict = True # Do we want to run the methods for predicting saldo
+    saldopredict = False # Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -440,8 +440,8 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
-            #source = "finalActivity"
-            source = "crosssell4seg"
+            source = "finalActivity"
+            #source = "crosssell4seg"
             #source = "crosssell5seg" 
             #source = "crosssell6seg"
             
@@ -473,6 +473,7 @@ if __name__ == "__main__":
                 reg = 0.1 # Regularization term
                 max_method = 'Nelder-Mead'
                 run_cross_sell = False
+                outname = f"interpretparam_activity_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
                 
             if (source == "crosssell4seg"):
                 
@@ -497,6 +498,7 @@ if __name__ == "__main__":
                 reg = 0.05 # Regularization term
                 max_method = 'Nelder-Mead'
                 run_cross_sell = True
+                outname = f"interpretparam_crosssell_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
                 
                 
             if (source == "crosssell5seg"):
@@ -523,6 +525,7 @@ if __name__ == "__main__":
                 reg = 0.05 # Regularization term
                 max_method = 'Nelder-Mead'
                 run_cross_sell = True
+                outname = f"interpretparam_crosssell_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
                 
             if (source == "crosssell6seg"):
                 # fenna results met loglikelihood 8502.154086118475
@@ -554,7 +557,7 @@ if __name__ == "__main__":
             print(f"number of periods: {len(df_periods)}")
             print(f"number of segments: {n_segments}")
             print(f"number of people: {len(dflist[0])}")
-            outname = f"interpretparam_activity_n{len(dflist[0])}_seg{n_segments}_per{len(df_periods)}"
+            
             
             hmm = ht.HMM_eff(outdirec, outname,
                          df_periods, reg, max_method,
@@ -570,26 +573,29 @@ if __name__ == "__main__":
         # Now interpret & visualise the parameters 
         p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
         
-        print("-----getting standard errors-----")
-        hess_inv, dfSE, param_after = hmm.get_standard_errors(param_cross, n_segments)
-        
+        # print("-----getting standard errors-----")
+        # hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
+        # print(f"Done calculating standard errors at {utils.get_time()}")
+         
+         
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
+            print("-----Calculating targeting decision-----")
             tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
             t = 9 
             active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
-            active_value = active_value[:,1]
+            #active_value = active_value[:,1]
             dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
-                                                                                                      active_value, tresholds, 
-                                                                                                      order_active_high_to_low)
+                                                                                                      active_value, tresholds=tresholds, 
+                                                                                                      order_active_high_to_low = order_active_high_to_low)
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
              
         else:
             print("-----Calculating active value-----")
             active_value  = hmm.active_value(param_cross, n_segments, len(df_periods))
             active_value_df = pd.DataFrame(active_value) 
-
+            
             utils.save_df_to_csv(active_value_df, outdirec, f"active_value", 
                             add_time = False )
             #active_value_df.to_csv(f"{outdirec}/active_value.csv")
@@ -610,20 +616,22 @@ if __name__ == "__main__":
           
           print("Caclulating gini coefficient")
           # These describe product ownership yes/no in the new period
-          prod_ownership_new = testing_period[crosssell_types_dummies]  
+          prod_own_new = testing_period[crosssell_types_dummies]  
           # These describe product ownership yes/no in the previous period
-          prod_ownership_old = last_period[crosssell_types_dummies]
+          prod_own_old = last_period[crosssell_types_dummies]
           
-          ginivec = hmm.calculate_gini(prod_ownership_new, prod_ownership_old, prod_own,
-                          binary = True)
+          ginivec = hmm.calculate_gini(prod_ownership_new = prod_own_new,
+                                       prod_ownership_old = prod_own_old, 
+                                       product_probs= prod_own, binary = True)
           print("Ginicoefficient for the binary ownership dummies")
           print(ginivec)
           
           # Now do it with the actual numbers of ownership
-          prod_ownership_new = testing_period[crosssell_types_max]
-          prod_ownership_old = last_period[crosssell_types_max]
-          ginivec2 = hmm.calculateGini(prod_ownership_new, prod_ownership_old, prod_own,
-                          binary = False)
+          prod_own_new = testing_period[crosssell_types_max]
+          prod_own_old = last_period[crosssell_types_max]
+          ginivec2 = hmm.calculate_gini(prod_ownership_new = prod_own_new,
+                                        prod_ownership_old = prod_own_old, 
+                                        product_probs= prod_own, binary = False)
           print("Ginicoefficient for the (non-binary) ownership variables")
           print(ginivec2)
           
