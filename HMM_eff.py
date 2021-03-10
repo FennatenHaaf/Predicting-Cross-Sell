@@ -1212,12 +1212,21 @@ class HMM_eff:
         diag = np.diag(hess_inv)
         se = np.sqrt(diag)
         
-
         # save the values to a dataframe and save to csv?
-        df = pd.DataFrame(columns = ["parameter","se"])
+        df = pd.DataFrame(columns = ["source","parameter","se"])
         df["parameter"] = param_in # TODO : of moet dit param_out zijn?
         df["se"] = se
-    
+        
+        a = gamma_0.size
+        b = gamma_sr_0.size
+        c = gamma_sk_t.size
+        d = beta.size
+        
+        df.loc[0:a,"source"] = "gamma_0"
+        df.loc[a:a+b,"source"] = "gamma_sr_0"
+        df.loc[a+b:a+b+c,"source"] = "gamma_sk_t"
+        df.loc[a+b+c:a+b+c+d,"source"] = "beta"
+        
         utils.save_df_to_csv(df, self.outdir, f"{self.outname}_standarderrors", 
                              add_time = False )
     
