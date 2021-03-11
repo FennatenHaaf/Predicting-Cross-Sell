@@ -321,46 +321,14 @@ class HMM_eff:
         #                                              max_method, bounded, end = True)
         logl_outafterBFGS = self.loglikelihood(param_afterBFGS, shapes, n_segments)
         
- 
         print(f"Done calculating at {utils.get_time()}!")
-
-        
-        with open(f'{self.outdir}/{self.outname}_afterBFGS.txt', 'w') as f:
-                
-            f.write(f"time: {utils.get_time()} \n")
-       
-            f.write(f"dependent variable: {self.list_dep_var} \n")
-            f.write(f"covariates: {self.list_covariates} \n")   
-            f.write(f"number of covariates: {len(self.list_covariates)} \n\n")   
-            
-            arraystring = utils.printarray(param_afterBFGS)
-            paramstring = f"param_out = np.array({arraystring}) \n\n"
-            f.write(paramstring)
-            
-            f.write(f"LogLikelihood value: {logl_outafterBFGS}")
-
-        # Also save the hessians in a file
-        with open(f'{self.outdir}/{self.outname}_HESSIAN_len{len(hess_inv)}.txt', 'w') as f:
-                
-            np.set_printoptions(threshold=np.inf) # so we can print the whole array?
-            
-            #f.write(f"time: {utils.get_time()} \n")
-            # f.write("Hessian from our own calculation: \n")
-            # hesstring = utils.printarray(hes)
-            # paramstring = f"param_out = np.array({hesstring}) \n\n"
-            # f.write(paramstring)
-            
-            #f.write("Hessian inverse from BFGS: \n")
-            hesinvstring = utils.printarray(hess_inv, removenewlines = True)
-            paramstring = f"Hessian_out = np.array({hesinvstring}) \n\n"
-            f.write(paramstring)
-
+              
         if self.do_backup_folder:
             utils.create_result_archive(self.outdir, archive_name = "hmm_iterations", subarchive_addition =
             self.starting_datetime, files_string_to_archive_list = ['_HESSIAN'])
 
     
-        return param_out, alpha_out, beta_out, shapes, hess_inv #, hes
+        return param_afterBFGS, alpha_out, beta_out, shapes, hess_inv #, hes
      
         
      
@@ -1222,7 +1190,7 @@ class HMM_eff:
         
         alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
         print("Doing BFGS M-step to get Hessian") 
-        param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
+        param_afterBFGS, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
                                                  shapes, n_segments, self.reg_term,
                                                  self.max_method, bounded = None,
                                                  end = True)
@@ -1233,7 +1201,7 @@ class HMM_eff:
         
         # save the values to a dataframe and save to csv?
         df = pd.DataFrame(columns = ["source","parameter","se","t", "p-value"])
-        df["parameter"] = param_out
+        df["parameter"] = param_afterBFGS
         df["se"] = se
         df["t"] = df["parameter"] / df["se"]
         
@@ -1252,10 +1220,30 @@ class HMM_eff:
         df.loc[a+b:a+b+c,"source"] = "gamma_sk_t"
         df.loc[a+b+c:a+b+c+d,"source"] = "beta"
         
+        #----------------------- Save results --------------------------- 
         utils.save_df_to_csv(df, self.outdir, f"{self.outname}_standarderrors", 
                              add_time = False )
+        
+        logl_outafterBFGS = self.loglikelihood(param_afterBFGS, shapes, n_segments)
     
-        return hess_inv, df, param_out
+        with open(f'{self.outdir}/{self.outname}_afterBFGS.txt', 'w') as f:           
+           f.write(f"time: {utils.get_time()} \n")
+           f.write(f"dependent variable: {self.list_dep_var} \n")
+           f.write(f"covariates: {self.list_covariates} \n")   
+           f.write(f"number of covariates: {len(self.list_covariates)} \n\n")   
+           arraystring = utils.printarray(param_afterBFGS)
+           paramstring = f"param_out = np.array({arraystring}) \n\n"
+           f.write(paramstring)
+           f.write(f"LogLikelihood value: {logl_outafterBFGS}")
+
+        # Also save the hessians in a file
+        with open(f'{self.outdir}/{self.outname}_HESSIANBFGS_len{len(hess_inv)}.txt', 'w') as f:
+            np.set_printoptions(threshold=np.inf) # so we can print the whole array?
+            hesinvstring = utils.printarray(hess_inv, removenewlines = True)
+            paramstring = f"Hessian_out = np.array({hesinvstring}) \n\n"
+            f.write(paramstring)
+    
+        return hess_inv, df, param_afterBFGS
     
     
     
