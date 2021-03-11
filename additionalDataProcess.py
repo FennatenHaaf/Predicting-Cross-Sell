@@ -384,30 +384,33 @@ class AdditionalDataProcess(object):
     create the base data needed to use this algorithm however. 
     """
 
-    def transform_to_different_sets( self, transform_command = "all", first_date = "", last_date = "" ):
+    def transform_to_different_sets( self, transform_command, first_date = "", last_date = "" ):
         if first_date == "":
             use_standard_period = True
         else:
             use_standard_period = False
 
-        if transform_command in ['cross_df', 'all']:
+        if transform_command in ['cross_df']:
             if use_standard_period:
                 first_date, last_date = "2019Q1","2019Q4"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_cross_data()
 
-        if transform_command in ['cross_long_df', 'all']:
+        elif transform_command in ['cross_long_df']:
             if use_standard_period:
                 first_date, last_date = "2018Q1","2020Q4"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_cross_data(last_date)
             self.add_longterm_change(benchmark_period = first_date)
 
-        if transform_command in ['panel_df', 'all']:
+        elif transform_command in ['panel_df']:
             if use_standard_period:
                 first_date, last_date = "2018Q1","2020Q4"
             self.prepare_before_transform(first_date, last_date)
             self.transform_for_panel()
+
+            self.input_cross_list = None
+            self.input_cross = None
 
 
     def set_dates( self, first_date, last_date, override_folder_change = False ):
@@ -694,6 +697,7 @@ class AdditionalDataProcess(object):
         df_to_merge = pd.concat([indicator_df1,indicator_df2,benchmark_slice], axis = 1)
         self.cross_long_df.sort_index(axis = 1,inplace = True)
         self.cross_long_df = pd.merge(self.cross_df, df_to_merge, left_on = 'personid', right_index =  True)
+        self.cross_df = None
         pass
 
     def transform_for_panel( self ):

@@ -61,10 +61,12 @@ class HMM_eff:
         self.n_customers = self.list_dataframes[0].shape[0] #initialise the number of customers
         self.n_products = len(list_dep_var) #initialise the number of product
         self.T = len(list_dataframes) #initialise the number of dataframes, thus the timeperiod
-        
+        self.maximization_iters = 0
         self.covariates = covariates #initialise whether covariates are used to model the transition/state probabilities
 
         self.iterprint = iterprint #Iterprint True or False, will print x and iterations within a M-step
+
+        self.function_for_hessian = None
 
         #compute per dependent variable the number of categories (possible values)
         self.n_categories = np.zeros((self.n_products))
@@ -479,9 +481,8 @@ class HMM_eff:
         #max_iter_value = 2.5*10**4
         # print('fatol: ', fatol_value, ' and xatol :', xatol_value )
         #minimize_options = {'disp': True, 'fatol': fatol_value, 'xatol': xatol_value, 'maxiter': max_iter_value}
-        # minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 0.1, 'fatol': 0.1}
         # minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 1, 'fatol': 0.1}
-        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 1e-2, 'fatol': 1e-2}
+        minimize_options_NM = {'disp': True, 'adaptive': False, 'xatol': 1e-1, 'fatol': 1e-1}
         minimize_options_BFGS = {'disp': True, 'maxiter': 99999} 
     
         #run the minimisation
@@ -563,6 +564,7 @@ class HMM_eff:
         elif end == True: #if it is the last iteration, minimize the loglikelihood itself (instead of expected complete data loglikelihood)
             param_out = minimize(self.loglikelihood, x0, args=(shapes, n_segments),
                                  method='BFGS',options= minimize_options_BFGS)
+            self.param_out = param_out
             return param_out.x, param_out.hess_inv
         
     
@@ -1062,7 +1064,9 @@ class HMM_eff:
         # x_axis = np.arange(n_segments)
         # self.visualize_matrix(P_s_given_r[person_index,:,:], x_axis, y_axis, 
         #                       "segment","segment",title)
-        
+        self.function_for_hessian = lambda x, reg: self.optimization_function(x,alpha,beta,shapes,n_segments,reg,P_s_given_Y_Z,
+                                                                         list_P_s_given_r,list_P_y_given_s,p_js, P_s_given_Y_Z_ut)
+
         return p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs
         
         
@@ -1164,8 +1168,49 @@ class HMM_eff:
         cross_sell_target, cross_sell_self, cross_sell_total = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
 
         return cross_sell_target, cross_sell_self, cross_sell_total
-    
-    
+
+
+
+    def new_hessian(self,parameters, n_segments = None):
+        if self.function_for_hessian == None:
+            visualize_old = self.visualize_data
+            self.visualize_data = False
+            self.interpret_parameters(parameters,n_segments)
+            self.visualize_data = visualize_old
+
+        self.maximization_iters = 0
+        change = 1e-10
+        change2 = -1e-11
+        n = parameters.shape[0]
+        parameters_2 = parameters + change2
+
+        value_0_1 = self.function_for_hessian(parameters, reg = self.reg_term)
+        value_0_2 = self.function_for_hessian(parameters_2, reg = self.reg_term)
+
+        grad_1 = np.full(n,np.nan)
+        grad_2 = np.full(n,np.nan)
+        for i in range(0,n):
+            new_parameters = parameters
+            new_parameters[i] = parameters[i] + change
+            value_1_1 = self.function_for_hessian(new_parameters, reg = self.reg_term)
+            grad_1[i] = (value_1_1 - value_0_1) / change
+
+            new_parameters = parameters_2
+            new_parameters[i] = parameters_2[i] + change2
+            value_1_2 = self.function_for_hessian(new_parameters, reg = self.reg_term)
+            grad_2[i] = (value_1_2 - value_0_2) / change2
+
+        identity = np.identity(n)
+        s = parameters - parameters_2
+        y = grad_1 - grad_2
+        rho = 1/ ( (y*s).sum() )
+
+        hessian_inv =  (identity - rho * np.outer(s,y)).dot(identity - rho * np.outer(y,s)) + rho*np.outer(s,s)
+
+        self.maximization_iters = 0
+        return hessian_inv
+
+
     
     def get_standard_errors(self, param_in, n_segments):
         """Print the standard errors given certain input parameters"""
@@ -1183,8 +1228,10 @@ class HMM_eff:
         #----------------------- Do a single EM step --------------------------- 
         
         alpha_out, beta_out = self.forward_backward_procedure(param_in, shapes, n_segments)
+
         print("Doing BFGS M-step to get Hessian") 
         param_afterBFGS, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
+
                                                  shapes, n_segments, self.reg_term,
                                                  self.max_method, bounded = None,
                                                  end = True)
@@ -1372,6 +1419,33 @@ class HMM_eff:
 
         
         return P_s_given_Z, P_s_given_r
-        
-        
+
+
+    # def new_hessian(self,parameters, n_segments = None):
+    #     if self.function_for_hessian == None:
+    #         visualize_old = self.visualize_data
+    #         self.visualize_data = False
+    #         self.interpret_parameters(parameters,n_segments)
+    #         self.visualize_data = visualize_old
+    #
+    #     self.maximization_iters = 0
+    #     change = 1e-10
+    #     n = parameters.shape[0]
+    #     value_0 = self.function_for_hessian(parameters, reg = self.reg_term)
+    #     hessian = np.full((n, n), np.nan)
+    #     for i, outer_number in enumerate(parameters):
+    #         outer_parameters = parameters
+    #         outer_parameters[i] = outer_number + change
+    #         value_1_outer = self.function_for_hessian(outer_parameters, reg = self.reg_term)
+    #         gradient_val_outer = (value_1_outer - value_0) / change
+    #         for j, inner_number in enumerate(outer_parameters):
+    #             inner_parameters = outer_parameters
+    #             inner_parameters[j] = inner_number + change
+    #             value_1_inner = self.function_for_hessian(inner_parameters, reg = self.reg_term)
+    #             gradient_val_inner = (value_1_inner - value_1_outer) / change
+    #             hessian[j, i] = gradient_val_inner - gradient_val_outer
+    #     self.maximization_iters = 0
+    #
+    #     hessian_inv = np.linalg.inv(hessian)
+    #     return hessian_inv
         

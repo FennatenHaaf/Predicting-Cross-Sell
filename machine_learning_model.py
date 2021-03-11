@@ -1,6 +1,10 @@
 """
 Class to transform data and perform analysis on a cross-section of Knab Data.
 """
+from imp import new_module
+
+from pipenv.vendor.contextlib2 import redirect_stderr
+
 import utils
 import declarationsFile
 import dataInsight
@@ -48,6 +52,8 @@ class MachineLearningModel(object):
         ###Values to set at begin
         self.set_kfold()
 
+        #For debugging purposes
+        self.force_error = False
         #Empty lists to parse if non existant
         self.imported_data_name = None
         self.loaded_split = None
@@ -57,6 +63,7 @@ class MachineLearningModel(object):
         self.kfold = StratifiedKFold(random_state = self.seed, shuffle = True, n_splits = n_splits)
 
     def load_split(self, split_to_load):
+        assert not self.force_error, "Forced Error"
         """
         Currently three datasets and estimations:
         Retail -> Has Joint or Not
@@ -126,6 +133,8 @@ class MachineLearningModel(object):
         print(f"Load split for '{split_to_load}' has been loaded at {utils.get_time()}")
 
     def join_together_retail_joint( self ):
+        assert not self.force_error, "Forced Error"
+
         if self.loaded_split != 'joint_or_retail':
             self.load_split('joint_or_retail')
         retail_vars = self.variables_dict['retail_column_to_use']
@@ -153,8 +162,8 @@ class MachineLearningModel(object):
             joint_retail_vars.append(f"{item}_retail_joint")
             new_retail_vars.append(f"{item}_retail")
             new_joint_vars.append((f"{item}_joint"))
-            self.imported_data[[ new_retail_vars[-1], new_joint_vars[-1] ]] = self.imported_data[[ new_retail_vars[-1],
-                                                                                                 new_joint_vars[-1] ]].fillna(0,axis = 1)
+            self.imported_data[[ new_retail_vars[-1],new_joint_vars[-1] ]] = self.imported_data[[
+                new_retail_vars[-1],new_joint_vars[-1] ]].fillna(0,axis = 1)
             self.imported_data[joint_retail_vars[-1]] = self.imported_data[new_retail_vars[-1]]\
                                                            + self.imported_data[new_joint_vars[-1]]
 
@@ -163,7 +172,7 @@ class MachineLearningModel(object):
             joint_retail_vars.append(f"{item}_retail_joint")
             new_retail_vars.append(f"{item}_retail")
             new_joint_vars.append((f"{item}_joint"))
-            self.imported_data[[ new_retail_vars[-1], new_joint_vars[-1] ]] = self.imported_data[[ new_retail_vars[-1],
+            self.imported_data[[ new_retail_vars[-1],new_joint_vars[-1] ]]= self.imported_data[[ new_retail_vars[-1],
                                                                                                  new_joint_vars[-1] ]].fillna(0,axis = 1)
             self.imported_data[joint_retail_vars[-1]] = np.where( (self.imported_data[new_retail_vars[-1]]\
                                                            + self.imported_data[new_joint_vars[-1]]) > 0, 1, 0)
@@ -176,11 +185,13 @@ class MachineLearningModel(object):
     def split_variable_sets( self, test_string ):
         splitnames = ['retail_only', 'joint_and_retail', 'joint_or_retail','retail_and_business']
         assert test_string in splitnames, f"choose a value from {splitnames}"
+        assert not self.force_error, "Forced Error"
 
         if self.loaded_split != test_string:
             self.load_split(test_string)
-            if self.loaded_split == 'joint_or_retail':
-                self.join_together_retail_joint()
+
+        if self.loaded_split == 'joint_or_retail':
+            self.join_together_retail_joint()
 
         old_columns = self.imported_data.columns
         self.imported_data = self.imported_data.dropna(axis = 1)
@@ -256,6 +267,7 @@ class MachineLearningModel(object):
     def test_and_transform_static_variables( self , test_string, dependent_variable):
         splitnames = ['retail_only', 'joint_and_retail','joint_or_retail', 'retail_and_business']
         assert test_string in splitnames, f"choose a value from {splitnames}"
+        assert not self.force_error, "Forced Error"
 
         if self.loaded_variable_splits != test_string:
             self.split_variable_sets(test_string)
@@ -267,8 +279,8 @@ class MachineLearningModel(object):
         for variable in self.variables_dict['value_variables']:
             self.transform_value_variables(self.imported_data, variable, current_dependent_variable)
 
-        unorder_search_string = ['finergy','geslacht']
-        unordered_variables = utils.do_find_and_select_from_list(self.imported_data.columns,unorder_search_string)
+        unordered_search_string = ['finergy','geslacht']
+        unordered_variables = utils.do_find_and_select_from_list(self.imported_data.columns,unordered_search_string)
 
         self.variables_dict["categorical_variables_recoded"] = []
         self.variables_dict["categorical_variables_with_dummies"] = []
@@ -283,6 +295,8 @@ class MachineLearningModel(object):
         pass
 
     def transform_value_variables( self, data_to_use, x_variable, y_variable ):
+        assert not self.force_error, "Forced Error"
+
         #Can add n_jobs = -1 to improve speed
         X = data_to_use.loc[:, x_variable].to_frame()
         y = data_to_use.loc[:, y_variable].to_frame()
@@ -332,6 +346,7 @@ class MachineLearningModel(object):
             self.print_transformation_log()
 
     def transform_categorical_variables(self , data_to_use, x_variable, y_variable, threshold, is_unordered):
+        assert not self.force_error, "Forced Error"
         X = data_to_use.loc[:, x_variable].to_frame()
         y = data_to_use.loc[:, y_variable].to_frame()
         transformation_log = f"Transforming categorical {x_variable}"
@@ -367,70 +382,61 @@ class MachineLearningModel(object):
             self.imported_data = pd.concat([self.imported_data,new_data], axis = 1)
 
         if not is_unordered:
-            max_dum = 10
-            if (len(other_category) > 0) or (max_dum < frequencies.shape[0]) :
-
-
-
-                new_frequencies = frequencies.copy()
-                result_list = []
+            max_dum = 6
+            if (len(other_category) > 0) or (max_dum < frequencies.shape[0]):
                 x_variable_recoded = f"{x_variable}_recoded"
-                resulting_values = pd.DataFrame(columns = ['freq', 'low_bound', 'high_bound'])
-                resulting_values['freq'] = frequencies.values
-                resulting_values['low_bound'] = frequencies.index
-                resulting_values['high_bound'] = frequencies.index
+
+                new_freqs = pd.DataFrame({'freq'      : frequencies.values, 'low_bound': frequencies.index,
+                                                'high_bound': frequencies.index})
+                while (new_freqs['freq'].min() < threshold) or (max_dum < new_freqs.shape[0]):
+                    available_freqs = new_freqs.copy()
+                    possible_combinations = pd.DataFrame(columns = ['freq', 'low_bound', 'high_bound'])
+
+                    while available_freqs.shape[0] > 1:
+                        lowest_index = available_freqs['freq'].argmin()
+                        low_bound = int(available_freqs.loc[lowest_index,'low_bound'])
+                        high_bound = int(available_freqs.loc[lowest_index,'high_bound'])
+                        new_low = int(low_bound - 1)
+                        new_high = int(high_bound + 1)
+                        min_value = available_freqs.loc[lowest_index,'freq']
+                        available_freqs.drop(lowest_index, inplace = True)
+
+                        if new_low in available_freqs['high_bound'].to_list():
+                            new_index = available_freqs['high_bound'] == new_low
+                            low_value = int(available_freqs.loc[new_index, 'freq'])
+                            new_low = int(available_freqs.loc[new_index, 'low_bound'])
+                        else:
+                            low_value = np.inf
+                        if new_high in available_freqs['low_bound'].to_list():
+
+                            new_index = available_freqs['low_bound'] == new_high
+                            high_value = int(available_freqs.loc[new_index, 'freq'])
+                            new_high = int(available_freqs.loc[new_index, 'high_bound'])
+                        else:
+                            high_value = np.inf
+
+                        if low_value < high_value:
+                            new_combination = pd.DataFrame({'freq': (low_value + min_value) , 'low_bound': new_low ,
+                                                             'high_bound': high_bound}, index = [0])
+                        elif low_value >= high_value and (high_value < np.inf):
+                            new_combination = pd.DataFrame({'freq': (high_value + min_value) , 'low_bound': low_bound ,
+                                                             'high_bound': new_high}, index = [0])
+                        else:
+                            continue
+                        possible_combinations = pd.concat([possible_combinations,new_combination], axis = 0, ignore_index = True)
+
+                    min_index = possible_combinations['freq']).argmin()
+                    low_bound = int(possible_combinations.loc[min_index,'low_bound'])
+                    high_bound = int(possible_combinations.loc[min_index, 'high_bound'])
+
+                    new_freqs = new_freqs[new_freqs['high_bound'] != low_bound]
+                    new_freqs[new_freqs['low_bound'] == high_bound,['freq','low_bound','high_bound']] = possible_combinations.loc[
+                        min_index,:]
 
 
 
 
-                # while new_frequencies.min() < threshold :
-                #     current_frequencies = new_frequencies.copy()
-                #     current_lowest = (np.inf,None,None)
-                #     while current_frequencies.shape[0] > 1:
-                #         highest_bound = current_frequencies.index.max()
-                #         lowest_bound = current_frequencies.index.min()
-                #         values_left = list(current_frequencies.index)
-                #         min_index = frequencies.idxmin()
-                #         high_index = min_index + 1
-                #         low_index = min_index - 1
-                #
-                #         if (high_index <= highest_bound) and  (high_index in values_left):
-                #             high_side = frequencies[min_index] + frequencies[high_index]
-                #         else:
-                #             high_side = np.inf
-                #         if (low_index >= lowest_bound) and (low_index in values_left):
-                #             low_side = frequencies[min_index] + frequencies[low_index]
-                #         else:
-                #             low_side = np.inf
-                #
-                #         if high_side <= low_side:
-                #             iter_lowest = (high_side,min_index,high_index)
-                #         if high_side > low_side:
-                #             iter_lowest = (low_side, min_index, low_index)
-                #
-                #         current_frequencies = current_frequencies.drop([min_index])
-                #         if iter_lowest[0] < current_lowest[0]:
-                #             current_lowest = iter_lowest
-                #
-                #     if current_lowest[1] < current_lowest[2]:
-                #         new_frequencies[ current_lowest[1] ] = current_lowest[0]
-                #         new_frequencies.drop(current_lowest[2])
-                #         next_value = current_lowest[2]
-                #         indexed_max = new_frequencies.index.max()
-                #         while (next_value + 1) <= indexed_max:
-                #             self.imported_data.loc[self.imported_data == (next_value + 1), x_variable_recoded] = next_value
-                #             new_frequencies[next_value] = new_frequencies[next_value + 1]
-                #             new_frequencies = new_frequencies.drop((next_value + 1))
-                #             next_value += 1
-                #     if current_lowest[1] > current_lowest[2]:
-                #         new_frequencies[ current_lowest[1] ] = current_lowest[0]
-                #         new_frequencies.drop(current_lowest[2])
-                #         self.imported_data.loc[self.imported_data == current_lowest[2], x_variable_recoded] = current_lowest[1]
-                #         next_value = current_lowest[2]
-                #         indexed_min = new_frequencies.index.min()
-                #         while (next_value -1 ) >= indexed_min:
-                #             self.imported_data.loc[self.imported_data == (next_value - 1), x_variable_recoded] = next_value
-                #             next_value -= 1
+
 
 
 
@@ -447,26 +453,19 @@ class MachineLearningModel(object):
         RandomForestClassifier()
 
 
-
-
-
-
-
-
-
-
     ##IMPORTING DATA AND VARIABLE SETTERS
     def import_data_to_model(self, import_command, last_date = "", first_date = ""):
         process_data = additionalDataProcess.AdditionalDataProcess(self.indir,self.interdir,self.outdir)
         process_data.automatic_folder_change = self.automatic_folder_change
         if import_command == "cross_long_df":
             process_data.transform_to_different_sets("cross_long_df", first_date = first_date, last_date = last_date)
-            self.imported_data = process_data.cross_long_df
-            self.imported_data_name = import_command
-        if import_command == "panel_df":
+            self.imported_data = process_data.cross_long_df.copy()
+
+        elif import_command == "panel_df":
             process_data.transform_to_different_sets("panel_df", first_date = first_date, last_date = last_date)
-            self.imported_data = process_data.panel_df
-            self.imported_data_name = import_command
+            self.imported_data = process_data.panel_df.copy()
+
+        self.imported_data_name = import_command
 
     def set_dates(self, first_date, last_date):
         "Method for safely changing dates in this class"
