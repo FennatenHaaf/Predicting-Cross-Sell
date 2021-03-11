@@ -169,15 +169,16 @@ def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
         
 def plotFinergyCounts(df_experian, ids):
     sns.set(rc={'figure.figsize':(15,10)})
+    sns.set_style("whitegrid")
     df_experian = df_experian[df_experian["personid"].isin(ids)] 
     print("plotting finergy counts")
     graph =sns.countplot(x="finergy_tp", data = df_experian)
     plt.show()
     
         
-        
 def plotCategorical(df, name, annotate = True):
     sns.set(font_scale=2,rc={'figure.figsize':(15,10)})
+    sns.set_style("whitegrid")
     graph = sns.countplot(x=name, data = df)
     
     
@@ -192,7 +193,7 @@ def plotCategorical(df, name, annotate = True):
             # locations of where to put the labels
             x = p.get_x() + p.get_width() / 2 - 0.05 
             y = p.get_y() + p.get_height()
-            graph.annotate(value, (x, y), size = 17)
+            graph.annotate(value, (x, y), size = 20)
     
     
     plt.show()
@@ -201,41 +202,114 @@ def plotCategorical(df, name, annotate = True):
 def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0): 
     """Plot cooccurrences"""
     
-    sns.set(font_scale=2,rc={'figure.figsize':(20,16)})
+    sns.set(font_scale=3,rc={'figure.figsize':(15,12)})
     
-  
     coocc= df[names].T.dot(df[names])
     graph = sns.heatmap(coocc, center=cent, annot = annotate, 
                         cmap=colors, fmt='g',cbar=False) 
     
     
-    labels = ["business","retail","joint","accountoverlay"]  
+    labels = ["business","retail","joint","   accountoverlay"]  
         
     #labels = graph.get_yticklabels()
     graph.set_yticklabels(labels,rotation=0,
                           horizontalalignment='right', fontweight='light',
-                          fontsize=18)
+                          fontsize=25)
     graph.set_xticklabels(labels,rotation=0,
                           horizontalalignment='right', fontweight='light',
-                          fontsize=18)
+                          fontsize=25)
     plt.show()
     
     # Now also make the percentages version
     coocc_diagonal = np.diagonal(coocc)
     with np.errstate(divide='ignore', invalid='ignore'):
-        coocc_perc = np.nan_to_num(np.true_divide(coocc,
-                                                  coocc_diagonal[:, None]))
+        coocc_perc =  np.nan_to_num(round(np.true_divide(coocc,
+                                                 coocc_diagonal[:, None]),3))
     
     graph = sns.heatmap(coocc_perc, center=cent, annot = annotate, 
                         cmap=colors, fmt='g',cbar=False,vmin=0.2, vmax=1.2) 
 
     graph.set_yticklabels(labels,rotation=0,
                           horizontalalignment='right', fontweight='light',
-                          fontsize=18)
+                          fontsize=25)
     graph.set_xticklabels(labels,rotation=0,
                           horizontalalignment='right', fontweight='light',
-                          fontsize=18)
+                          fontsize=25)
     plt.show()
+    
+    
+    
+def plot_portfolio_changes(dataset, varvector, percent = True,
+                           ignore_0 = True, legend = True, xlabel = None,
+                           order =None, plot=True, labelwidth = 30,
+                           colours = "coolwarm"):
+  """Make a plot of cross-sell occurrences or changes in portfolio ownerships
+  between time periods in a full dataset"""
+  
+  column_values = dataset[varvector].values.ravel()
+  unique_values = pd.Series(pd.unique(column_values)).sort_values().dropna()
+
+  df = pd.DataFrame(columns = varvector, index = unique_values)
+
+  for var in varvector:
+      group = dataset[var]
+      for value in unique_values: 
+        if ((value == 0) & (ignore_0 == True)):
+            True # We do nothing
+        else: 
+            count = int((group == value).sum())
+            perc = (count/len(group))*100
+            if (percent):
+              df.loc[value,var] = perc
+            else:       
+              df.loc[value,var] = count
+
+  # NOW MAKE THE PLOT
+  if plot:
+    sns.set(font_scale=1.1, rc={'figure.figsize':(15,8)})
+    sns.set_style("whitegrid")
+     
+    dfstacked = df.stack().reset_index()
+    
+    ## In deze cel maken we de grafiek voor gemiddelde kosten per jaar
+    fig, graph = plt.subplots()
+    sns.barplot(x = dfstacked["level_1"], y =dfstacked[0],
+                data = dfstacked, hue = dfstacked["level_0"] ,
+                hue_order = order,
+                capsize =0.2, errwidth=0.8, 
+                palette=colours, ax=graph)
+
+    # We want to label the bars with the height, to see what the exact counts are
+    for p in graph.patches:
+        value = p.get_height()
+        # locations of where to put the labels
+        x = p.get_x() + p.get_width() / 2 - 0.05 
+        y = p.get_y() + p.get_height()
+        if percent:
+          graph.annotate(f"{round(value,2)}%", (x, y), size = 20)
+        else:
+          if (value !=0):
+              graph.annotate(int(value), (x, y), size = 20)
+
+    # Maak labels voor de assen en de titel van het figuur
+    if percent:
+        graph.set_ylabel("Number that changed as percentage of total number of oppportunities",fontsize = 20)
+    else:
+        graph.set_ylabel("Number of portfolio ownership changes over all periods",fontsize = 20)
+    graph.set_xlabel(xlabel,fontsize = 20)
+    if legend:
+        plt.legend(title = None,loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1 )
+    else:
+        plt.legend([],[], frameon=False)
+    
+    labels = ["business","retail","joint","   accountoverlay"]  
+    graph.set_xticklabels(labels,rotation=0,
+                          horizontalalignment='right', fontweight='light',
+                          fontsize=20)
+    graph.tick_params(axis="y", labelsize=17)
+    plt.show()
+
+  return df
 
 
 # =============================================================================

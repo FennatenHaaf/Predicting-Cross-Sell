@@ -16,6 +16,7 @@ import predictsaldo as ps
 from scipy.stats.distributions import chi2
 import pandas as pd
 import numpy as np
+import seaborn as sns
 from os import path
 
 if __name__ == "__main__":
@@ -66,11 +67,11 @@ if __name__ == "__main__":
 # =============================================================================
     
     time_series = False # Do we want to run the code for getting time series data
-    visualize_data = False # make some graphs and figures
+    visualize_data = True # make some graphs and figures
     
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
-    interpret = True #Do we want to interpret variables
+    interpret = False #Do we want to interpret variables
     saldopredict = False # Do we want to run the methods for predicting saldo
 
 # =============================================================================
@@ -250,7 +251,9 @@ if __name__ == "__main__":
     if visualize_data:
         print("*****Visualising data*****")
         df = dflist[11] # use the last time period
-        visualize_variables = ["age_bins", "geslacht",
+        #Some variables which may be interesting to plot:
+        visualize_variables = ["age_bins", 
+                               #"geslacht",
                                "hh_size",
                                "income",
                                "business_max",
@@ -262,6 +265,8 @@ if __name__ == "__main__":
                                "SBIsectorName",
                                "businessAgeInYears_bins",
                                "businessType"]   
+        
+        sns.set_style("whitegrid")
         for var in visualize_variables:
             print(f"visualising {var}")
             DI.plotCategorical(df, var)
@@ -271,27 +276,27 @@ if __name__ == "__main__":
         
         print("*****Visualising cross-sell difference data*****")
         # Now visualise cross sell events from the full dataset
-       
+        
         diffdata = additdata.create_crosssell_data(dflist, interdir) 
-        visualize_variables = ["business_change_dummy", "retail_change_dummy",
+        increase_dummies = ["business_change_dummy", "retail_change_dummy",
                                "joint_change_dummy",
-                               "accountoverlay_change_dummy",
-                              ]
-        # ["business_change",
-        #                        "retail_change",
-        #                        "joint_change",
-        #                        "accountoverlay_change",
-        #                       ]   
+                               "accountoverlay_change_dummy"]
+        change_variables = ["business_change",
+                                "retail_change",
+                                "joint_change",
+                                "accountoverlay_change"]   
         
-        for var in visualize_variables:
-            print(f"visualising {var}")
-            DI.plotCategorical(diffdata, var)
-            counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
-            print(counts)
-            
-        #DI.plotCoocc(df,  visualize_variables  )
-        #TODO er gaat nog iets mis hier!
+        daatacs = DI.plot_portfolio_changes(diffdata, change_variables,
+                                            percent = False)
         
+        daatacs = DI.plot_portfolio_changes(diffdata, increase_dummies,
+                                            percent = False, legend = False,
+                                            xlabel = "Portfolio type",
+                                            colours = "Blues")
+        
+        # Plot how often they are purchased together (only looking at portfolio increases)
+        DI.plotCoocc(diffdata, increase_dummies)
+
     
 # =============================================================================
 # RUN HMM MODEL

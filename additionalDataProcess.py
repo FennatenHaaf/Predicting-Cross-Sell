@@ -59,11 +59,11 @@ class AdditionalDataProcess(object):
             i+=1
             
         # Select only the information that we have about portfolio changes
-        diffdata = diffdata["personid", "portfolio_change",
+        diffdata = diffdata[["personid", "portfolio_change",
                             "business_change", "retail_change",
                             "joint_change","accountoverlay_change",
                             "business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]
+                            "joint_change_dummy","accountoverlay_change_dummy"]]
         
         print(f"Done creating cross-sell differences dataset at {utils.get_time()}" \
               f", saving to {filename}")
