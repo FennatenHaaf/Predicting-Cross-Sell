@@ -12,10 +12,14 @@ import utils
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.cm as cm
+import copy
 
-"""
-Printing Intermediate Results
-"""
+
+# =============================================================================
+# PRINTING INTERMEDIATE RESULTS
+# =============================================================================
+
 def unique_IDs(df,name):
     """Print number of unique person IDs in a dataset
     """
@@ -74,14 +78,6 @@ def mostCommon(data, columnName, numberOfValues=1, returnFormat=False, returnVal
     if returnFormat or returnVals:
         return table
     
-def plotFinergyCounts(df_experian, ids):
-    sns.set(rc={'figure.figsize':(15,10)})
-    df_experian = df_experian[df_experian["personid"].isin(ids)] 
-    print("plotting finergy counts")
-    graph =sns.countplot(x="finergy_tp", data = df_experian)
-    plt.show()
-    
-
 def mostCommonDict(data, nameList, numberOfValues=1):
     dictOfTables = {}
     for columnName in nameList:
@@ -108,6 +104,78 @@ def checkAVL(list):
         yield value
         
         
+# =============================================================================
+# METHODS FOR PLOTTING & VISUALIZING
+# =============================================================================
+        
+def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
+                         diverging = False, annotate = True):
+        """Visualize a 2D matrix in a figure with labels and title"""
+        if not self.visualize_data:
+            return
+
+        plt.rcParams["axes.grid"] = False
+        fig, ax = plt.subplots(figsize=(14, 8))
+
+        # Define the colors
+        if diverging:
+            colMap = copy.copy(cm.get_cmap("coolwarm"))      
+        else:
+            colMap = copy.copy(cm.get_cmap("viridis"))
+            colMap.set_under(color='white') # set under deals with values below minimum
+            # colMap.set_bad(color='black') # set bad deals with color of nan values
+            
+        # Now plot the values
+        im = ax.imshow(matrix, cmap = colMap)
+        # set the max color to >1  so that the lightest areas are not too light
+        # below the min we want it to be white
+        if diverging:
+            im.set_clim(-1.5, 1.5)  
+        else:
+            im.set_clim(1e-30, 1.2)  
+           
+        # We want to show all ticks...
+        ax.set_xticks(np.arange(len(x_axis)))
+        ax.set_yticks(np.arange(len(y_axis)))
+        # ... and label them with the respective list entries
+        ax.set_xticklabels(x_axis,fontsize = 15)
+        ax.set_yticklabels(y_axis,fontsize = 15)
+        
+        #ax.xaxis.set_label_position('top') 
+        #ax.xaxis.tick_top()
+        # Rotate the tick labels and set their alignment.
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+                 rotation_mode="anchor")
+        
+        #Label the axes   
+        ax.set_xlabel(xlabel,fontsize = 15)
+        ax.set_ylabel(ylabel,fontsize = 15)
+
+        # Loop over data dimensions and create text annotations.
+        if annotate:
+            for i in range(len(y_axis)):
+                for j in range(len(x_axis)):
+                    text = ax.text(j, i, round(matrix[i, j],3),
+                                   ha="center", va="center", color="w",
+                                   fontsize = 20)
+        
+        ax.set_title(title,fontsize = 20, fontweight='bold')
+        fig.tight_layout()
+        
+        #cbar = plt.colorbar()
+        #cbar.set_label('Probability')
+        plt.show()
+      
+        
+def plotFinergyCounts(df_experian, ids):
+    sns.set(rc={'figure.figsize':(15,10)})
+    df_experian = df_experian[df_experian["personid"].isin(ids)] 
+    print("plotting finergy counts")
+    graph =sns.countplot(x="finergy_tp", data = df_experian)
+    plt.show()
+    
+        
+        
 def plotCategorical(df, name, annotate = True):
     sns.set(font_scale=2,rc={'figure.figsize':(15,10)})
     graph = sns.countplot(x=name, data = df)
@@ -131,6 +199,8 @@ def plotCategorical(df, name, annotate = True):
     
     
 def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0): 
+    """Plot cooccurrences"""
+    
     sns.set(font_scale=2,rc={'figure.figsize':(20,16)})
     
   
@@ -168,8 +238,10 @@ def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0):
     plt.show()
 
 
+# =============================================================================
+# OTHER EXPLORE METHODS
+# =============================================================================
     
-### DATA EXPLORATION METHODS
 #TODO show PA explorer in here
 def exploreSets(self, link_corp = False, link_pat = False):
     df_exp = pd.read_csv(f"{self.indir}/experian.csv")
@@ -272,8 +344,6 @@ def exploreSets(self, link_corp = False, link_pat = False):
             self.importPortfolioActivity()
 
 
-
-   
 def explorePA(self):
     pat = self.df_pat
     

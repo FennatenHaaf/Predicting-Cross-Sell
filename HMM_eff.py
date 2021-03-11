@@ -7,11 +7,9 @@ Written for the Quantitative Marketing & Business Analytics seminar
 Erasmus School of Economics
 """
 
-import extra_functions_HMM_eff as ef
 import numpy as np 
 import pandas as pd
 from scipy.optimize import minimize
-import utils
 from tqdm import tqdm
 from time import perf_counter
 import numdifftools as nd
@@ -20,6 +18,11 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import copy
 from scipy.stats import t
+
+import extra_functions_HMM_eff as ef
+import utils
+import dataInsight
+
 
 class HMM_eff:
     
@@ -419,7 +422,6 @@ class HMM_eff:
       
     def maximization_step(self, alpha, beta, param_in, shapes, n_segments, reg_term, max_method, bounded, end = False):
         """
-
         Parameters
         ----------
         alpha : 3D array
@@ -995,14 +997,14 @@ class HMM_eff:
         #Now interpret the impacts of the covariates
         y_axis = np.arange(n_segments)
         x_axis = np.arange(n_segments)
-        self.visualize_matrix(transition_probs, x_axis, y_axis,
+        dataInsight.visualize_matrix(self,transition_probs, x_axis, y_axis,
                               "Segment","Segment", 
                               "Base transition probabilities")
         
         #Now visualise the logit coefficients for the covariates (gamma_sk_t)
         y_axis = np.arange(n_segments-1) # we have the last segment as base case (?)
         x_axis = self.list_covariates
-        self.visualize_matrix(gamma_sk_t, x_axis, y_axis,
+        dataInsight.visualize_matrix(self,gamma_sk_t, x_axis, y_axis,
                               "Covariates", "Segments",
                               "Logit coefficients on segment membership probabilities",
                               diverging = True)
@@ -1015,7 +1017,7 @@ class HMM_eff:
             y_axis = self.list_dep_var
             x_axis = np.arange(np.max(self.n_categories))
             matrix = p_js[seg,:,:]
-            self.visualize_matrix(matrix, x_axis, y_axis, "Level",
+            dataInsight.visualize_matrix(self,matrix, x_axis, y_axis, "Level",
                                   "dependent variable",
                                    f"P_js for segment {seg}")
         
@@ -1023,7 +1025,7 @@ class HMM_eff:
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
         y_axis = np.arange(n_segments)
         x_axis = np.arange(self.T)
-        self.visualize_matrix(P_s_given_Y_Z[:,person_index,:], x_axis, y_axis,
+        dataInsight.visualize_matrix(self,P_s_given_Y_Z[:,person_index,:], x_axis, y_axis,
                               "Time","Segment",
                               f"P_s_given_Y_Z for person {person_index}")
         
@@ -1053,7 +1055,7 @@ class HMM_eff:
         title = f"P_s_given_r for person {person_index} at time T"
         y_axis = np.arange(n_segments)
         x_axis = np.arange(n_segments)
-        self.visualize_matrix(P_s_given_r[person_index,:,:], x_axis, y_axis,
+        dataInsight.visualize_matrix(self,P_s_given_r[person_index,:,:], x_axis, y_axis,
                               "segment","segment",title)
         
         # Visualize P_s_given_Z
@@ -1066,64 +1068,7 @@ class HMM_eff:
         return p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs
         
         
-    def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
-                         diverging = False, annotate = True):
-        """Visualize a 2D matrix in a figure with labels and title"""
-        if not self.visualize_data:
-            return
-
-        plt.rcParams["axes.grid"] = False
-        fig, ax = plt.subplots(figsize=(14, 8))
-
-        # Define the colors
-        if diverging:
-            colMap = copy.copy(cm.get_cmap("coolwarm"))      
-        else:
-            colMap = copy.copy(cm.get_cmap("viridis"))
-            colMap.set_under(color='white') # set under deals with values below minimum
-            # colMap.set_bad(color='black') # set bad deals with color of nan values
-            
-        # Now plot the values
-        im = ax.imshow(matrix, cmap = colMap)
-        # set the max color to >1  so that the lightest areas are not too light
-        # below the min we want it to be white
-        if diverging:
-            im.set_clim(-1.5, 1.5)  
-        else:
-            im.set_clim(1e-30, 1.2)  
         
-        
-        # We want to show all ticks...
-        ax.set_xticks(np.arange(len(x_axis)))
-        ax.set_yticks(np.arange(len(y_axis)))
-        # ... and label them with the respective list entries
-        ax.set_xticklabels(x_axis,fontsize = 12)
-        ax.set_yticklabels(y_axis,fontsize = 12)
-        
-        #ax.xaxis.set_label_position('top') 
-        #ax.xaxis.tick_top()
-        # Rotate the tick labels and set their alignment.
-        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-                 rotation_mode="anchor")
-        
-        #Label the axes
-        plt.xlabel(xlabel,fontsize = 13)
-        plt.ylabel(ylabel,fontsize = 13)
-
-        # Loop over data dimensions and create text annotations.
-        if annotate:
-            for i in range(len(y_axis)):
-                for j in range(len(x_axis)):
-                    text = ax.text(j, i, matrix[i, j],
-                                   ha="center", va="center", color="w",
-                                   fontsize = 10)
-        
-        ax.set_title(title,fontsize = 20, fontweight='bold')
-        fig.tight_layout()
-        
-        #cbar = plt.colorbar()
-        #cbar.set_label('Probability')
-        plt.show()
                 
     def cross_sell_new_cust(self, data, param_cross, param_act, n_segments_cross, act_obj, t,
                             n_segments_act = 3, tresholds = [0.5, 0.8], order_active_high_to_low = [0,1,2]): 
@@ -1246,7 +1191,6 @@ class HMM_eff:
         and 0 for each, if not then prod ownership should be ownership 
         numbers for each"""
     
-        #Gini=[]
         Gini = pd.DataFrame(columns = prod_ownership_new.columns) 
         if binary:
             for i in range(0, len(prod_ownership_new.columns)):
@@ -1264,12 +1208,11 @@ class HMM_eff:
                 # Get the sum of probabilities for >0 of the product
                 prod_own = prod_probs[:,1:].sum(axis=1) 
                 
-                # NOW SELECT THE ONES THAT BELONG TO THE NON-OWNING GROUP
-                prod_own = prod_own[select]
-                
                 # Ranked probabilities - 
                 # We want the person with the highest probability to get the lowest rank
                 probranks = pd.DataFrame(prod_own).rank( ascending = False) #method = 'max'
+                # NOW SELECT THE ONES THAT BELONG TO THE NON-OWNING GROUP
+                probranks = probranks[select]
                 
                 sumrank = 0
                 for k in range(0,len(probranks)): # we sum only over the select households?
@@ -1302,13 +1245,12 @@ class HMM_eff:
                    
                    # Get the sum of probabilities for exactly j of the product
                    prod_own = prod_probs[:,int(j)]
-                   
-                   # NOW SELECT THE ONES THAT BELONG TO THE NON-OWNING GROUP
-                   prod_own = prod_own[select]
-                   
+    
                    # Ranked probabilities - 
                    # We want the person with the highest probability to get the lowest rank
                    probranks =pd.DataFrame(prod_own).rank(ascending = False) #method='max', 
+                   # NOW SELECT THE ONES THAT BELONG TO THE NON-OWNING GROUP
+                   probranks = probranks[select]
                 
                    sumrank = 0
                    for k in range(0,len(probranks)):
@@ -1317,9 +1259,62 @@ class HMM_eff:
                    Gini_i = 1 + (1/n_i) - ( 2 / ( (n_i**2)*mu_i  ) )*sumrank 
                 
                    Gini.loc[int(j),col] = Gini_i               
-                   
         return Gini
-           
+    
+    
+    def calculate_accuracy(self, cross_sell_pred,cross_sell_true, print_out = True):
+        """Calculate a few ealuation measures including accuracy"""    
+        FPvec = []
+        TPvec = []
+        FNvec = []
+        TNvec = []
+        accuracyvec = []
+        sensitivityvec = []
+        
+        for i in range(0, len(cross_sell_true.columns)):
+          pred_labels = cross_sell_pred[:,i]
+          true_labels = cross_sell_true.iloc[:,i] # check that this selects the right things
+          
+          # True Positive (TP): we predict a label of 1 (positive), and the true label is 1.
+          TP = np.sum(np.logical_and(pred_labels == 1, true_labels == 1))
+          # True Negative (TN): we predict a label of 0 (negative), and the true label is 0.
+          TN = np.sum(np.logical_and(pred_labels == 0, true_labels == 0))
+          # False Positive (FP): we predict a label of 1 (positive), but the true label is 0.
+          FP = np.sum(np.logical_and(pred_labels == 1, true_labels == 0))
+          # False Negative (FN): we predict a label of 0 (negative), but the true label is 1.
+          FN = np.sum(np.logical_and(pred_labels == 0, true_labels == 1))
+          
+          TPvec.append(TP)
+          TNvec.append(TN)
+          FPvec.append(FP)
+          FNvec.append(FN)    
+          accuracy = (TP+TN) / (TP+TN+FP+FN)
+          sensitivity = TP / (TP+FN)
+          #specificity = TN/ (TN+FP)
+          #precision = TP / (TP+FP) # Note: goes wrong if nothing is predicted positive
+          accuracyvec.append(accuracy)
+          sensitivityvec.append(sensitivity)
+         
+        if print_out:
+            print(f"Accuracy output: {accuracyvec}")
+            print(f"Sensitivity output: {sensitivityvec}")
+            print(f"TP: {TPvec}")
+            print(f"TN: {TNvec}")
+            print(f"FP: {FPvec}")
+            print(f"FN: {FNvec}")
+            
+        # PUT THE RESULTS INTO A DATAFRAME
+        evaluation = pd.concat([pd.Series(accuracyvec), pd.Series(sensitivityvec),
+                                pd.Series(TPvec), 
+                                pd.Series(TNvec), pd.Series(FPvec), 
+                                pd.Series(FNvec)], axis = 1).transpose()
+
+        evaluation.columns = cross_sell_true.columns
+        evaluation["measure"] = ["accuracy","sensitivty","TP","TN","FP","FN"]
+        
+        return evaluation
+         
+  
     
     def hypo_customers(self, param, n_segments, interdir):
         

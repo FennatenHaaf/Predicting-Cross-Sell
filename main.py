@@ -588,7 +588,6 @@ if __name__ == "__main__":
         #hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
         #print(f"Done calculating standard errors at {utils.get_time()}")
          
-         
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             print("-----Calculating targeting decision-----")
             tresholds = [0.2, 0.7]
@@ -596,7 +595,6 @@ if __name__ == "__main__":
             t = 9 
             active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
-            #active_value = active_value[:,1]
             dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
                                                                                                       active_value, tresholds=tresholds, 
                                                                                                       order_active_high_to_low = order_active_high_to_low)
@@ -646,7 +644,9 @@ if __name__ == "__main__":
           print("Ginicoefficient for the (non-binary) ownership variables")
           print(ginivec2)
           
+          
           #--------------------- TP/ NP calculation -------------------------
+          
           diffdata = additdata.get_difference_data(testing_period, last_period,
                                            select_variables = None,
                                            dummy_variables = None,
@@ -656,51 +656,18 @@ if __name__ == "__main__":
           # These dummies describe whether an increase took place
           diffdummies = diffdata[["business_change_dummy", "retail_change_dummy",
                             "joint_change_dummy","accountoverlay_change_dummy"]]  
-          FPvec = []
-          TPvec = []
-          FNvec = []
-          TNvec = []
-          accuracyvec = []
+    
           
-          for i in range(0, len(diffdummies.columns)):
-            pred_labels = cross_sell_self[:,i]
-            true_labels = diffdummies.iloc[:,i] # check that this selects the right things
-            
-            # True Positive (TP): we predict a label of 1 (positive), and the true label is 1.
-            TP = np.sum(np.logical_and(pred_labels == 1, true_labels == 1))
-            # True Negative (TN): we predict a label of 0 (negative), and the true label is 0.
-            TN = np.sum(np.logical_and(pred_labels == 0, true_labels == 0))
-            # False Positive (FP): we predict a label of 1 (positive), but the true label is 0.
-            FP = np.sum(np.logical_and(pred_labels == 1, true_labels == 0))
-            # False Negative (FN): we predict a label of 0 (negative), but the true label is 1.
-            FN = np.sum(np.logical_and(pred_labels == 0, true_labels == 1))
-            
-            TPvec.append(TP)
-            TNvec.append(TN)
-            FPvec.append(FP)
-            FNvec.append(FN)
-            
-            accuracy = (TP+TN) / (TP+TN+FP+FN)
-            #sensitivity = TP / (TP+FN)
-            #specificity = TN/ (TN+FP)
-            #precision = TP / (TP+FP) # Note: goes wrong if nothing is predicted positive
-            accuracyvec.append(accuracy)
-            
-          print(f"Accuracy output: {accuracyvec}")
-          print(f"TP: {TPvec}")
-          print(f"TN: {TNvec}")
-          print(f"FP: {FPvec}")
-          print(f"FN: {FNvec}")
-          
-          # PUT THE RESULTS INTO A DATAFRAME
-          evaluation = pd.DataFrame(columns = diffdummies.columns)
-          evaluation.iloc[0,:] = pd.Series(accuracyvec)
-          evaluation.iloc[1,:] = pd.Series(TPvec)
-          evaluation.iloc[2,:] = pd.Series(TNvec)
-          evaluation.iloc[3,:] = pd.Series(FPvec)
-          evaluation.iloc[4,:] = pd.Series(FNvec)
+          evaluation = hmm.calculate_accuracy(cross_sell_pred = cross_sell_self,
+                                              cross_sell_true = diffdummies, 
+                                              print_out = True)
+         
+# =============================================================================
+# Evaluate thresholds
+# =============================================================================
 
-          evaluation["measure"] = ["accuracy","TP","TN","FP","FN"]
+       #if run_cross_sell == True:
+              
 
 
 # =============================================================================
