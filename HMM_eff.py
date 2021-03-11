@@ -244,11 +244,6 @@ class HMM_eff:
             
             if self.covariates:
                 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
-                #print(f"Gamma_0: {gamma_0}")
-                #print(f"Gamma_sr_0: {gamma_sr_0}")
-                #print(f"Gamma_sk_t: {gamma_sk_t}")
-                #print(f"Beta: {beta}")
-                #print(f"{utils.printarray(param_out)}")
                 print(f"{param_out}")
             
             # Save the output to a text file
@@ -291,7 +286,6 @@ class HMM_eff:
                #difference = abs(logl_out - logl_in) > tolerance
                print(f"LogLikelihood value: {logl_out}")
                print(f"Difference LogLikelihood value: {logl_out - logl_in}")
-
 
             #if statement to set a breakpoint if desired
             if self.iteration == 1:
