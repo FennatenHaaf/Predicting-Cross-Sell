@@ -72,7 +72,7 @@ if __name__ == "__main__":
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    saldopredict = True # Do we want to run the methods for predicting saldo
+    saldopredict = False # Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -657,7 +657,7 @@ if __name__ == "__main__":
                                                                                                       active_value, tresholds=tresholds, 
                                                                                                       order_active_high_to_low = order_active_high_to_low)
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
-            P_s_given_Z_hypo, P_s_given_r_hypo, Z_hypo = hmm.hypo_customers(False, param_cross, n_segments)
+            P_s_given_Z_hypo, P_s_given_r_hypo, Z_hypo = hmm.hypo_customers(False, param_cross, n_segments, interdir)
             
         else:
             print("-----Calculating active value-----")
