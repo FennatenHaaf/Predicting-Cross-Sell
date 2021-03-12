@@ -1356,7 +1356,7 @@ class HMM_eff:
                                 pd.Series(FNvec)], axis = 1).transpose()
 
         evaluation.columns = cross_sell_true.columns
-        evaluation["measure"] = ["accuracy","sensitivty","TP","TN","FP","FN"]
+        evaluation["measure"] = ["accuracy","sensitivity","TP","TN","FP","FN"]
         
         return evaluation
          
