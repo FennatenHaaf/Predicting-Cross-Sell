@@ -53,7 +53,6 @@ class MachineLearningModel(object):
         self.set_kfold()
 
         #For debugging purposes
-        self.force_error = False
         #Empty lists to parse if non existant
         self.imported_data_name = None
         self.loaded_split = None
@@ -63,7 +62,6 @@ class MachineLearningModel(object):
         self.kfold = StratifiedKFold(random_state = self.seed, shuffle = True, n_splits = n_splits)
 
     def load_split(self, split_to_load):
-        assert not self.force_error, "Forced Error"
         """
         Currently three datasets and estimations:
         Retail -> Has Joint or Not
@@ -133,8 +131,6 @@ class MachineLearningModel(object):
         print(f"Load split for '{split_to_load}' has been loaded at {utils.get_time()}")
 
     def join_together_retail_joint( self ):
-        assert not self.force_error, "Forced Error"
-
         if self.loaded_split != 'joint_or_retail':
             self.load_split('joint_or_retail')
         retail_vars = self.variables_dict['retail_column_to_use']
@@ -185,7 +181,6 @@ class MachineLearningModel(object):
     def split_variable_sets( self, test_string ):
         splitnames = ['retail_only', 'joint_and_retail', 'joint_or_retail','retail_and_business']
         assert test_string in splitnames, f"choose a value from {splitnames}"
-        assert not self.force_error, "Forced Error"
 
         if self.loaded_split != test_string:
             self.load_split(test_string)
@@ -200,7 +195,7 @@ class MachineLearningModel(object):
         print(self.transformation_log[-1])
 
         id_var = ['personid']
-        dependent_search_list = ['has_','increased','prtf', 'benchmark', 'delta','aantalproducten']
+        dependent_search_list = ['has_','increased','prtf', 'benchmark', 'delta','aantalproducten','total_counts']
         exclude_general_list = []
         binary_exclusion_list = []
         exclude_categorical_list = ['total_counts']
@@ -264,38 +259,42 @@ class MachineLearningModel(object):
         pass
 
 
-    def test_and_transform_static_variables( self , test_string, dependent_variable):
+    def test_and_transform_static_variables( self , test_string, dependent_variable, type_variables_to_transform = "all"):
         splitnames = ['retail_only', 'joint_and_retail','joint_or_retail', 'retail_and_business']
         assert test_string in splitnames, f"choose a value from {splitnames}"
-        assert not self.force_error, "Forced Error"
 
         if self.loaded_variable_splits != test_string:
             self.split_variable_sets(test_string)
 
-        self.variables_dict['value_variables_with_classes'] = []
-        self.variables_dict['value_variables_coded'] = []
-
         current_dependent_variable = dependent_variable
-        for variable in self.variables_dict['value_variables']:
-            self.transform_value_variables(self.imported_data, variable, current_dependent_variable)
 
-        unordered_search_string = ['finergy','geslacht']
-        unordered_variables = utils.do_find_and_select_from_list(self.imported_data.columns,unordered_search_string)
+        if type_variables_to_transform in ['value_variables','all']:
+            self.variables_dict['value_variables_with_classes'] = []
+            self.variables_dict['value_variables_coded'] = []
 
-        self.variables_dict["categorical_variables_recoded"] = []
-        self.variables_dict["categorical_variables_with_dummies"] = []
-        is_unordered = False
-        for variable in self.variables_dict['categorical_variables']:
-            if variable in unordered_variables:
-                is_unordered = True
-            self.transform_categorical_variables(self.imported_data, variable, current_dependent_variable, 200,
-                                                 is_unordered = is_unordered)
+
+            for variable in self.variables_dict['value_variables']:
+                self.transform_value_variables(self.imported_data, variable, current_dependent_variable)
+
+        if type_variables_to_transform in ['categorical_variables','all']:
+            unordered_search_string = ['finergy','geslacht']
+            unordered_variables = utils.do_find_and_select_from_list(self.imported_data.columns,unordered_search_string)
+
+            self.variables_dict["categorical_variables_recoded"] = []
+            self.variables_dict["categorical_variables_with_dummies"] = []
             is_unordered = False
+
+            self.variables_dict['categorical_variables']
+            for variable in self.variables_dict['categorical_variables']:
+                if variable in unordered_variables:
+                    is_unordered = True
+                self.transform_categorical_variables(self.imported_data, variable, current_dependent_variable, 200,
+                                                     is_unordered = is_unordered)
+                is_unordered = False
 
         pass
 
     def transform_value_variables( self, data_to_use, x_variable, y_variable ):
-        assert not self.force_error, "Forced Error"
 
         #Can add n_jobs = -1 to improve speed
         X = data_to_use.loc[:, x_variable].to_frame()
@@ -345,12 +344,15 @@ class MachineLearningModel(object):
             self.transformation_log.append(dropmessage)
             self.print_transformation_log()
 
-    def transform_categorical_variables(self , data_to_use, x_variable, y_variable, threshold, is_unordered):
-        assert not self.force_error, "Forced Error"
+    def transform_categorical_variables(self , data_to_use, x_variable, y_variable, threshold, is_unordered, max_cats = 5):
         X = data_to_use.loc[:, x_variable].to_frame()
         y = data_to_use.loc[:, y_variable].to_frame()
-        transformation_log = f"Transforming categorical {x_variable}"
+        x_variable_recoded = f"{x_variable}_recoded"
 
+        start_message = f"Starting Transforming categorical {x_variable}"
+        self.transformation_log.append(start_message)
+        self.print_transformation_log()
+        transformation_log_add = "" #Addition to
 
         frequencies = X[x_variable].value_counts()
         high_frequency = frequencies > threshold
@@ -359,94 +361,142 @@ class MachineLearningModel(object):
         high_frequency_category = frequencies[high_frequency].index.tolist()
         number_of_values = len(high_frequency_category)
 
+
+
         if is_unordered:
+            """
+            UNORDERED VARIABLES - Creates a new 
+            """
 
             new_data = pd.DataFrame(self.imported_data[x_variable])
             if len(other_category) > 1:
                 new_data.loc[X[x_variable].isin(other_category), x_variable] = "Other"
-                self.imported_data[f"{x_variable}_recoded"] = new_data[x_variable]
-                self.variables_dict["categorical_variables_recoded"] = self.variables_dict["categorical_variables_recoded"] +\
-                                                                       [f"{x_variable}_recoded"]
+                self.imported_data[x_variable_recoded] = new_data[x_variable]
+                self.variables_dict["categorical_variables_recoded"] = self.variables_dict["categorical_variables_recoded"].append(
+                    x_variable_recoded)
 
-                transformation_log = f"{transformation_log}\n Categories coded with Other are: " \
-                                     f" {utils.print_seperated_list(other_category)}"
-            else:
-                new_data.loc[X[x_variable] == high_frequency_category[-1], x_variable] = "Other"
-                transformation_log = f"{transformation_log}\n Categories coded with Other are: " \
-                                     f" |{high_frequency_category[-1]}|"
+                self.transformation_log.append(f"\n Categories coded with Other are: {utils.print_seperated_list(other_category)}\n")
 
-            new_data = pd.get_dummies( new_data, prefix = f"{x_variable}" )
-            new_data = new_data.drop(f"{x_variable}_Other", axis = 1)
-            self.variables_dict['categorical_variables_with_dummies'] = self.variables_dict['categorical_variables_with_dummies'] + \
-                                                                        list(new_data.columns)
-            self.imported_data = pd.concat([self.imported_data,new_data], axis = 1)
+        else:
+            """
+            ORDERED OR ORDER LIKE VARIABLES. THIS PART CREATES LARGER CATEGORIES BY MERGING
+            SMALLER CATEGORIES. A NEW GROUP IS CREATED BY ADDING AN ADJACENT CATEGORY. FOR EVERY
+            ITERATION THE SMALLEST POSSIBLE NEW GROUP IS ADDED UNTIL THE VALUES ARE ABOVE
+            THE VALUE THRESHOLD AND BELOW THE MAX NUMBER OF CATEGORIES
+            """
 
-        if not is_unordered:
-            max_dum = 6
-            if (len(other_category) > 0) or (max_dum < frequencies.shape[0]):
+            if (len(other_category) > 0) or (max_cats < frequencies.shape[0]):
+                """
+                FOR ORDERED VARIABLES WITH FREQUENCIES BELOW THRESHOLD OR ABOVE MAX CATEGORIES
+                """
                 x_variable_recoded = f"{x_variable}_recoded"
 
                 new_freqs = pd.DataFrame({'freq'      : frequencies.values, 'low_bound': frequencies.index,
                                                 'high_bound': frequencies.index})
-                while (new_freqs['freq'].min() < threshold) or (max_dum < new_freqs.shape[0]):
+                print("\n",new_freqs,"\n")
+                while (new_freqs['freq'].min() < threshold) or (max_cats < new_freqs.shape[0]):
                     available_freqs = new_freqs.copy()
-                    possible_combinations = pd.DataFrame(columns = ['freq', 'low_bound', 'high_bound'])
+                    best_combination = (np.inf,0,0)
 
                     while available_freqs.shape[0] > 1:
-                        lowest_index = available_freqs['freq'].argmin()
+                        current_lowest_val = best_combination[0]
+                        available_freqs.reset_index(drop = True, inplace = True)
+
+                        lowest_index = int(available_freqs['freq'].argmin())
                         low_bound = int(available_freqs.loc[lowest_index,'low_bound'])
-                        high_bound = int(available_freqs.loc[lowest_index,'high_bound'])
-                        new_low = int(low_bound - 1)
-                        new_high = int(high_bound + 1)
-                        min_value = available_freqs.loc[lowest_index,'freq']
+                        high_bound = np.int(available_freqs.loc[lowest_index,'high_bound'])
+                        new_low = np.int(low_bound - 1)
+                        new_high = np.int(high_bound + 1)
+                        min_value = int(available_freqs.loc[lowest_index,'freq'])
                         available_freqs.drop(lowest_index, inplace = True)
+
+                        if min_value > current_lowest_val:
+                            break
 
                         if new_low in available_freqs['high_bound'].to_list():
                             new_index = available_freqs['high_bound'] == new_low
-                            low_value = int(available_freqs.loc[new_index, 'freq'])
+                            low_value = int(available_freqs.loc[new_index, 'freq']) + min_value
                             new_low = int(available_freqs.loc[new_index, 'low_bound'])
                         else:
                             low_value = np.inf
-                        if new_high in available_freqs['low_bound'].to_list():
 
+                        if new_high in available_freqs['low_bound'].to_list():
                             new_index = available_freqs['low_bound'] == new_high
-                            high_value = int(available_freqs.loc[new_index, 'freq'])
+                            high_value = int(available_freqs.loc[new_index, 'freq'] + min_value)
                             new_high = int(available_freqs.loc[new_index, 'high_bound'])
                         else:
                             high_value = np.inf
 
+                        if (high_value > current_lowest_val) and (low_value > current_lowest_val):
+                            continue
                         if low_value < high_value:
-                            new_combination = pd.DataFrame({'freq': (low_value + min_value) , 'low_bound': new_low ,
-                                                             'high_bound': high_bound}, index = [0])
-                        elif low_value >= high_value and (high_value < np.inf):
-                            new_combination = pd.DataFrame({'freq': (high_value + min_value) , 'low_bound': low_bound ,
-                                                             'high_bound': new_high}, index = [0])
+                            best_combination = (low_value,new_low,high_bound)
+                        elif (low_value >= high_value) and (high_value != np.inf):
+                            best_combination = (high_value,low_bound,new_high)
                         else:
                             continue
-                        possible_combinations = pd.concat([possible_combinations,new_combination], axis = 0, ignore_index = True)
 
-                    min_index = possible_combinations['freq']).argmin()
-                    low_bound = int(possible_combinations.loc[min_index,'low_bound'])
-                    high_bound = int(possible_combinations.loc[min_index, 'high_bound'])
+                    if best_combination[0] == np.inf:
+                        break
+                    low_bound = best_combination[1]
+                    high_bound = best_combination[2]
 
-                    new_freqs = new_freqs[new_freqs['high_bound'] != low_bound]
-                    new_freqs[new_freqs['low_bound'] == high_bound,['freq','low_bound','high_bound']] = possible_combinations.loc[
-                        min_index,:]
+                    freqs_to_drop = new_freqs['high_bound'] == high_bound
+                    freqs_to_drop = freqs_to_drop | (new_freqs['low_bound'] == low_bound)
+                    new_freqs = new_freqs[~freqs_to_drop].copy()
+                    new_freqs.reset_index(drop = True, inplace = True)
+
+                    new_index = new_freqs.shape[0]
+                    for i,item in enumerate(new_freqs.columns.tolist()):
+                        new_freqs.loc[new_index,item] = best_combination[i]
+
+                    new_freqs.reset_index(drop =  True, inplace =  True)
+
+                print("\n",new_freqs,"\n")
+                recoded_list = []
+                new_freqs.sort_values('low_bound', inplace = True)
 
 
+                for i in range(0,new_freqs.shape[0]):
+                    low_bound = new_freqs.iloc[i,1]
+                    high_bound = new_freqs.iloc[i,2]
+                    recoded_list.append( (low_bound,high_bound,(i+1)) )
+
+                self.imported_data[x_variable_recoded ] = 0
+                self.variables_dict['categorical_variables_recoded'].append(x_variable_recoded)
+
+                self.transformation_log.append( f"{x_variable} has been recoded into {len(recoded_list)} categories" )
+                self.print_transformation_log()
+
+                transformation_log_add = ""
+                for new_var in recoded_list:
+                    recode_index = (self.imported_data[x_variable] >= new_var[0]) & (self.imported_data[x_variable] <= new_var[1])
+                    self.imported_data.loc[recode_index,x_variable_recoded] = new_var[2]
+                    transformation_log_add = f"{transformation_log_add} || Lower bound:{new_var[0]} , Upper bound {new_var[1]}  has " \
+                                             f"been coded with < {new_var[2]} > ||"
+
+                self.transformation_log.append(transformation_log_add)
+                self.print_transformation_log()
+
+                new_data = self.imported_data[x_variable_recoded].copy()
+
+            else:
+                """
+                FOR VARIABLES WITH NUMBER OF CATEGORIES BELOW MAX CATEGORIES AND ABOVE FREQUENCY THRESHOLD
+                """
+                new_data = self.imported_data[x_variable].copy()
 
 
+        """FINAL CONCATENATION OF FILES"""
 
-
-
-
-
-                pass
-
-
-
-        self.transformation_log.append(transformation_log)
+        new_data = pd.get_dummies(new_data, prefix = f"{x_variable}")
+        self.imported_data = pd.concat([self.imported_data, new_data], axis = 1)
+        self.variables_dict['categorical_variables_with_dummies'] = self.variables_dict['categorical_variables_with_dummies'] \
+                                                                         + list(new_data.columns)
+        self.transformation_log.append(f"Added {new_data.columns.shape[0]} dummy categories for each value of {x_variable}. "
+                                       f"Category transformation finished\n")
         self.print_transformation_log()
+
         pass
 
     def run_random_forest_model( self ):
@@ -455,6 +505,9 @@ class MachineLearningModel(object):
 
     ##IMPORTING DATA AND VARIABLE SETTERS
     def import_data_to_model(self, import_command, last_date = "", first_date = ""):
+        """
+        Method For Safely importing datasets into machine learning model
+        """
         process_data = additionalDataProcess.AdditionalDataProcess(self.indir,self.interdir,self.outdir)
         process_data.automatic_folder_change = self.automatic_folder_change
         if import_command == "cross_long_df":
@@ -493,8 +546,11 @@ class MachineLearningModel(object):
             if self.do_print_logs:
                 print(self.transformation_log[-1])
 
-
-
+    def force_error( self ):
+        for item in dir():
+            if (item[0:2] != "__") and (item[0] != "_"):
+                del globals()[item]
+        # del self
 
 
     ###-----------------------MODELLING -----------------------------###
