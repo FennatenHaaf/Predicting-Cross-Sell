@@ -1194,13 +1194,12 @@ class HMM_eff:
         degrees= (self.n_customers - len(param_in))
         for i in range(0,len(df)):
             tval = df.loc[i,"t"]
-            df.loc[i,"p-value"] = t.pdf(tval,df = degrees)
+            df.loc[i,"p-value"] = 1-t.cdf(abs(tval),df = degrees)
             
         a = gamma_0.size
         b = gamma_sr_0.size
         c = gamma_sk_t.size
         d = beta.size
-        
         df.loc[0:a,"source"] = "gamma_0"
         df.loc[a:a+b,"source"] = "gamma_sr_0"
         df.loc[a+b:a+b+c,"source"] = "gamma_sk_t"

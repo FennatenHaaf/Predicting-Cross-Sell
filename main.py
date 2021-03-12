@@ -67,11 +67,11 @@ if __name__ == "__main__":
 # =============================================================================
     
     time_series = False # Do we want to run the code for getting time series data
-    visualize_data = True # make some graphs and figures
+    visualize_data = False # make some graphs and figures
     
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
-    interpret = False #Do we want to interpret variables
+    interpret = True #Do we want to interpret variables
     saldopredict = False # Do we want to run the methods for predicting saldo
 
 # =============================================================================
@@ -252,26 +252,34 @@ if __name__ == "__main__":
         print("*****Visualising data*****")
         df = dflist[11] # use the last time period
         #Some variables which may be interesting to plot:
-        visualize_variables = ["age_bins", 
-                               #"geslacht",
-                               "hh_size",
-                               "income",
-                               "business_max",
-                               "retail_max",
-                               "joint_max",
-                               "accountoverlay_max",
-                               "activitystatus",
-                               "saldototaal_bins",
-                               "SBIsectorName",
-                               "businessAgeInYears_bins",
-                               "businessType"]   
+        # visualize_variables = ["age_bins", 
+        #                        #"geslacht",
+        #                        "hh_size",
+        #                        "income",
+        #                        "business_max",
+        #                        "retail_max",
+        #                        "joint_max",
+        #                        "accountoverlay_max",
+        #                        "activitystatus",
+        #                        "saldototaal_bins",
+        #                        "SBIsectorName",
+        #                        "businessAgeInYears_bins",
+        #                        "businessType"]   
+         # for var in visualize_variables:
+        #     print(f"visualising {var}")
+        #     DI.plotCategorical(df, var)
+        #     counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
+        #     print(counts)
         
-        sns.set_style("whitegrid")
-        for var in visualize_variables:
-            print(f"visualising {var}")
-            DI.plotCategorical(df, var)
-            counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
-            print(counts)
+        # Plot for three interesting variables
+        DI.plotCategorical(df, "income", xlabel = "Income category",
+                           colours = "Blues")
+        DI.plotCategorical(df, "age_bins", xlabel = "Age",
+                           colours = "Blues")
+        DI.plotCategorical(df, "saldototaal_bins", xlabel = "Total account balance (EUR)",
+                           colours = "Blues")
+        
+        #Plot cooccurrences of portfolio ownership
         DI.plotCoocc(df, crosssell_types_dummies)
         
         print("*****Visualising cross-sell difference data*****")
@@ -287,8 +295,9 @@ if __name__ == "__main__":
                                 "accountoverlay_change"]   
         
         daatacs = DI.plot_portfolio_changes(diffdata, change_variables,
-                                            percent = False)
-        
+                                            percent = True)
+        daatacs = DI.plot_portfolio_changes_stacked(diffdata, change_variables,
+                                            percent = True)
         daatacs = DI.plot_portfolio_changes(diffdata, increase_dummies,
                                             percent = False, legend = False,
                                             xlabel = "Portfolio type",
@@ -445,9 +454,9 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
-            #source = "finalActivity"
+            source = "finalActivity"
             #source = "crosssell4seg"
-            source = "crosssell5seg" 
+            #source = "crosssell5seg" 
             #source = "crosssell6seg"
             
             if (source == "finalActivity"):
@@ -465,6 +474,17 @@ if __name__ == "__main__":
                 2.08956735e+00, 7.48082274e+00, 3.96433823e+00, 5.74870230e+00, 6.32090251e+00, 8.66492623e+00, 
                 8.10626061e+00, 8.41162052e+00, 4.28823154e+00, -1.71701599e+00, -5.80767319e+00, -3.19105463e+00, 
                 -8.70848005e+00]) 
+                
+                # Na BFGS stap - loglikelihood 10779.20266428308
+                # param_cross = np.array([ 3.89261727e-01, 1.56034975e+00, 3.09612435e-01, 3.70011248e-01, 2.52680249e-01, 1.99835992e-01, -1.18796289e-01,
+                #                         -3.73533007e-01, -1.09442494e+00, 1.69065293e-01, -3.77208139e-01, 1.04161737e+00, -4.48615818e-01, -1.77206832e-01, 
+                #                         -1.73637174e-01, 6.07338913e-01, 5.32424562e-01, 4.34502792e-01, 1.42545230e-01, 1.46008940e-01, 8.77258469e+00, 1.15444484e-01, 
+                #                         -9.16975488e+00, 5.58510178e+00, 4.05141335e+00, -2.48416290e+00, 1.13763980e+00, 1.47168271e-01, -7.15420332e-01, -6.42640392e-01,
+                #                         8.75183945e-03, -5.49714992e-01, -2.52451947e-08, 4.63836545e-02, 4.71423728e-01, -3.63765157e-08, -1.01656520e+00, -1.10814438e+00,
+                #                         -1.32566461e+00, 4.69633537e-01, 3.18529557e-01, 2.57103676e-01, 1.10201666e+00, -9.69667165e-02, 2.46845602e-09, -8.39344164e-01,
+                #                         8.87035571e+00, 1.06290697e+01, 1.51811554e+01, 9.22819687e+00, 1.84922101e+01, -2.09568257e+00, -1.70267491e-09, 5.39054524e+00,
+                #                         3.96414670e+00, 5.74004768e+00, 6.32191420e+00, 8.61859730e+00, 8.17545291e+00, 8.48063569e+00, 4.35777877e+00, -1.71680718e+00,
+                #                         -5.79908406e+00, -3.19123265e+00, -8.66145072e+00]) 
 
                 # Define the dependent variable
                 activity_dummies.extend(activity_total_dummies)
@@ -589,15 +609,14 @@ if __name__ == "__main__":
         # Now interpret & visualise the parameters 
         p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
         
-        #print("-----getting standard errors-----")
-        #hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
-        #print(f"Done calculating standard errors at {utils.get_time()}")
+        print("-----getting standard errors-----")
+        hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
+        print(f"Done calculating standard errors at {utils.get_time()}")
          
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             print("-----Calculating targeting decision-----")
             tresholds = [0.2, 0.7]
             order_active_high_to_low = [0,1,2]
-            t = 9 
             active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
             dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
@@ -610,9 +629,8 @@ if __name__ == "__main__":
             active_value  = hmm.active_value(param_cross, n_segments, len(df_periods))
             active_value_df = pd.DataFrame(active_value) 
             
-            utils.save_df_to_csv(active_value_df, outdirec, f"active_value", 
+            utils.save_df_to_csv(active_value_df, outdirec, "active_value", 
                             add_time = False )
-            #active_value_df.to_csv(f"{outdirec}/active_value.csv")
 
 
 # =============================================================================
@@ -671,10 +689,69 @@ if __name__ == "__main__":
 # Evaluate thresholds
 # =============================================================================
 
-       #if run_cross_sell == True:
-              
-
-
+        evaluate_thresholds = False
+        if (run_cross_sell & evaluate_thresholds):
+            print("-----Plotting results for different thresholds-----")
+            lower = [0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40]
+            upper = [0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85]
+            order_active_high_to_low = [0,1,2]
+            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+            active_value = active_value_pd.to_numpy()
+            
+            t = len(df_periods)
+            last_period = df_periods[t-1]
+            testing_period = dflist[10] # period 10 or 11 can be used
+            
+            def evaluate_threshold_plot(active_value, order_active_high_to_low ,
+                                        testing_period, last_period,
+                                        lower,upper,vary_lower=True,vary_upper=True,
+                                        lower_base=0.2,upper_base=0.7):
+                
+                diffdata = additdata.get_difference_data(testing_period, last_period,
+                                           select_variables = None,
+                                           dummy_variables = None,
+                                           select_no_decrease = False,
+                                           globalmin = None)         
+                diffdummies = diffdata[["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]  
+                
+                if vary_lower :
+                    low_bounds = lower
+                else:
+                    low_bounds = np.repeat(lower_base)
+                if vary_upper: 
+                    up_bounds = upper
+                else:
+                    up_bounds = np.repeat(upper_base)
+                                
+                for i in range(0,len(low_bounds)) :
+                    threshold = [low_bounds[i],up_bounds[i]]
+                    dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
+                                                                                                          active_value, tresholds=tresholds, 
+                                                                                                          order_active_high_to_low = order_active_high_to_low)
+                    
+                    # These describe product ownership yes/no
+                    prod_own_new = testing_period[crosssell_types_dummies]  
+                    prod_own_old = last_period[crosssell_types_dummies]                  
+                    ginivec = hmm.calculate_gini(prod_ownership_new = prod_own_new,
+                                                 prod_ownership_old = prod_own_old, 
+                                                 product_probs= prod_own, binary = True)
+                    
+                    # Now do it with the actual numbers of ownership
+                    prod_own_new = testing_period[crosssell_types_max]
+                    prod_own_old = last_period[crosssell_types_max]
+                    ginivec2 = hmm.calculate_gini(prod_ownership_new = prod_own_new,
+                                                  prod_ownership_old = prod_own_old, 
+                                                  product_probs= prod_own, binary = False)
+                    
+                    # Get accuracy measures
+                    evaluation = hmm.calculate_accuracy(cross_sell_pred = cross_sell_self,
+                                              cross_sell_true = diffdummies, 
+                                              print_out = True)
+                    
+                    
+                            
+                
 # =============================================================================
 # SALDO PREDICTION
 # =============================================================================

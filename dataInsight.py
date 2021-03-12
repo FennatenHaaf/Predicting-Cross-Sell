@@ -176,25 +176,28 @@ def plotFinergyCounts(df_experian, ids):
     plt.show()
     
         
-def plotCategorical(df, name, annotate = True):
-    sns.set(font_scale=2,rc={'figure.figsize':(15,10)})
+def plotCategorical(df, name, xlabel = None, annotate = True,
+                    colours = None):
+    sns.set(font_scale=2,rc={'figure.figsize':(12,8)})
     sns.set_style("whitegrid")
-    graph = sns.countplot(x=name, data = df)
+    graph = sns.countplot(x=name, data = df, palette=colours,)
     
     
     graph.set_xticklabels(graph.get_xticklabels(),rotation=30,
                           horizontalalignment='right', fontweight='light',
-                          fontsize=18)
+                          fontsize=22)
     
     if annotate:
         ## We want to label the bars with the height, to see what the exact counts are
         for p in graph.patches:
             value = p.get_height()
             # locations of where to put the labels
-            x = p.get_x() + p.get_width() / 2 - 0.05 
+            x = p.get_x() + (p.get_width() / 2) - 0.2 
             y = p.get_y() + p.get_height()
-            graph.annotate(value, (x, y), size = 20)
+            graph.annotate(round(value,0), (x, y), size = 22)
     
+    #Set labels
+    graph.set_xlabel(xlabel,fontsize = 22)
     
     plt.show()
     
@@ -209,15 +212,15 @@ def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0):
                         cmap=colors, fmt='g',cbar=False) 
     
     
-    labels = ["business","retail","joint","   accountoverlay"]  
+    labels = ["business","retail","joint","accountoverlay"]  
         
     #labels = graph.get_yticklabels()
     graph.set_yticklabels(labels,rotation=0,
                           horizontalalignment='right', fontweight='light',
-                          fontsize=25)
+                          fontsize=30)
     graph.set_xticklabels(labels,rotation=0,
-                          horizontalalignment='right', fontweight='light',
-                          fontsize=25)
+                          horizontalalignment='center', fontweight='light',
+                          fontsize=30)
     plt.show()
     
     # Now also make the percentages version
@@ -231,17 +234,18 @@ def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0):
 
     graph.set_yticklabels(labels,rotation=0,
                           horizontalalignment='right', fontweight='light',
-                          fontsize=25)
+                          fontsize=30)
     graph.set_xticklabels(labels,rotation=0,
-                          horizontalalignment='right', fontweight='light',
-                          fontsize=25)
+                          horizontalalignment='center', fontweight='light',
+                          fontsize=30)
+    
     plt.show()
     
     
     
 def plot_portfolio_changes(dataset, varvector, percent = True,
                            ignore_0 = True, legend = True, xlabel = None,
-                           order =None, plot=True, labelwidth = 30,
+                           plot=True, labelwidth = 30,
                            colours = "coolwarm"):
   """Make a plot of cross-sell occurrences or changes in portfolio ownerships
   between time periods in a full dataset"""
@@ -266,50 +270,117 @@ def plot_portfolio_changes(dataset, varvector, percent = True,
 
   # NOW MAKE THE PLOT
   if plot:
-    sns.set(font_scale=1.1, rc={'figure.figsize':(15,8)})
+    sns.set(font_scale=1.1, rc={'figure.figsize':(20,6)})
     sns.set_style("whitegrid")
-     
+
     dfstacked = df.stack().reset_index()
+    # dfstacked = dfstacked[(dfstacked[0]>0)] 
+    # select = 
+    # dfstacked[0][(dfstacked[0]==0)] = np.nan
     
-    ## In deze cel maken we de grafiek voor gemiddelde kosten per jaar
     fig, graph = plt.subplots()
     sns.barplot(x = dfstacked["level_1"], y =dfstacked[0],
-                data = dfstacked, hue = dfstacked["level_0"] ,
-                hue_order = order,
-                capsize =0.2, errwidth=0.8, 
+                data = dfstacked, hue = dfstacked["level_0"],
                 palette=colours, ax=graph)
-
+    
     # We want to label the bars with the height, to see what the exact counts are
     for p in graph.patches:
         value = p.get_height()
+        
         # locations of where to put the labels
         x = p.get_x() + p.get_width() / 2 - 0.05 
-        y = p.get_y() + p.get_height()
+        
+        if ((p.get_height() <0.1) & (p.get_height()>0.015)):
+            y = p.get_y() + p.get_height() + 0.015
+        elif ((p.get_height() <0.01)):
+             y = p.get_y() + p.get_height() - 0.005
+        else:
+            y = p.get_y() + p.get_height() 
+
         if percent:
-          graph.annotate(f"{round(value,2)}%", (x, y), size = 20)
+          if (value !=0):
+              graph.annotate(f"{round(value,2)}%", (x, y), size = 18)
         else:
           if (value !=0):
               graph.annotate(int(value), (x, y), size = 20)
 
     # Maak labels voor de assen en de titel van het figuur
     if percent:
-        graph.set_ylabel("Number that changed as percentage of total number of oppportunities",fontsize = 20)
+        graph.set_ylabel(None,fontsize = 20)
     else:
         graph.set_ylabel("Number of portfolio ownership changes over all periods",fontsize = 20)
     graph.set_xlabel(xlabel,fontsize = 20)
     if legend:
-        plt.legend(title = None,loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1 )
+        # plt.legend(title = None,loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1,
+        #            fontsize = 20)
+        plt.legend(title = None, loc="lower left",bbox_to_anchor=(0.1, -0.3), ncol = len(graph.lines),
+                   fontsize = 20)
+        
     else:
         plt.legend([],[], frameon=False)
     
-    labels = ["business","retail","joint","   accountoverlay"]  
+    labels = ["business","retail","joint","accountoverlay"]  
     graph.set_xticklabels(labels,rotation=0,
-                          horizontalalignment='right', fontweight='light',
+                          horizontalalignment='center', fontweight='light',
                           fontsize=20)
     graph.tick_params(axis="y", labelsize=17)
     plt.show()
 
   return df
+
+
+def plot_portfolio_changes_stacked(dataset, varvector, percent = True,
+                           ignore_0 = True, legend = True, xlabel = None,
+                           plot=True, labelwidth = 30,
+                           colours = "coolwarm"):
+  """Plots portfolio changes in a horizontal stacked bar chart"""
+    
+  column_values = dataset[varvector].values.ravel()
+  unique_values = pd.Series(pd.unique(column_values)).sort_values().dropna()
+
+  df = pd.DataFrame(columns = varvector, index = unique_values)
+
+  for var in varvector:
+      group = dataset[var]
+      for value in unique_values: 
+        if ((value == 0) & (ignore_0 == True)):
+            True # We do nothing
+        else: 
+            count = int((group == value).sum())
+            perc = (count/len(group))*100
+            if (percent):
+              df.loc[value,var] = perc
+            else:       
+              df.loc[value,var] = count
+  df= df.set_index(unique_values)
+  df= df.transpose()
+
+  # NOW MAKE THE PLOT
+  if plot:
+    sns.set(font_scale=1.1, rc={'figure.figsize':(17,7)})
+    sns.set_style("whitegrid")
+
+    graph=df.plot.barh(stacked=True ,cmap = colours)
+    
+    labels = ["business","retail","joint","accountoverlay"]  
+    graph.set_yticklabels(labels,rotation=0,
+                          horizontalalignment='right', fontweight='light',
+                          fontsize=21)
+    
+    graph.set_xlabel("Percentage",fontsize = 21)
+    graph.set_ylabel(None,fontsize = 21)
+    graph.tick_params(axis="x", labelsize=20)
+    #graph.set_title("Overzicht van inkomstenbronnen percentages", fontsize=18, 
+    #                  weight='bold', ha='center', y=1.02) 
+    # Verander de locatie van de legenda
+    #graph.legend(loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1,fontsize = 17) 
+    graph.legend(title = None, loc="upper left",bbox_to_anchor=(0.01, 1.13), ncol = len(unique_values),
+                   fontsize = 18)
+    plt.show()
+   
+  return df
+
+
 
 
 # =============================================================================
