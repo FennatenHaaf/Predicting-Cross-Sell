@@ -72,7 +72,7 @@ if __name__ == "__main__":
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    saldopredict = False # Do we want to run the methods for predicting saldo
+    saldopredict = True # Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -251,25 +251,6 @@ if __name__ == "__main__":
     if visualize_data:
         print("*****Visualising data*****")
         df = dflist[11] # use the last time period
-        #Some variables which may be interesting to plot:
-        # visualize_variables = ["age_bins", 
-        #                        #"geslacht",
-        #                        "hh_size",
-        #                        "income",
-        #                        "business_max",
-        #                        "retail_max",
-        #                        "joint_max",
-        #                        "accountoverlay_max",
-        #                        "activitystatus",
-        #                        "saldototaal_bins",
-        #                        "SBIsectorName",
-        #                        "businessAgeInYears_bins",
-        #                        "businessType"]   
-         # for var in visualize_variables:
-        #     print(f"visualising {var}")
-        #     DI.plotCategorical(df, var)
-        #     counts = df[var].value_counts().rename_axis(var).to_frame("total count").reset_index(level=0)
-        #     print(counts)
         
         # Plot for three interesting variables
         DI.plotCategorical(df, "income", xlabel = "Income category",
@@ -349,9 +330,7 @@ if __name__ == "__main__":
                   ]
     dummies_final = [e for e in dummynames if e not in base_cases]
     full_covariates.extend(dummies_final)
-
-
-
+    
     if (run_hmm):
         #---------------- SELECT VARIABLES ---------------
         print(f"****Defining variables to use at {utils.get_time()}****")
@@ -403,61 +382,7 @@ if __name__ == "__main__":
         #         8.86916524e+00, 1.08789822e+01, 1.54395082e+01, 9.31348666e+00, 1.86245690e+01, -4.32810937e-04, 
         #         2.08956735e+00, 7.48082274e+00, 3.96433823e+00, 5.74870230e+00, 6.32090251e+00, 8.66492623e+00, 
         #         8.10626061e+00, 8.41162052e+00, 4.28823154e+00, -1.71701599e+00, -5.80767319e+00, -3.19105463e+00, 
-        #         -8.70848005e+00])
-
-        ##FOR 6 SEGMENTS
-        # initial_param = np.array(
-        #     [4.56256192e+00, 2.02826277e+00, -1.82638536e-01, 9.83834937e-10, 1.01887049e-05, 4.35316927e-07, -2.44616476e-01,
-        #      -3.29834706e-07, 4.63711897e-03, 1.90067247e+00, 7.28407671e-01, -7.24178529e-17, 3.51201776e-08, -1.99922212e-12,
-        #      1.79805080e-06, -2.18897373e-11, 2.68537680e-08, 6.56236707e-01, 3.35816521e-01, 1.95418714e-14, -4.97267288e-10,
-        #      -1.29761845e-10, -9.93933115e-05, 2.88894883e-10, -1.92959170e-08, -9.66551036e-03, -3.34019927e-11,
-        #      -3.42082282e-21, 5.36120102e-03, -8.52256741e-01, -3.72837432e-09, -4.50810345e-04, -4.08014223e-05,
-        #      -2.49805574e-04, -4.73064098e-13, 3.29076818e-03, -4.21550439e-05, 1.12961472e-12, -6.73229144e-01,
-        #      -1.79489811e-03, 1.44272406e-08, -6.83661582e-01, -1.69842437e-04, -1.33773340e-06, 5.03810163e-07,
-        #      9.23226358e-03, -2.49996074e-03, -4.32011132e-02, -5.55420151e-08, -3.65406486e-03, 1.89324922e-10,
-        #      -2.29803253e-09, 1.45807794e-02, 1.14294124e-02, -4.38138095e-08, 2.81965640e+00, 6.09702801e-06, 8.47637157e-11,
-        #      -1.29420681e-05, -1.89949808e-07, 7.64571071e-13, 4.04327625e-07, 1.02373085e-14, 1.56582782e+00, -6.03538767e-13,
-        #      1.00496030e-10, 3.25872618e-01, -3.51944541e-14, -1.57318380e-08, 5.99605018e-07, -3.75375075e-06,
-        #      -3.28641600e-03, 2.10129911e-15, -1.11740905e-08, -3.17981223e-08, -1.42955262e-10, -5.78675825e-08,
-        #      -7.65539006e-09, -2.93967010e-09, 3.43305047e-03, 2.06613579e-06, 1.84907669e-08, 2.47275141e-06, 1.82740515e-04,
-        #      -1.26647978e-12, -1.35203814e-13, 2.66205788e-06, 3.66076920e-05, 1.62350760e-09, 6.77929155e-16, -3.76548889e-04,
-        #      6.98420541e-08, -1.26355008e-06, -8.78769148e-13, -1.80624995e-04, -4.41351540e-17, -8.02326914e-10,
-        #      1.97088171e-13, -1.98691274e-11, -1.74344150e-09, 2.71553316e-10, 2.00472609e-11, -1.31808394e-03, 8.67627254e-10,
-        #      8.72135940e-06, 2.07645721e-06, -1.79569369e-16, 1.34242918e-03, 4.45824941e-09, 1.27774319e+00, 1.14084019e-03,
-        #      1.69078319e-09, 5.94423608e-03, -1.41386555e-11, -1.58125103e-07, -1.42983020e+00, 1.21029825e-06, 8.04774960e-05,
-        #      -1.62271592e-09, -3.64640599e-09, 3.08876435e-13, 4.41527337e-11, -1.51230427e-06, 4.43082682e-11, 5.67135223e-08,
-        #      -1.22548310e-17, 4.84212251e-04, -9.20807306e-08, 4.87358726e-12, -9.84649443e-04, 1.77819800e+01, 1.83576161e+01,
-        #      1.36206236e+01, 1.64098061e+01, 1.71278119e+01, 5.93972824e-07, 6.01090751e+00, -1.24493686e+01, 6.86562592e+00,
-        #      -8.76830014e-12, -5.81561275e-09, 2.05924079e+00, 1.45905710e-03, 1.86670874e+00, -7.30639061e-07, 2.13554866e+01,
-        #      1.20022105e-09, 2.62887508e-08, -2.37457011e-02, -5.18588853e-12, 1.92938709e-03, 7.63724849e+00, 1.25236646e-18,
-        #      -1.13094348e-05, -2.11446867e+00, -3.27255809e+00, -2.32700259e-01, 1.78190953e-12, 1.57615494e-11,
-        #      1.90129374e-05, 4.16082300e-04, -3.50102550e+00, -7.18019748e-03, 1.34729584e+01, 2.67037506e-06, 1.33496944e-04,
-        #      1.62258633e+00, -3.08000258e+00, -2.07118109e-09, 6.42245541e-06, 5.12260656e+00, 1.06060353e+01, 8.97490725e+00,
-        #      3.04419842e+00, -3.24771026e-08, 1.67036141e+00, -6.59999499e-04, -8.90718434e-11, 5.11531100e-01,
-        #      -7.98524461e-03, 4.31908643e+00, -1.13092465e-07, 3.74469668e+00, 2.28259041e+00, 2.48627119e+00, 2.32239353e+00,
-        #      1.08070962e-10, -2.90896680e+01, 1.95006207e-09, -1.52510790e-04, -6.07166795e-11, 8.17504695e-02,
-        #      -4.67740159e-05, 1.67196260e-07, 9.36306207e-01, -3.77330385e-12, 8.40029427e-12, 1.32730480e+00, -7.94390403e-10,
-        #      -1.82389237e+00, -3.43431811e-06, -3.41535216e+00, -1.93443972e+00, -7.82451576e-04, -2.01623305e+00,
-        #      1.07058586e-02, -2.97166270e-02, 7.79705638e-11, 8.97321022e-14, 2.82025756e+00, 9.17699092e-06, 2.02342494e-04,
-        #      -4.47064442e-11, -1.58406284e+01, -3.16792708e-07, 1.19759912e-07, 1.44848150e-09, 3.69688415e-01, 1.46706753e+00,
-        #      -6.09558848e+00, -3.69919404e-01, 1.77204534e-15, 3.37396320e+00, 7.12603024e+00, 5.13412693e+00, 1.42985838e-13,
-        #      -1.35860648e+00, 9.86773080e-01, 7.16527647e-05, -4.53020988e-07, 1.22554574e-14, -9.79684856e-01,
-        #      -2.48367558e-03, -4.08610451e+00, 1.68959329e-11, 1.57695419e-04, -2.81665209e-16, 9.54317319e-01, 1.13779464e-10,
-        #      -2.14200285e+01, -5.69815115e-03, 6.99977582e-05, 1.27401377e-06, -1.36657633e-12, -8.62183368e-01,
-        #      -1.17448900e-07, -6.84912908e-10, 4.76940567e+00, 1.22672644e-01, 6.35854594e-03, 2.06395952e-04, -1.71745973e+00,
-        #      1.18690533e-14, -2.64577059e-06, 3.74685204e-05, -9.35110500e-10, 1.27495106e-10, 4.72414520e-01, 5.68268584e-14,
-        #      -1.59403298e-12, -2.64751845e-02, 4.70743297e-06, -3.83230249e-15, -1.24884654e-02, -9.25683765e-05,
-        #      3.74877362e-19, -4.31021265e-07, 1.03898415e-06, 6.69438818e-11, 6.65972989e-01, -2.63645988e-07, -1.61711013e-04,
-        #      3.29563544e-09, 2.01551777e-07, -2.72712040e-04, 3.32406059e+00, 1.01609718e-09, -8.85495001e-09, -1.81529237e-08,
-        #      3.34898668e-08, 2.66923789e-07, 1.66921839e-10, 3.87767514e-05, 7.01322175e-02, 9.67579103e-09, -4.31915176e-14,
-        #      -6.13970431e-09, 3.46435646e-07, -9.22873474e-01, -5.15910912e-03, 2.37124847e+01, -1.18190506e-09,
-        #      1.48082163e+01, 1.81607555e+01, 1.82420777e+01, -4.03773274e+00, 9.86908036e-06, 8.86778581e-12, 9.67164039e+00,
-        #      -7.15417107e+00, -8.80073378e-06, -1.11456528e+01, -4.69599081e-04, 5.63508098e-07, -1.97338380e-03,
-        #      2.34615152e-11, 2.86579844e-09, 6.02457416e-07, -6.24327168e+00, -3.34420303e+00, 3.15807412e-14, -3.01765533e-03,
-        #      1.00394881e-17, 6.67942317e+00, 3.35536950e-05, -1.04539378e+01, -8.96312423e-10, -1.41261986e-13, 7.04753770e-09,
-        #      -1.47665955e-12, -4.05942022e+00, -2.12622319e-03, -5.07641447e+00, 1.55284372e+01, 1.67424584e+01,
-        #      1.63111928e+01, -8.10483751e-03, 5.77942174e-13, 8.62280815e+00, -2.75603952e+00, -7.08573681e+00,
-        #      -9.80490722e+00, -1.03927019e+01, 1.47401422e+00, -1.00801679e+00, -9.49654484e+00, -8.54052613e-18])
+        #         -8.70848005e+00]) 
 
         
         #---------------- RUN THE HMM MODEL ---------------  
@@ -484,7 +409,7 @@ if __name__ == "__main__":
         param_cross,alpha_cross,beta_cross,shapes_cross,hess_inv = hmm.EM(n_segments, 
                                                              max_method = max_method,
                                                              reg_term = reg,
-                                                             random_starting_points = False)
+                                                             random_starting_points = False)  
 
         # Transform the output back to the specific parameter matrices
         gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(hmm, 
@@ -512,7 +437,6 @@ if __name__ == "__main__":
             #source = "crosssell4seg"
             source = "crosssell5seg" 
             #source = "crosssell6seg"
-
             
             if (source == "finalActivity"):
                 
@@ -676,7 +600,7 @@ if __name__ == "__main__":
                      -1.47665955e-12, -4.05942022e+00, -2.12622319e-03, -5.07641447e+00, 1.55284372e+01, 1.67424584e+01,
                      1.63111928e+01, -8.10483751e-03, 5.77942174e-13, 8.62280815e+00, -2.75603952e+00, -7.08573681e+00,
                      -9.80490722e+00, -1.03927019e+01, 1.47401422e+00, -1.00801679e+00, -9.49654484e+00, -8.54052613e-18])
-
+                
                 # Define the dependent variable
                 name_dep_var = crosssell_types_max
                 # Say which covariates we are going to use
@@ -714,11 +638,15 @@ if __name__ == "__main__":
             
         # Now interpret & visualise the parameters 
         #p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
-        
-        print("-----getting standard errors-----")
-        #hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
-        print(f"Done calculating standard errors at {utils.get_time()}")
-         
+
+        calculate_se= False   
+        if calculate_se: 
+            print("-----getting standard errors-----")
+            hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
+            print(f"Done calculating standard errors at {utils.get_time()}")
+             
+        # Get the targeting decision
+
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             print("-----Calculating targeting decision-----")
             tresholds = [0.2, 0.7]
@@ -799,8 +727,8 @@ if __name__ == "__main__":
         evaluate_thresholds = False
         if (run_cross_sell & evaluate_thresholds):
             print("-----Plotting results for different thresholds-----")
-            lower = [0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40]
-            upper = [0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85]
+            lower = [0.01,0.02,0.03,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55]
+            upper = [0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95,0.96,0.97,0.98,0.99]
             order_active_high_to_low = [0,1,2]
             active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
@@ -822,43 +750,56 @@ if __name__ == "__main__":
                 diffdummies = diffdata[["business_change_dummy", "retail_change_dummy",
                             "joint_change_dummy","accountoverlay_change_dummy"]]  
                 
-                if vary_lower :
+                if vary_lower:
                     low_bounds = lower
                 else:
-                    low_bounds = np.repeat(lower_base)
+                    low_bounds = np.repeat(lower_base,len(lower))
                 if vary_upper: 
                     up_bounds = upper
                 else:
-                    up_bounds = np.repeat(upper_base)
+                    up_bounds = np.repeat(upper_base,len(upper))
                                 
+                sensitivity = pd.DataFrame()
+                
                 for i in range(0,len(low_bounds)) :
-                    threshold = [low_bounds[i],up_bounds[i]]
+                    thresholds = [low_bounds[i],up_bounds[i]]
                     dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
-                                                                                                          active_value, tresholds=tresholds, 
-                                                                                                          order_active_high_to_low = order_active_high_to_low)
-                    
-                    # These describe product ownership yes/no
-                    prod_own_new = testing_period[crosssell_types_dummies]  
-                    prod_own_old = last_period[crosssell_types_dummies]                  
-                    ginivec = hmm.calculate_gini(prod_ownership_new = prod_own_new,
-                                                 prod_ownership_old = prod_own_old, 
-                                                 product_probs= prod_own, binary = True)
-                    
-                    # Now do it with the actual numbers of ownership
-                    prod_own_new = testing_period[crosssell_types_max]
-                    prod_own_old = last_period[crosssell_types_max]
-                    ginivec2 = hmm.calculate_gini(prod_ownership_new = prod_own_new,
-                                                  prod_ownership_old = prod_own_old, 
-                                                  product_probs= prod_own, binary = False)
-                    
+                                                                                                          active_value, tresholds=thresholds, 
+                                                                                                          order_active_high_to_low = order_active_high_to_low)                    
                     # Get accuracy measures
                     evaluation = hmm.calculate_accuracy(cross_sell_pred = cross_sell_self,
                                               cross_sell_true = diffdummies, 
-                                              print_out = True)
+                                              print_out = False)
                     
-                    
-                            
+                    select = (evaluation["measure"]=="sensitivity")
+                    sens = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]
+                    sensitivity = pd.concat([sensitivity, sens], axis=1)
+       
+                    select = (evaluation["measure"]=="accuracy")
+                    acc = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]
+                    accuracy = pd.concat([sensitivity, acc], axis=1)
+                  
+                sensitivity.columns = ["business","retail","joint","accountoverlay"]
+                sensitivity["threshold_low"] = low_bounds
+                sensitivity["threshold_high"] = up_bounds
                 
+                accuracy.columns = ["business","retail","joint","accountoverlay"]
+                accuracy["threshold_low"] = low_bounds
+                accuracy["threshold_high"] = up_bounds
+                
+                return accuracy, sensitivity
+                             
+            acc, sens = evaluate_threshold_plot(active_value, order_active_high_to_low ,
+                                        testing_period, last_period,
+                                        lower,upper,vary_lower=False,vary_upper=True,
+                                        lower_base=0.2,upper_base=0.7)
+            
+            print(acc)
+            print(sens)
+            
+            
 # =============================================================================
 # SALDO PREDICTION
 # =============================================================================
@@ -897,28 +838,42 @@ if __name__ == "__main__":
             # Define which dummy variables to use
             dummies = person_dummies # get experian characteristics
             dummies.extend(activity_dummies) # get activity status
-            
-            # Run the data creation
-            saldo_name = f"saldopredict"
+           
+            #--------- MAKE DATASET CONTAINING SALDO DIFFERENCES TO TRAIN ---------
+            saldo_name = "saldopredict"
             predictdata = additdata.create_saldo_data(saldodflist, interdir,
                                             filename= saldo_name,
                                             select_variables = selection,
                                             dummy_variables = dummies,
                                             globalmin = globalmin)
             
+            
+            #--------- MAKE SALDO PREDICTION VARIABLES IN THE DATASET --------- 
+            for i, df in enumerate(dflist):   
+                dum, dumnames =  additdata.make_dummies(df,
+                                                     dummies,
+                                                     drop_first = False)
+                df[dumnames] = dum[dumnames]
+            
+            
+            #------------------------ TRAIN THE MODEL ------------------------ 
             print(f"****Create saldo prediction model at {utils.get_time()}****")
+                    
+            # The input dataset is the specific finergy dataset - if we want it
+            # to be the full dataset we need to create dummy variables for that
+            # dataset as well
             
-            # get extra saldo 
-            t = 10 # period for which we predict TODO make this a variable somewhere
-            #minimum = 80000
-            finergy_segment = "B04"
-            
+            # Train the model
             predict_saldo = ps.predict_saldo(saldo_data = predictdata,
-                                             df_time_series = saldodflist,
+                                             df_time_series = dflist,
                                              interdir = interdir,
                                              )
+            #We predict for period 10
+            extra_saldo,  X_var_final, ols_final = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
+                                                                                 time=10, 
+                                                                                 minimum = globalmin,
+                                                                                 fin_segment = None)
             
-            extra_saldo,  X_var_final, ols_final = predict_saldo.get_extra_saldo(cross_sell_total, globalmin, t, segment = finergy_segment)
             
 
 
