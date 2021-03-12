@@ -1362,7 +1362,7 @@ class HMM_eff:
          
   
     
-    def hypo_customers(self, param, n_segments, interdir):
+    def hypo_customers(self, activity, param, n_segments):
         
          #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
@@ -1374,45 +1374,66 @@ class HMM_eff:
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)        
            
-        Z = pd.read_csv(f"{interdir}/hypothetical_data.csv")
-        
-        n_possible = 5*5*2*5*7*6
-        
-        inc_dummy = np.zeros((n_possible, 4))
-        age_dummy = np.zeros((n_possible, 4))
-        gender_dummy = np.zeros((n_possible, 1))
-        hh_dummy = np.zeros((n_possible, 4))
-        saldo_dummy = np.zeros((n_possible, 6))
-        bus_dummy = np.zeros((n_possible, 5))
-        rest = np.zeros((n_possible, 2))
-        
-        
-        div = n_possible/2
-        gender_dummy[div : 2*div, 0] = np.ones(div)
-        
-        for i in range(1,5):
-            div = n_possible/5
-            inc_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
-            age_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
-            hh_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
-
-        for i in range(1,6):
-            div = n_possible/6
-            bus_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
-          
-        for i in range(1,7):
-            div = n_possible/7
-            saldo_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+        if activity == False:
+            n_possible = 5*5*2*5*7*6*2
             
-        Z = np.hstack((inc_dummy,age_dummy,gender_dummy,hh_dummy, saldo_dummy,bus_dummy,rest))
-        P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
-        P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
+            inc_dummy = np.zeros((n_possible, 4))
+            age_dummy = np.zeros((n_possible, 4))
+            gender_dummy = np.zeros((n_possible, 1))
+            hh_dummy = np.zeros((n_possible, 4))
+            saldo_dummy = np.zeros((n_possible, 6))
+            bus_dummy = np.zeros((n_possible, 5))
+            rest = np.zeros((n_possible, 2))
+            
+            
+            div = int(n_possible/2)
+            gender_dummy[div : 2*div, 0] = np.ones(div)
+            
+            for i in range(1,5):
+                div = int(n_possible/5)
+                inc_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+                age_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+                hh_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+    
+            for i in range(1,6):
+                div = int(n_possible/6)
+                bus_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+              
+            for i in range(1,7):
+                div = int(n_possible/7)
+                saldo_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+                
+            Z = np.hstack((inc_dummy,age_dummy,gender_dummy,hh_dummy, saldo_dummy,bus_dummy,rest))
+            P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
+            P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
+    
+            P_s_given_r = np.swapaxes(P_s_given_r, 0, 2)
+            P_s_given_r = np.swapaxes(P_s_given_r, 1, 2)
+            return P_s_given_Z, P_s_given_r
 
-        P_s_given_r = np.swapaxes(P_s_given_r, 0, 2)
-        P_s_given_r = np.swapaxes(P_s_given_r, 1, 2)
+        else:
+            n_possible = 5*5*2
+            
+            inc_dummy = np.zeros((n_possible, 4))
+            age_dummy = np.zeros((n_possible, 4))
+            gender_dummy = np.zeros((n_possible, 1))
+            
+            div = int(n_possible/2)
+            gender_dummy[div : 2*div, 0] = np.ones(div)
+            
+            for i in range(1,5):
+                div = int(n_possible/5)
+                inc_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+                age_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
+    
 
-        
-        return P_s_given_Z, P_s_given_r
+            Z = np.hstack((inc_dummy,age_dummy,gender_dummy))
+            
+            #alpha, beta = self.forward_backward_procedure(param_in, shapes, n_segments)
+            #P_s_given_Y_Z = ef.state_event(self, alpha, beta)
+
+            #return P_s_given_Y_Z
+
 
 
     # def new_hessian(self,parameters, n_segments = None):
