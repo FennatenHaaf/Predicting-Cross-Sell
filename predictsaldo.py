@@ -68,7 +68,7 @@ class predict_saldo:
                             pd.read_csv(f"{interdir}/{name}_2020Q3.csv"),
                             pd.read_csv(f"{interdir}/{name}_2020Q4.csv")]
         else:
-            self.df_times_series = df_time_series
+            self.df_time_series = df_time_series
             
         if isinstance(cross_sell_types, type(None)):        
             self.cross_sell_types = ["business",
@@ -122,8 +122,8 @@ class predict_saldo:
         self.X = X
 
 
-    def train_predict(self, outname ="predictsaldo_output",
-                      test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
+    def train_predict(self, test_set_prop = 0.2, random_state = 0, p_bound = 0.05,
+                      outname ="predictsaldo_output"):
         """
         Parameters
         ----------
@@ -288,24 +288,35 @@ class predict_saldo:
     
         
         # train model to get parameters
-        X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop, random_state, p_bound)
+        X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop = test_set_prop,
+                                                                         random_state = random_state,
+                                                                         p_bound = p_bound)
         
         df_cross_sell = pd.DataFrame(data = cross_sell_yes_no, columns = cross_sell_types)
 
         # create cross-effects dummies
-        df_ts['business_retail_joint'] = df_cross_sell['business']* df_cross_sell['retail']*df_cross_sell['joint']
-        df_ts['business_retail'] = df_cross_sell['business']* df_cross_sell['retail']*(1 - df_cross_sell['joint'])
-        df_ts['business'] = df_cross_sell['business']* (1 - df_cross_sell['retail'])*(1 - df_cross_sell['joint'])
-        df_ts['business_joint'] = df_cross_sell['business']* (1 - df_cross_sell['retail'])*(df_cross_sell['joint'])
-        df_ts['joint'] = (1 - df_cross_sell['business'])* (1 - df_cross_sell['retail'])*(df_cross_sell['joint'])  
-        df_ts['retail_joint'] = (1-df_cross_sell['business'])* (df_cross_sell['retail'])*(df_cross_sell['joint'])
-        df_ts['retail'] = (1-df_cross_sell['business'])* (df_cross_sell['retail'])*(1 -df_cross_sell['joint'])
-        df_ts['constant'] = [1]* df_ts.shape[0]
+        df_ts['business_retail_joint'] = df_cross_sell['business'].copy()* df_cross_sell['retail'].copy()*df_cross_sell['joint'].copy()
+        df_ts['business_retail'] = df_cross_sell['business'].copy()* df_cross_sell['retail'].copy()*(1 - df_cross_sell['joint'].copy())
+        df_ts['business'] = df_cross_sell['business'].copy()* (1 - df_cross_sell['retail'].copy())*(1 - df_cross_sell['joint'].copy())
+        df_ts['business_joint'] = df_cross_sell['business'].copy()*(1 - df_cross_sell['retail'].copy())*(df_cross_sell['joint'].copy())
+        df_ts['joint'] = (1 - df_cross_sell['business'].copy())* (1 - df_cross_sell['retail'].copy())*(df_cross_sell['joint'].copy())  
+        df_ts['retail_joint'] = (1-df_cross_sell['business'].copy())* (df_cross_sell['retail'].copy())*(df_cross_sell['joint'].copy())
+        df_ts['retail'] = (1-df_cross_sell['business'].copy())* (df_cross_sell['retail'].copy())*(1 -df_cross_sell['joint'].copy())
+        df_ts['constant'] = np.ones(len(df_ts))  #[1]* df_ts.shape[0]
+        
+        
+        #add a few variables which are not standard in the dataset
+        df_ts['log_saldoprev'] = df_ts["log_saldototaal"].copy()
+        df_ts['prev_retail_dummy'] = df_ts["retail_dummy"].copy()
+        df_ts['prev_joint_dummy'] = df_ts["joint_dummy"].copy()
+        df_ts['prev_business_dummy'] = df_ts["business_dummy"].copy()
         
         # use significant variables and corresponding parameters
-        df_ts_final = df_ts[X_var_final]
-        beta = ols_final.params
         
+        X_var_final = pd.Series(X_var_final)
+        X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
+        self.df_ts_final = df_ts[X_var_final2]
+        beta = ols_final.params
         # calculate fitted values
         fitted_values = self.df_ts_final.dot(beta)
         
@@ -329,20 +340,21 @@ class predict_saldo:
         """function that derives the actual extra saldo from the fitted values"""
     
 
-        prev_saldo = self.df[[["business","retail",
-                                        "joint"]].sum(axis=1)]
+        prev_saldo = df["saldototaal"]
+        #self.df[[["business","retail","joint"]].sum(axis=1)]
         
-        extra_saldo = math.exp(fitted_values) * (prev_saldo + minimum) - minimum
+        extra_saldo = np.exp(fitted_values) * (prev_saldo + minimum) - minimum
         
         return extra_saldo
     
-    def get_extra_saldo(self, cross_sell_yes_no, t, minimum, fin_segment = None, test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
+    
+    def get_extra_saldo(self, cross_sell_yes_no, time, minimum, fin_segment = None, test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
         """
         Parameters
         ----------
         cross_sell_yes_no : 2D array
             array indicating whether customers (rows) are eligible for the cross sell of certain products (columns)
-        t : int
+        time : int
             time for which one wants to calculate extra saldos
         minimum : float
             minimum of all the saldos of all customers over all the time
@@ -367,16 +379,21 @@ class predict_saldo:
     
         # initialise the dataframes
         if fin_segment == None:
-            df_ts = self.df_time_series[t]
+            df_ts = self.df_time_series[time]
         else: 
-            df_ts = self.df_time_series[t]     
-            df_ts = self.df_ts[df_ts['finergy_tp'] == fin_segment]
+            df_ts = self.df_time_series[time]     
+            df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
 
-    
-        fitted_values, X_var_final, ols_final = self.get_fitted_values(self.cross_sell_types, cross_sell_yes_no, df_ts, 
-                                                                                         test_set_prop, random_state, p_bound)
+
+        fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
+                                                                        cross_sell_yes_no = cross_sell_yes_no,
+                                                                        df_ts = df_ts,
+                                                                        test_set_prop = test_set_prop,
+                                                                        random_state = random_state,
+                                                                        p_bound= p_bound)
         
-        extra_saldo = self.fitted_values_to_saldo(fitted_values, df_ts, minimum)
+        extra_saldo = self.fitted_values_to_saldo(minimum=minimum, fitted_values = fitted_values,
+                                                  df = df_ts)
 
         return extra_saldo, X_var_final, ols_final
 
