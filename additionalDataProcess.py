@@ -449,20 +449,7 @@ class AdditionalDataProcess(object):
         #Transform the different dataframes that have been imported
         for i, df in enumerate(self.input_cross_list):
             new_df = self.aggregate_portfolio_types(df)
-            # new_df = self.transform_variables(new_df)
-            # if i == 0:
-            #     prev_df = new_df
-            # else:
-            #     diffdata = self.get_difference_data(new_df, prev_df, log = False, select_no_decrease =  False)
-            #     if i == 1:
-            #         filter_diffdata = ['personid'] + list(set(diffdata.columns) - set(new_df.columns))
-            #
-            #     prev_df = new_df
-            #     new_df = pd.merge(new_df, diffdata[filter_diffdata], how = "left", on = 'personid')
-            #     new_df.reset_index()
             self.input_cross_list[i] = new_df
-
-
 
         self.input_cross = pd.concat(self.input_cross_list, ignore_index = True)
 
