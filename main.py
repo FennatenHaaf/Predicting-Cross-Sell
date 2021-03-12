@@ -508,9 +508,9 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
-            source = "finalActivity"
+            #source = "finalActivity"
             #source = "crosssell4seg"
-            #source = "crosssell5seg" 
+            source = "crosssell5seg" 
             #source = "crosssell6seg"
 
             
@@ -713,10 +713,10 @@ if __name__ == "__main__":
         #----------------------------------------------------------------------------
             
         # Now interpret & visualise the parameters 
-        p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
+        #p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
         
         print("-----getting standard errors-----")
-        hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
+        #hess_inv, dfSE, param_afterBFGS = hmm.get_standard_errors(param_cross, n_segments)
         print(f"Done calculating standard errors at {utils.get_time()}")
          
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
