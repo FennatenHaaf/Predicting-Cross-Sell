@@ -352,7 +352,6 @@ class MachineLearningModel(object):
         start_message = f"Starting Transforming categorical {x_variable}"
         self.transformation_log.append(start_message)
         self.print_transformation_log()
-        transformation_log_add = "" #Addition to
 
         frequencies = X[x_variable].value_counts()
         high_frequency = frequencies > threshold
@@ -372,8 +371,7 @@ class MachineLearningModel(object):
             if len(other_category) > 1:
                 new_data.loc[X[x_variable].isin(other_category), x_variable] = "Other"
                 self.imported_data[x_variable_recoded] = new_data[x_variable]
-                self.variables_dict["categorical_variables_recoded"] = self.variables_dict["categorical_variables_recoded"].append(
-                    x_variable_recoded)
+                self.variables_dict["categorical_variables_recoded"].append(x_variable_recoded)
 
                 self.transformation_log.append(f"\n Categories coded with Other are: {utils.print_seperated_list(other_category)}\n")
 
@@ -464,7 +462,6 @@ class MachineLearningModel(object):
 
                 self.imported_data[x_variable_recoded ] = 0
                 self.variables_dict['categorical_variables_recoded'].append(x_variable_recoded)
-
                 self.transformation_log.append( f"{x_variable} has been recoded into {len(recoded_list)} categories" )
                 self.print_transformation_log()
 
