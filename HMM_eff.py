@@ -1362,7 +1362,7 @@ class HMM_eff:
          
   
     
-    def hypo_customers(self, activity, param, n_segments):
+    def hypo_customers(self, activity, param, n_segments, interdir):
         
          #----------- Initialise everything so that we get the shapes-------------
         gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) )
@@ -1403,13 +1403,17 @@ class HMM_eff:
                 div = int(n_possible/7)
                 saldo_dummy[i*div : (i+1)*div, i-1] = np.ones(div)
                 
-            Z = np.hstack((inc_dummy,age_dummy,gender_dummy,hh_dummy, saldo_dummy,bus_dummy,rest))
+            Z = np.hstack((rest, inc_dummy,age_dummy,gender_dummy,hh_dummy, saldo_dummy,bus_dummy))
+                                    
+            Z = pd.read_csv(f"{interdir}/hypo_data.csv")
+                        
+
             P_s_given_Z = ef.prob_P_s_given_Z(self, param, shapes, Z, n_segments)
             P_s_given_r = ef.prob_P_s_given_r(self, param, shapes, Z, n_segments)
-    
+
             P_s_given_r = np.swapaxes(P_s_given_r, 0, 2)
             P_s_given_r = np.swapaxes(P_s_given_r, 1, 2)
-            return P_s_given_Z, P_s_given_r
+            return P_s_given_Z, P_s_given_r, Z
 
         else:
             n_possible = 5*5*2
