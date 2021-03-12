@@ -637,7 +637,7 @@ if __name__ == "__main__":
         #----------------------------------------------------------------------------
             
         # Now interpret & visualise the parameters 
-        #p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
+        p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs, P_s_given_r = hmm.interpret_parameters(param_cross, n_segments)
 
         calculate_se= False   
         if calculate_se: 
