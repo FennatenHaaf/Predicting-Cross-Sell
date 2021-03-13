@@ -100,7 +100,7 @@ class predict_saldo:
         
         if isinstance(base_variables, type(None)):
             # Drop the base cases
-            X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 
+            X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 'hh_size_1.0',
                               'huidigewaarde_klasse_1.0','age_bins_(0, 18]','age_bins_(18, 30]', 
                               'geslacht_Man', 'geslacht_Man(nen) en vrouw(en)',
                               'activitystatus_1.0' ])
@@ -150,10 +150,8 @@ class predict_saldo:
         
         X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size = test_set_prop, random_state = random_state) 
 
-        olsmod = sm.OLS(y_train, X_train)
-        olsres = olsmod.fit()
 
-        X_var_final, ols_final, r2adjusted, r2, mse = self.backwardel(olsres, X_train, X_test, y_train, y_test, p_bound)
+        X_var_final, ols_final, r2adjusted, r2, mse = self.backwardel(X_train, X_test, y_train, y_test, p_bound)
         print(ols_final.summary())
         
         
@@ -185,7 +183,7 @@ class predict_saldo:
         return X_var_final, ols_final, r2adjusted, r2, mse 
 
     
-    def backwardel(self, olsres, X_train, X_test, y_train, y_test, p_bound):
+    def backwardel(self, X_train, X_test, y_train, y_test, p_bound):
         """
         Parameters
         ----------
@@ -220,38 +218,54 @@ class predict_saldo:
         
         current_X = X_train
         max_p = 1
-        new_p = False
-        
+
+        new_p = True
+
         while (max_p >= p_bound):
-            
-            if (new_p == False):           
+              
+            # do new OLS, and calculate performance if variable with highest p-value is removed
+            if new_p:
+                olsres = sm.OLS(y_train, current_X).fit()
                 p_val = list(olsres.pvalues)
                 
-                r2adjusted.append(olsres.rsquared_adj)
-                r2.append(olsres.rsquared)
-                xx = X_test[list(current_X.columns)] 
-                pred = np.mean(np.square(np.array(olsres.predict(xx) - y_test)))
-            else:
                 max_p = max(p_val)
                 max_p_index = p_val.index(max_p)
                 temp_current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
                 olsres = sm.OLS(y_train, temp_current_X).fit()
+
                 xx = X_test[list(temp_current_X.columns)]
                 pred = np.mean(np.square(np.array(olsres.predict(xx) - y_test)))
-                 
-            if (pred < min(mse)):
-                new_p = False
-                mse.append(pred)
+            # use old OLS, but look at the list of p-values but without the p-values that cannot be removed
+            else:                
                 max_p = max(p_val)
                 max_p_index = p_val.index(max_p)
+                temp_current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
+                olsres = sm.OLS(y_train, temp_current_X).fit()
+                
+                xx = X_test[list(temp_current_X.columns)] 
+                pred = np.mean(np.square(np.array(olsres.predict(xx) - y_test)))
+
+            # OLS without variable with highest p-value performs well, remove that variable
+            if (pred < min(mse)):
+                mse.append(pred)
+
                 print(current_X.columns[max_p_index], " is dropped with p-val", max_p)
                 current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
-        
-                olsres = sm.OLS(y_train, current_X).fit()
+                r2adjusted.append(olsres.rsquared_adj)
+                r2.append(olsres.rsquared)
+                
+                p_val.remove(max(p_val))
+                max_p = max(p_val)
+
+                new_p = True
+            # OLS with variable with highest p-value does not perform well, remove the p-value
             else:
                 p_val.remove(max(p_val))
-                new_p = True
-                
+                max_p = max(p_val)
+
+                new_p = False
+            
+            olsres = sm.OLS(y_train, current_X).fit()
             current_X_var_arr = current_X.columns.values
             current_X_var = list(current_X_var_arr)
 
@@ -314,12 +328,13 @@ class predict_saldo:
         # use significant variables and corresponding parameters
         
         X_var_final = pd.Series(X_var_final)
-        X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
-        self.df_ts_final = df_ts[X_var_final2]
+        #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
+        self.df_ts_final = df_ts[X_var_final]
         beta = ols_final.params
         # calculate fitted values
         fitted_values = self.df_ts_final.dot(beta)
-        
+        fitted_values2 = ols_final.predict(self.df_ts_final)
+
         return fitted_values, X_var_final, ols_final
 
     def fitted_values_to_saldo(self, minimum, fitted_values, df):
@@ -379,9 +394,9 @@ class predict_saldo:
     
         # initialise the dataframes
         if fin_segment == None:
-            df_ts = self.df_time_series[time]
+            df_ts = self.df_time_series[time-1]
         else: 
-            df_ts = self.df_time_series[time]     
+            df_ts = self.df_time_series[time-1]     
             df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
 
 

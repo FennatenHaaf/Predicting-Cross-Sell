@@ -71,9 +71,9 @@ if __name__ == "__main__":
     visualize_data = False # make some graphs and figures
     
     run_hmm = False
-    run_cross_sell = False # do we want to run the model for cross sell or activity
+    run_cross_sell = True # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    saldopredict = False # Do we want to run the methods for predicting saldo
+    saldopredict = True # Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -639,6 +639,7 @@ if __name__ == "__main__":
             
         # Now interpret & visualise the parameters 
         #p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
+        p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs, P_s_given_r = hmm.interpret_parameters(param_cross, n_segments)
 
         calculate_se= False   
         if calculate_se: 
@@ -658,8 +659,8 @@ if __name__ == "__main__":
                                                                                                       active_value, tresholds=tresholds, 
                                                                                                       order_active_high_to_low = order_active_high_to_low)
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
-            # P_s_given_Z_hypo, P_s_given_r_hypo, Z_hypo = hmm.hypo_customers(False, param_cross, n_segments, interdir)
-            
+            #P_s_given_Z_hypo, P_s_given_r_hypo, Z_hypo = hmm.hypo_customers(False, param_cross, n_segments)
+          
         else:
             print("-----Calculating active value-----")
             active_value  = hmm.active_value(param_cross, n_segments, len(df_periods))
