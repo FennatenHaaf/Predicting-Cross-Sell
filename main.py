@@ -73,7 +73,6 @@ if __name__ == "__main__":
     run_cross_sell = True # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
     saldopredict = True # Do we want to run the methods for predicting saldo
-    saldopredict = False # Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
