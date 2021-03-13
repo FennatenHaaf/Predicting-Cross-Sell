@@ -18,6 +18,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 from os import path
+from tqdm import tqdm
 
 if __name__ == "__main__":
 
@@ -657,7 +658,7 @@ if __name__ == "__main__":
                                                                                                       active_value, tresholds=tresholds, 
                                                                                                       order_active_high_to_low = order_active_high_to_low)
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
-            P_s_given_Z_hypo, P_s_given_r_hypo, Z_hypo = hmm.hypo_customers(False, param_cross, n_segments, interdir)
+            # P_s_given_Z_hypo, P_s_given_r_hypo, Z_hypo = hmm.hypo_customers(False, param_cross, n_segments, interdir)
             
         else:
             print("-----Calculating active value-----")
@@ -728,7 +729,11 @@ if __name__ == "__main__":
         if (run_cross_sell & evaluate_thresholds):
             print("-----Plotting results for different thresholds-----")
             lower = [0.01,0.02,0.03,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55]
-            upper = [0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95,0.96,0.97,0.98,0.99]
+            #upper = [0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.82,0.85]
+            
+            #lower = np.arange(start = 0.01, stop = 0.75, step =0.01)
+            upper = np.arange(start = 0.10, stop = 0.85, step =0.01)
+            
             order_active_high_to_low = [0,1,2]
             active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
@@ -753,15 +758,16 @@ if __name__ == "__main__":
                 if vary_lower:
                     low_bounds = lower
                 else:
-                    low_bounds = np.repeat(lower_base,len(lower))
+                    low_bounds = np.repeat(lower_base,len(upper))
                 if vary_upper: 
                     up_bounds = upper
                 else:
                     up_bounds = np.repeat(upper_base,len(upper))
                                 
                 sensitivity = pd.DataFrame()
+                accuracy = pd.DataFrame()
                 
-                for i in range(0,len(low_bounds)) :
+                for i in tqdm(range(0,len(low_bounds))):
                     thresholds = [low_bounds[i],up_bounds[i]]
                     dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
                                                                                                           active_value, tresholds=thresholds, 
@@ -774,13 +780,13 @@ if __name__ == "__main__":
                     select = (evaluation["measure"]=="sensitivity")
                     sens = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
                             "joint_change_dummy","accountoverlay_change_dummy"]]
-                    sensitivity = pd.concat([sensitivity, sens], axis=1)
+                    sensitivity = pd.concat([sensitivity, sens], axis=0)
        
                     select = (evaluation["measure"]=="accuracy")
                     acc = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
                             "joint_change_dummy","accountoverlay_change_dummy"]]
-                    accuracy = pd.concat([sensitivity, acc], axis=1)
-                  
+                    accuracy = pd.concat([accuracy, acc], axis=0)
+
                 sensitivity.columns = ["business","retail","joint","accountoverlay"]
                 sensitivity["threshold_low"] = low_bounds
                 sensitivity["threshold_high"] = up_bounds
@@ -794,10 +800,12 @@ if __name__ == "__main__":
             acc, sens = evaluate_threshold_plot(active_value, order_active_high_to_low ,
                                         testing_period, last_period,
                                         lower,upper,vary_lower=False,vary_upper=True,
-                                        lower_base=0.2,upper_base=0.7)
+                                        lower_base=0.2,upper_base=0.6)
             
-            print(acc)
-            print(sens)
+            
+            for var in ["business","retail","joint","accountoverlay"]: 
+                DI.plotEvaluationMetrics(dfacc=acc, dfsens=sens, var=var)
+                
             
             
 # =============================================================================

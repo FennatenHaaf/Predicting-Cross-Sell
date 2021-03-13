@@ -12,7 +12,7 @@ import pandas as pd
 from scipy.optimize import minimize
 from tqdm import tqdm
 from time import perf_counter
-import numdifftools as nd
+#import numdifftools as nd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
