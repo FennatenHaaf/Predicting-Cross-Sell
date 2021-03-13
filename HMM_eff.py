@@ -937,7 +937,7 @@ class HMM_eff:
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = False 
                         
-        return dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own, Y
+        return dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own
     
     def number_of_cross_sells(self, cross_sell_target, cross_sell_self, cross_sell_total):
         """
