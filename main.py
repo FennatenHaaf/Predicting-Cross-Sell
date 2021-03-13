@@ -73,6 +73,7 @@ if __name__ == "__main__":
     run_cross_sell = True # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
     saldopredict = True # Do we want to run the methods for predicting saldo
+    saldopredict = False # Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -638,6 +639,7 @@ if __name__ == "__main__":
             
         # Now interpret & visualise the parameters 
         #p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs = hmm.interpret_parameters(param_cross, n_segments)
+        p_js, P_s_given_Y_Z, gamma_0, gamma_sr_0, gamma_sk_t, transition_probs, P_s_given_r = hmm.interpret_parameters(param_cross, n_segments)
 
         calculate_se= False   
         if calculate_se: 
