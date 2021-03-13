@@ -100,7 +100,7 @@ class predict_saldo:
         
         if isinstance(base_variables, type(None)):
             # Drop the base cases
-            X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 
+            X = X.drop(columns = ['hh_size_1.0','income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 
                               'huidigewaarde_klasse_1.0','age_bins_(0, 18]','age_bins_(18, 30]', 
                               'geslacht_Man', 'geslacht_Man(nen) en vrouw(en)',
                               'activitystatus_1.0' ])
@@ -227,6 +227,7 @@ class predict_saldo:
             if (new_p == False):           
                 p_val = list(olsres.pvalues)
                 
+                #max_p = max(p_val)
                 r2adjusted.append(olsres.rsquared_adj)
                 r2.append(olsres.rsquared)
                 xx = X_test[list(current_X.columns)] 
@@ -235,9 +236,9 @@ class predict_saldo:
                 max_p = max(p_val)
                 max_p_index = p_val.index(max_p)
                 temp_current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
-                olsres = sm.OLS(y_train, temp_current_X).fit()
+                olsres_temp = sm.OLS(y_train, temp_current_X).fit()
                 xx = X_test[list(temp_current_X.columns)]
-                pred = np.mean(np.square(np.array(olsres.predict(xx) - y_test)))
+                pred = np.mean(np.square(np.array(olsres_temp.predict(xx) - y_test)))
                  
             if (pred < min(mse)):
                 new_p = False
@@ -252,8 +253,8 @@ class predict_saldo:
                 p_val.remove(max(p_val))
                 new_p = True
                 
-            current_X_var_arr = current_X.columns.values
-            current_X_var = list(current_X_var_arr)
+        current_X_var_arr = current_X.columns.values
+        current_X_var = list(current_X_var_arr)
 
         return current_X_var, olsres, r2adjusted, r2, mse
     
@@ -314,7 +315,7 @@ class predict_saldo:
         # use significant variables and corresponding parameters
         
         X_var_final = pd.Series(X_var_final)
-        X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
+        X_var_final2 = X_var_final[~(X_var_final=="hh_size_4.0")]
         self.df_ts_final = df_ts[X_var_final2]
         beta = ols_final.params
         # calculate fitted values
