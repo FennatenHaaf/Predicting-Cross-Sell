@@ -662,7 +662,7 @@ if __name__ == "__main__":
                                                                                                       order_active_high_to_low = order_active_high_to_low)
             n_cross_sells = hmm.number_of_cross_sells(cross_sell_target, cross_sell_self, cross_sell_total)
             #P_s_given_Z_hypo, P_s_given_r_hypo, Z_hypo = hmm.hypo_customers(False, param_cross, n_segments)
-          
+            
         else:
             print("-----Calculating active value-----")
             active_value  = hmm.active_value(param_cross, n_segments, len(df_periods))
@@ -724,7 +724,99 @@ if __name__ == "__main__":
                                               cross_sell_true = diffdummies, 
                                               print_out = True)
          
+            
+# =============================================================================
+# Evaluate thresholds
+# =============================================================================
 
+        evaluate_thresholds = True
+        if (run_cross_sell & evaluate_thresholds):
+            print("-----Plotting results for different thresholds-----")
+            lower = [0.01,0.02,0.03,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55]     
+            upper = np.arange(start = 0.10, stop = 0.85, step =0.01)
+
+            order_active_high_to_low = [0,1,2]
+            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+            active_value = active_value_pd.to_numpy()
+            
+            t = len(df_periods)
+            last_period = df_periods[t-1]
+            testing_period = dflist[10] # period 10 or 11 can be used
+            
+            def evaluate_threshold_plot(active_value, order_active_high_to_low ,
+                                        testing_period, last_period,
+                                        lower,upper,vary_lower=True,vary_upper=True,
+                                        lower_base=0.2,upper_base=0.7):
+                
+                diffdata = additdata.get_difference_data(testing_period, last_period,
+                                           select_variables = None,
+                                           dummy_variables = None,
+                                           select_no_decrease = False,
+                                           globalmin = None)         
+                diffdummies = diffdata[["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]  
+                
+                if vary_lower:
+                    low_bounds = lower
+                else:
+                    low_bounds = np.repeat(lower_base,len(upper))
+                if vary_upper: 
+                    up_bounds = upper
+                else:
+                    up_bounds = np.repeat(upper_base,len(upper))
+                                
+                sensitivity = pd.DataFrame()
+                
+                for i in range(0,len(low_bounds)) :
+                    thresholds = [low_bounds[i],up_bounds[i]]
+                    dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
+                                                                                                          active_value, tresholds=thresholds, 
+                                                                                                          order_active_high_to_low = order_active_high_to_low)                    
+                    # Get accuracy measures
+                    evaluation = hmm.calculate_accuracy(cross_sell_pred = cross_sell_self,
+                                              cross_sell_true = diffdummies, 
+                                              print_out = False)
+                    
+                    select = (evaluation["measure"]=="sensitivity")
+                    sens = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]
+                    sensitivity = pd.concat([sensitivity, sens], axis=1)
+       
+                    select = (evaluation["measure"]=="accuracy")
+                    acc = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]
+                    accuracy = pd.concat([sensitivity, acc], axis=1)
+                  
+                sensitivity.columns = ["business","retail","joint","accountoverlay"]
+                sensitivity["threshold_low"] = low_bounds
+                sensitivity["threshold_high"] = up_bounds
+                
+                accuracy.columns = ["business","retail","joint","accountoverlay"]
+                accuracy["threshold_low"] = low_bounds
+                accuracy["threshold_high"] = up_bounds
+                
+                return accuracy, sensitivity
+                             
+            acc, sens = evaluate_threshold_plot(active_value, order_active_high_to_low ,
+                                        testing_period, last_period,
+                                        lower,upper,vary_lower=False,vary_upper=True,
+                                        lower_base=0.2,upper_base=0.7)
+            
+            # Now make the plot - plot all the lines together in one figure
+            colours = ["#62aede","#de9262","#a462de","#62de9e"] #blue,orange,purple,green
+            sns.set(font_scale=1.1, rc={'figure.figsize':(14,7)})
+            sns.set_style("whitegrid")
+            fig, graph = plt.subplots()
+            legend_handles = []
+            for i, var in enumerate(["business","retail","joint","accountoverlay"]):  
+                DI.plotEvaluationMetrics(dfacc=acc, dfsens=sens, var=var,
+                                         col = colours[i])
+                legend_handles.append(mlines.Line2D([], [], color=colours[i],
+                                                    label=var)) 
+            plt.legend(handles=legend_handles,title = None,loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1,
+                fontsize = 20)
+                   
+            
 # =============================================================================
 # SALDO PREDICTION
 # =============================================================================
@@ -799,101 +891,60 @@ if __name__ == "__main__":
                                                                                  minimum = globalmin,
                                                                                  fin_segment = None)
             
-            
-# =============================================================================
-# Evaluate thresholds
-# =============================================================================
-
-        evaluate_thresholds = True
-        if (run_cross_sell & evaluate_thresholds):
-            print("-----Plotting results for different thresholds-----")
-            lower = [0.01,0.02,0.03,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55]
-            #upper = [0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.82,0.85]
-            #lower = np.arange(start = 0.01, stop = 0.75, step =0.01)
-            
-            upper = np.arange(start = 0.10, stop = 0.85, step =0.01)
-            
-            order_active_high_to_low = [0,1,2]
-            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
-            active_value = active_value_pd.to_numpy()
-            
-            t = len(df_periods)
-            last_period = df_periods[t-1]
-            testing_period = dflist[10] # period 10 or 11 can be used
-            
-            def evaluate_threshold_plot(active_value, order_active_high_to_low ,
-                                        testing_period, last_period,
-                                        lower,upper,vary_lower=True,vary_upper=True,
-                                        lower_base=0.2,upper_base=0.7):
-                
-                diffdata = additdata.get_difference_data(testing_period, last_period,
-                                           select_variables = None,
-                                           dummy_variables = None,
-                                           select_no_decrease = False,
-                                           globalmin = None)         
-                diffdummies = diffdata[["business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]]  
-                
-                if vary_lower:
-                    low_bounds = lower
-                else:
-                    low_bounds = np.repeat(lower_base,len(upper))
-                if vary_upper: 
-                    up_bounds = upper
-                else:
-                    up_bounds = np.repeat(upper_base,len(upper))
-                                
-                sensitivity = pd.DataFrame()
-                accuracy = pd.DataFrame()
-                
-                for i in tqdm(range(0,len(low_bounds))):
-                    thresholds = [low_bounds[i],up_bounds[i]]
-                    dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
-                                                                                                          active_value, tresholds=thresholds, 
-                                                                                                          order_active_high_to_low = order_active_high_to_low)                    
-                    # Get accuracy measures
-                    evaluation = hmm.calculate_accuracy(cross_sell_pred = cross_sell_self,
-                                              cross_sell_true = diffdummies, 
-                                              print_out = False)
+            def treshold_saldo_plot(predict_data, dflist, interdir, param_cross, n_segments, minimum, 
+                                    active_value = None, order_active_high_to_low = [0,1,2], t = 10):
                     
-                    select = (evaluation["measure"]=="sensitivity")
-                    sens = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]]
-                    sensitivity = pd.concat([sensitivity, sens], axis=0)
+                if active_value == None:
+                    active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+                    active_value = active_value_pd.to_numpy()
+                        
+                predict_saldo = ps.predict_saldo(saldo_data = predictdata,
+                                                 df_time_series = dflist,
+                                                    interdir = interdir)
+                
+                X_var_final, ols_final, r2adjusted, r2, mse = predict_saldo.train_predict()
+                        
+                #make meshgrid
+                n_plot = 100
+                t1 = np.linspace(0, 1, num = n_plot)
+                t2 = np.linspace(0, 1, num = n_plot)
+                
+                t1, t2 = np.meshgrid(t1, t2)
+                extra_saldo_target = np.zeros((n_plot,n_plot))
+                extra_saldo_ = np.zeros((n_plot,n_plot))
+                extra_saldo_total = np.zeros((n_plot,n_plot))
+                
+                for i in range(0,n_plot):
+                    for j in range(0,n_plot):
+                        if t2[i,j] > t1[i,j]:
+                            
+                            dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
+                                                                                                              active_value, tresholds, 
+                                                                                                              order_active_high_to_low)
        
-                    select = (evaluation["measure"]=="accuracy")
-                    acc = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]]
-                    accuracy = pd.concat([accuracy, acc], axis=0)
-
-                sensitivity.columns = ["business","retail","joint","accountoverlay"]
-                sensitivity["threshold_low"] = low_bounds
-                sensitivity["threshold_high"] = up_bounds
+                            extra_saldo_target = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_target, 
+                                                                time=t, 
+                                                                minimum = globalmin,
+                                                                fin_segment = None,
+                                                                X_var_final = X_var_final,
+                                                                ols_final = ols_final)
+                            
+                            extra_saldo_self = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_self, 
+                                                                time=t, 
+                                                                minimum = globalmin,
+                                                                fin_segment = None,
+                                                                X_var_final = X_var_final,
+                                                                ols_final = ols_final)
+                                                   
+                            extra_saldo_total = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
+                                                                time=t, 
+                                                                minimum = globalmin,
+                                                                fin_segment = None,
+                                                                X_var_final = X_var_final,
+                                                                ols_final = ols_final)
+    
                 
-                accuracy.columns = ["business","retail","joint","accountoverlay"]
-                accuracy["threshold_low"] = low_bounds
-                accuracy["threshold_high"] = up_bounds
-                
-                return accuracy, sensitivity
-                             
-            acc, sens = evaluate_threshold_plot(active_value, order_active_high_to_low ,
-                                        testing_period, last_period,
-                                        lower,upper,vary_lower=False,vary_upper=True,
-                                        lower_base=0.2,upper_base=0.6)
-            
-            # Now make the plot - plot all the lines together in one figure
-            colours = ["#62aede","#de9262","#a462de","#62de9e"] #blue,orange,purple,green
-            sns.set(font_scale=1.1, rc={'figure.figsize':(14,7)})
-            sns.set_style("whitegrid")
-            fig, graph = plt.subplots()
-            legend_handles = []
-            for i, var in enumerate(["business","retail","joint","accountoverlay"]):  
-                DI.plotEvaluationMetrics(dfacc=acc, dfsens=sens, var=var,
-                                         col = colours[i])
-                legend_handles.append(mlines.Line2D([], [], color=colours[i],
-                                                    label=var)) 
-            plt.legend(handles=legend_handles,title = None,loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1,
-                fontsize = 20)
+            treshold_saldo_plot(param_cross, n_segments, active_value, order_active_high_to_low)
             
             
 

@@ -272,7 +272,7 @@ class predict_saldo:
         return current_X_var, olsres, r2adjusted, r2, mse
     
 
-    def get_fitted_values(self, cross_sell_types, cross_sell_yes_no, df_ts, test_set_prop, random_state, p_bound):
+    def get_fitted_values(self, cross_sell_types, cross_sell_yes_no, df_ts, test_set_prop, random_state, p_bound, X_var_final = None, ols_final = None):
         """
         Parameters
         ----------
@@ -301,11 +301,6 @@ class predict_saldo:
         """function for calculating the fitted values of the saldo prediction model"""
     
         
-        # train model to get parameters
-        X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop = test_set_prop,
-                                                                         random_state = random_state,
-                                                                         p_bound = p_bound)
-        
         df_cross_sell = pd.DataFrame(data = cross_sell_yes_no, columns = cross_sell_types)
 
         # create cross-effects dummies
@@ -325,8 +320,13 @@ class predict_saldo:
         df_ts['prev_joint_dummy'] = df_ts["joint_dummy"].copy()
         df_ts['prev_business_dummy'] = df_ts["business_dummy"].copy()
         
+        # train model to get parameters
+        if (X_var_final == None) or (ols_final == None):
+            X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop = test_set_prop,
+                                                                             random_state = random_state,
+                                                                             p_bound = p_bound)    
+            
         # use significant variables and corresponding parameters
-        
         X_var_final = pd.Series(X_var_final)
         #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
         self.df_ts_final = df_ts[X_var_final]
@@ -363,7 +363,9 @@ class predict_saldo:
         return extra_saldo
     
     
-    def get_extra_saldo(self, cross_sell_yes_no, time, minimum, fin_segment = None, test_set_prop = 0.2, random_state = 0, p_bound = 0.05):
+    def get_extra_saldo(self, cross_sell_yes_no, time, minimum, fin_segment = None, 
+                        test_set_prop = 0.2, random_state = 0, p_bound = 0.05, 
+                        X_var_final = None, ols_final = None):
         """
         Parameters
         ----------
@@ -400,17 +402,32 @@ class predict_saldo:
             df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
 
 
-        fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
-                                                                        cross_sell_yes_no = cross_sell_yes_no,
-                                                                        df_ts = df_ts,
-                                                                        test_set_prop = test_set_prop,
-                                                                        random_state = random_state,
-                                                                        p_bound= p_bound)
-        
-        extra_saldo = self.fitted_values_to_saldo(minimum=minimum, fitted_values = fitted_values,
-                                                  df = df_ts)
+        if (X_var_final == None) or (ols_final == None):
+            fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
+                                                                            cross_sell_yes_no = cross_sell_yes_no,
+                                                                            df_ts = df_ts,
+                                                                            test_set_prop = test_set_prop,
+                                                                            random_state = random_state,
+                                                                            p_bound= p_bound)
+            
+            extra_saldo = self.fitted_values_to_saldo(minimum=minimum, fitted_values = fitted_values,
+                                                      df = df_ts)
+            return extra_saldo, X_var_final, ols_final
 
-        return extra_saldo, X_var_final, ols_final
-
+        else: 
+            fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
+                                                                            cross_sell_yes_no = cross_sell_yes_no,
+                                                                            df_ts = df_ts,
+                                                                            test_set_prop = test_set_prop,
+                                                                            random_state = random_state,
+                                                                            p_bound= p_bound,
+                                                                            X_var_final = X_var_final,
+                                                                            ols_final = ols_final)
+    
+            extra_saldo = self.fitted_values_to_saldo(minimum=minimum, fitted_values = fitted_values,
+                                                      df = df_ts)
+    
+            return extra_saldo
+    
 
 
