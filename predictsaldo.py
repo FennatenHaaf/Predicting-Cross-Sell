@@ -329,19 +329,28 @@ class predict_saldo:
                                                                              random_state = random_state,
                                                                              p_bound = p_bound)    
             
-        # use significant variables and corresponding parameters
-        X_var_final = pd.Series(X_var_final)
-        #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
-        self.df_ts_final = df_ts[X_var_final]
-        beta = ols_final.params
-        # calculate fitted values
-        fitted_values = self.df_ts_final.dot(beta)
-        fitted_values2 = ols_final.predict(self.df_ts_final)
+            # use significant variables and corresponding parameters
+            X_var_final = pd.Series(X_var_final)
+            #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
+            self.df_ts_final = df_ts[X_var_final]
+            beta = ols_final.params
+            # calculate fitted values
+            fitted_values = self.df_ts_final.dot(beta)
+            fitted_values2 = ols_final.predict(self.df_ts_final)
 
-        if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
             return fitted_values, X_var_final, ols_final
         else:
+            # use significant variables and corresponding parameters
+            X_var_final = pd.Series(X_var_final)
+            #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
+            self.df_ts_final = df_ts[X_var_final]
+            beta = ols_final.params
+            # calculate fitted values
+            fitted_values = self.df_ts_final.dot(beta)
+            fitted_values2 = ols_final.predict(self.df_ts_final)
+
             return fitted_values
+
 
     def fitted_values_to_saldo(self, minimum, fitted_values, df):
         """
