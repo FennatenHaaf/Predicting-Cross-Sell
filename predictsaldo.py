@@ -169,9 +169,12 @@ class predict_saldo:
            coeff = round(df.loc[i, "coef"],3)
            std =  round(df.loc[i, "stderr"],3)
     
-           if (df.loc[i,"pval"] <= 0.05):
-               if (df.loc[i,"pval"] <= 0.01):
-                  df.loc[i, "coefprint"] = f"{coeff}** ({std})"
+           if (df.loc[i,"pval"] < 0.05):
+               if (df.loc[i,"pval"] < 0.01):
+                   if (df.loc[i,"pval"] < 0.001):
+                       df.loc[i, "coefprint"] = f"{coeff}*** ({std})"
+                   else:
+                       df.loc[i, "coefprint"] = f"{coeff}** ({std})"
                else:
                   df.loc[i, "coefprint"] = f"{coeff}* ({std})"
            else:
@@ -395,14 +398,14 @@ class predict_saldo:
         """function that predicts the extra saldo on the account balances when cross sells are done"""
     
         # initialise the dataframes
-        if fin_segment == None:
+        if isinstance(fin_segment, type(None)):
             df_ts = self.df_time_series[time-1]
         else: 
             df_ts = self.df_time_series[time-1]     
             df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
 
 
-        if (X_var_final == None) or (ols_final == None):
+        if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
             fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
                                                                             cross_sell_yes_no = cross_sell_yes_no,
                                                                             df_ts = df_ts,

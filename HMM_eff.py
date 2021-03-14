@@ -874,7 +874,7 @@ class HMM_eff:
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
 
-        if data == None:
+        if isinstance(data, type(None)):
             alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
             Y = self.list_Y[self.T-1]
         else:
