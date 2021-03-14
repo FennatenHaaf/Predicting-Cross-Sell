@@ -984,9 +984,6 @@ if __name__ == "__main__":
                                                                                               active_value = active_value, order_active_high_to_low = order_active_high_to_low, time = 10)
     
                 
-
-
-            treshold_saldo_plot(param_cross, n_segments, active_value, order_active_high_to_low)
             
             
 # =============================================================================
