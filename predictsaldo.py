@@ -408,16 +408,9 @@ class predict_saldo:
             object of the final ols of the backward elimination for predicting the extra saldo
         """
         """function that predicts the extra saldo on the account balances when cross sells are done"""
-    
-        # initialise the dataframes
-        if isinstance(fin_segment, type(None)):
-            df_ts = self.df_time_series[time-1]
-        else: 
-            df_ts = self.df_time_series[time-1]     
-            df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
-
 
         if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
+            df_ts = self.df_time_series[time-1]
             fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
                                                                             cross_sell_yes_no = cross_sell_yes_no,
                                                                             df_ts = df_ts,
@@ -430,7 +423,9 @@ class predict_saldo:
             return extra_saldo, X_var_final, ols_final
 
         else: 
-            fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
+            df_ts = self.df_time_series[time-1]     
+            df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
+            fitted_values =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
                                                                             cross_sell_yes_no = cross_sell_yes_no,
                                                                             df_ts = df_ts,
                                                                             test_set_prop = test_set_prop,

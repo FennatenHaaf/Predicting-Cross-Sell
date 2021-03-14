@@ -918,37 +918,39 @@ if __name__ == "__main__":
                 
                 for i in range(0,n_plot):
                     for j in range(0,n_plot):
-                        if i >= j:
+                        if t2[i,j] >= t1[i,j]:
                             
                             tresholds = [t1[i,j], t2[i,j]]
                             dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
                                                                                                               active_value, tresholds = tresholds, 
                                                                                                               order_active_high_to_low = order_active_high_to_low)
        
-                            extra_saldo_target[i,j] = np.sum(predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_target, 
+                            saldo = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_target, 
                                                                 time=t, 
                                                                 minimum = globalmin,
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
-                                                                ols_final = ols_final) )
+                                                                ols_final = ols_final) 
+                            extra_saldo_target[i,j] = np.sum(saldo)
                             
-                            extra_saldo_self[i,j] = np.sum( predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_self, 
+                            saldo = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_self, 
                                                                 time=t, 
                                                                 minimum = globalmin,
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
-                                                                ols_final = ols_final) )
+                                                                ols_final = ols_final)
+                            extra_saldo_self[i,j] = np.sum(saldo)
                                                    
-                            extra_saldo_total[i,j] = np.sum( predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
+                            saldo = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
                                                                 time=t, 
                                                                 minimum = globalmin,
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
-                                                                ols_final = ols_final) )
-                            print('iteratie ({i},{j})')
+                                                                ols_final = ols_final)
+                            extra_saldo_total[i,j] = np.sum(saldo)
+                            
+                            #print(f"iteratie ({i},{j})")
     
-
-                
                 return extra_saldo_target, extra_saldo_self, extra_saldo_total
             
             #------------------------ PLOT SALDO AGAINST TRESHOLDS ------------------------ 
