@@ -13,6 +13,7 @@ import extra_functions_HMM_eff as ef
 import dataInsight as DI
 import predictsaldo as ps
 
+import matplotlib.pyplot as plt
 from scipy.stats.distributions import chi2
 import pandas as pd
 import numpy as np
@@ -73,6 +74,7 @@ if __name__ == "__main__":
     interpret = True #Do we want to interpret variables
     evaluate_thresholds = True # Plot accuracy and sensitivity for different thresholds
     saldopredict = False# Do we want to run the methods for predicting saldo
+
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -907,9 +909,9 @@ if __name__ == "__main__":
                                                                                  fin_segment = None)
             
             def treshold_saldo_plot(predict_data, dflist, interdir, param_cross, n_segments, minimum, 
-                                    active_value = None, order_active_high_to_low = [0,1,2], t = 10):
+                                    active_value = None, order_active_high_to_low = [0,1,2], time = 10):
                     
-                if active_value == None:
+                if isinstance(active_value, type(None)):        
                     active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
                     active_value = active_value_pd.to_numpy()
                         
@@ -926,43 +928,88 @@ if __name__ == "__main__":
                 
                 t1, t2 = np.meshgrid(t1, t2)
                 extra_saldo_target = np.zeros((n_plot,n_plot))
-                extra_saldo_ = np.zeros((n_plot,n_plot))
+                extra_saldo_self = np.zeros((n_plot,n_plot))
                 extra_saldo_total = np.zeros((n_plot,n_plot))
                 
                 for i in range(0,n_plot):
                     for j in range(0,n_plot):
-                        if t2[i,j] > t1[i,j]:
+                        if i >= j:
                             
+                            tresholds = [t1[i,j], t2[i,j]]
                             dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
-                                                                                                              active_value, tresholds, 
-                                                                                                              order_active_high_to_low)
+                                                                                                              active_value, tresholds = tresholds, 
+                                                                                                              order_active_high_to_low = order_active_high_to_low)
        
-                            extra_saldo_target = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_target, 
+                            extra_saldo_target[i,j] = np.sum(predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_target, 
                                                                 time=t, 
                                                                 minimum = globalmin,
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
-                                                                ols_final = ols_final)
+                                                                ols_final = ols_final) )
                             
-                            extra_saldo_self = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_self, 
+                            extra_saldo_self[i,j] = np.sum( predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_self, 
                                                                 time=t, 
                                                                 minimum = globalmin,
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
-                                                                ols_final = ols_final)
+                                                                ols_final = ols_final) )
                                                    
-                            extra_saldo_total = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
+                            extra_saldo_total[i,j] = np.sum( predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
                                                                 time=t, 
                                                                 minimum = globalmin,
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
-                                                                ols_final = ols_final)
+                                                                ols_final = ols_final) )
+                            print('iteratie ({i},{j})')
     
-                
-            treshold_saldo_plot(param_cross, n_segments, active_value, order_active_high_to_low)
-            
-            
 
+                
+                return extra_saldo_target, extra_saldo_self, extra_saldo_total
+            
+            #------------------------ PLOT SALDO AGAINST TRESHOLDS ------------------------ 
+            print('plot saldo against tresholds')
+            plot_saldo_treshold = True
+            if plot_saldo_treshold:
+        
+                extra_saldo_target, extra_saldo_self, extra_saldo_total = treshold_saldo_plot(predictdata, dflist, interdir, param_cross, n_segments, globalmin, 
+                                                                                              active_value = active_value, order_active_high_to_low = order_active_high_to_low, time = 10)
+    
+            n_plot = 100
+            t1 = np.linspace(0, 1, num = n_plot)
+            t2 = np.linspace(0, 1, num = n_plot)
+            t1, t2 = np.meshgrid(t1, t2)
+            
+            fig = plt.figure()
+            ax = fig.gca(projection='3d')
+            ax.plot_surface(t1, t2, extra_saldo_target)
+            ax.set_xlabel('Lower treshold')
+            ax.set_ylabel('Upper treshold')
+            ax.set_zlabel('Extra Saldo')
+            #ax.set_xlim(-1, 1)
+            #ax.set_ylim(-1, 1)
+            #ax.set_zlim(-1, 1)
+                
+            fig = plt.figure()
+            ax = fig.gca(projection='3d')
+            ax.plot_surface(t1, t2, extra_saldo_self)
+            ax.set_xlabel('Lower treshold')
+            ax.set_ylabel('Upper treshold')
+            ax.set_zlabel('Extra Saldo')
+            #ax.set_xlim(-1, 1)
+            #ax.set_ylim(-1, 1)
+            #ax.set_zlim(-1, 1)
+                
+            fig = plt.figure()
+            ax = fig.gca(projection='3d')
+            ax.plot_surface(t1, t2, extra_saldo_total)
+            ax.set_xlabel('Lower treshold')
+            ax.set_ylabel('Upper treshold')
+            ax.set_zlabel('Extra Saldo')
+            #ax.set_xlim(-1, 1)
+            #ax.set_ylim(-1, 1)
+            #ax.set_zlim(-1, 1)
+            
+            
 # =============================================================================
 # Models testing
 # =============================================================================

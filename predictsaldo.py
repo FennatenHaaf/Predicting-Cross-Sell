@@ -169,9 +169,12 @@ class predict_saldo:
            coeff = round(df.loc[i, "coef"],3)
            std =  round(df.loc[i, "stderr"],3)
     
-           if (df.loc[i,"pval"] <= 0.05):
-               if (df.loc[i,"pval"] <= 0.01):
-                  df.loc[i, "coefprint"] = f"{coeff}** ({std})"
+           if (df.loc[i,"pval"] < 0.05):
+               if (df.loc[i,"pval"] < 0.01):
+                   if (df.loc[i,"pval"] < 0.001):
+                       df.loc[i, "coefprint"] = f"{coeff}*** ({std})"
+                   else:
+                       df.loc[i, "coefprint"] = f"{coeff}** ({std})"
                else:
                   df.loc[i, "coefprint"] = f"{coeff}* ({std})"
            else:
@@ -321,21 +324,33 @@ class predict_saldo:
         df_ts['prev_business_dummy'] = df_ts["business_dummy"].copy()
         
         # train model to get parameters
-        if (X_var_final == None) or (ols_final == None):
+        if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
             X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop = test_set_prop,
                                                                              random_state = random_state,
                                                                              p_bound = p_bound)    
             
-        # use significant variables and corresponding parameters
-        X_var_final = pd.Series(X_var_final)
-        #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
-        self.df_ts_final = df_ts[X_var_final]
-        beta = ols_final.params
-        # calculate fitted values
-        fitted_values = self.df_ts_final.dot(beta)
-        fitted_values2 = ols_final.predict(self.df_ts_final)
+            # use significant variables and corresponding parameters
+            X_var_final = pd.Series(X_var_final)
+            #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
+            self.df_ts_final = df_ts[X_var_final]
+            beta = ols_final.params
+            # calculate fitted values
+            fitted_values = self.df_ts_final.dot(beta)
+            fitted_values2 = ols_final.predict(self.df_ts_final)
 
-        return fitted_values, X_var_final, ols_final
+            return fitted_values, X_var_final, ols_final
+        else:
+            # use significant variables and corresponding parameters
+            X_var_final = pd.Series(X_var_final)
+            #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
+            self.df_ts_final = df_ts[X_var_final]
+            beta = ols_final.params
+            # calculate fitted values
+            fitted_values = self.df_ts_final.dot(beta)
+            fitted_values2 = ols_final.predict(self.df_ts_final)
+
+            return fitted_values
+
 
     def fitted_values_to_saldo(self, minimum, fitted_values, df):
         """
@@ -395,14 +410,14 @@ class predict_saldo:
         """function that predicts the extra saldo on the account balances when cross sells are done"""
     
         # initialise the dataframes
-        if fin_segment == None:
+        if isinstance(fin_segment, type(None)):
             df_ts = self.df_time_series[time-1]
         else: 
             df_ts = self.df_time_series[time-1]     
             df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
 
 
-        if (X_var_final == None) or (ols_final == None):
+        if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
             fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
                                                                             cross_sell_yes_no = cross_sell_yes_no,
                                                                             df_ts = df_ts,
