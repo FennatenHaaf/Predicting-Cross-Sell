@@ -382,6 +382,24 @@ def plot_portfolio_changes_stacked(dataset, varvector, percent = True,
 
 
 
+def plotEvaluationMetrics(dfacc,dfsens,var):
+    """Plot accuracy and sensitivity for different thresholds in one graph 
+    for one portfolio type"""
+    
+    # Get only the accuracy 
+    data = pd.concat([dfacc.rename(columns={var: "accuracy"})["accuracy"].reset_index(drop=True),
+                        dfsens.rename(columns={var: "sensitivity"})["sensitivity"].reset_index(drop=True), 
+                        dfacc["threshold_high"].reset_index(drop=True)],axis=1)
+    
+    # Stack the data so it is in 'long form'(necessary for plotting)
+    data= data.set_index("threshold_high").stack().reset_index()
+    
+    # make the plot
+    sns.lineplot(x =data["threshold_high"], y = data[0],
+                 hue = data["level_1"],
+                 data=data)
+
+
 
 # =============================================================================
 # OTHER EXPLORE METHODS
