@@ -766,8 +766,9 @@ if __name__ == "__main__":
                     up_bounds = np.repeat(upper_base,len(upper))
                                 
                 sensitivity = pd.DataFrame()
+                accuracy = pd.DataFrame()
                 
-                for i in range(0,len(low_bounds)) :
+                for i in tqdm(range(0,len(low_bounds))):
                     thresholds = [low_bounds[i],up_bounds[i]]
                     dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
                                                                                                           active_value, tresholds=thresholds, 
@@ -780,12 +781,12 @@ if __name__ == "__main__":
                     select = (evaluation["measure"]=="sensitivity")
                     sens = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
                             "joint_change_dummy","accountoverlay_change_dummy"]]
-                    sensitivity = pd.concat([sensitivity, sens], axis=1)
+                    sensitivity = pd.concat([sensitivity, sens], axis=0)
        
                     select = (evaluation["measure"]=="accuracy")
                     acc = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
                             "joint_change_dummy","accountoverlay_change_dummy"]]
-                    accuracy = pd.concat([sensitivity, acc], axis=1)
+                    accuracy = pd.concat([accuracy, acc], axis=0)
                   
                 sensitivity.columns = ["business","retail","joint","accountoverlay"]
                 sensitivity["threshold_low"] = low_bounds
@@ -800,7 +801,7 @@ if __name__ == "__main__":
             acc, sens = evaluate_threshold_plot(active_value, order_active_high_to_low ,
                                         testing_period, last_period,
                                         lower,upper,vary_lower=False,vary_upper=True,
-                                        lower_base=0.2,upper_base=0.7)
+                                        lower_base=0.2,upper_base=0.6)
             
             # Now make the plot - plot all the lines together in one figure
             colours = ["#62aede","#de9262","#a462de","#62de9e"] #blue,orange,purple,green
