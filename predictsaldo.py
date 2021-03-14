@@ -324,7 +324,7 @@ class predict_saldo:
         df_ts['prev_business_dummy'] = df_ts["business_dummy"].copy()
         
         # train model to get parameters
-        if (X_var_final == None) or (ols_final == None):
+        if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
             X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop = test_set_prop,
                                                                              random_state = random_state,
                                                                              p_bound = p_bound)    
@@ -338,7 +338,7 @@ class predict_saldo:
         fitted_values = self.df_ts_final.dot(beta)
         fitted_values2 = ols_final.predict(self.df_ts_final)
 
-        if (X_var_final == None) or (ols_final == None):
+        if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
             return fitted_values, X_var_final, ols_final
         else:
             return fitted_values

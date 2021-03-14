@@ -947,35 +947,7 @@ if __name__ == "__main__":
                                                                 ols_final = ols_final) )
                             print('iteratie ({i},{j})')
     
-                fig = plt.figure()
-                ax = fig.gca(projection='3d')
-                ax.plot_surface(t1, t2, extra_saldo_target)
-                ax.set_xlabel('Lower treshold')
-                ax.set_ylabel('Upper treshold')
-                ax.set_zlabel('Extra Saldo')
-                #ax.set_xlim(-1, 1)
-                #ax.set_ylim(-1, 1)
-                #ax.set_zlim(-1, 1)
-                
-                fig = plt.figure()
-                ax = fig.gca(projection='3d')
-                ax.plot_surface(t1, t2, extra_saldo_self)
-                ax.set_xlabel('Lower treshold')
-                ax.set_ylabel('Upper treshold')
-                ax.set_zlabel('Extra Saldo')
-                #ax.set_xlim(-1, 1)
-                #ax.set_ylim(-1, 1)
-                #ax.set_zlim(-1, 1)
-                
-                fig = plt.figure()
-                ax = fig.gca(projection='3d')
-                ax.plot_surface(t1, t2, extra_saldo_total)
-                ax.set_xlabel('Lower treshold')
-                ax.set_ylabel('Upper treshold')
-                ax.set_zlabel('Extra Saldo')
-                #ax.set_xlim(-1, 1)
-                #ax.set_ylim(-1, 1)
-                #ax.set_zlim(-1, 1)
+
                 
                 return extra_saldo_target, extra_saldo_self, extra_saldo_total
             
@@ -987,7 +959,40 @@ if __name__ == "__main__":
                 extra_saldo_target, extra_saldo_self, extra_saldo_total = treshold_saldo_plot(predictdata, dflist, interdir, param_cross, n_segments, globalmin, 
                                                                                               active_value = active_value, order_active_high_to_low = order_active_high_to_low, time = 10)
     
+            n_plot = 100
+            t1 = np.linspace(0, 1, num = n_plot)
+            t2 = np.linspace(0, 1, num = n_plot)
+            t1, t2 = np.meshgrid(t1, t2)
+            
+            fig = plt.figure()
+            ax = fig.gca(projection='3d')
+            ax.plot_surface(t1, t2, extra_saldo_target)
+            ax.set_xlabel('Lower treshold')
+            ax.set_ylabel('Upper treshold')
+            ax.set_zlabel('Extra Saldo')
+            #ax.set_xlim(-1, 1)
+            #ax.set_ylim(-1, 1)
+            #ax.set_zlim(-1, 1)
                 
+            fig = plt.figure()
+            ax = fig.gca(projection='3d')
+            ax.plot_surface(t1, t2, extra_saldo_self)
+            ax.set_xlabel('Lower treshold')
+            ax.set_ylabel('Upper treshold')
+            ax.set_zlabel('Extra Saldo')
+            #ax.set_xlim(-1, 1)
+            #ax.set_ylim(-1, 1)
+            #ax.set_zlim(-1, 1)
+                
+            fig = plt.figure()
+            ax = fig.gca(projection='3d')
+            ax.plot_surface(t1, t2, extra_saldo_total)
+            ax.set_xlabel('Lower treshold')
+            ax.set_ylabel('Upper treshold')
+            ax.set_zlabel('Extra Saldo')
+            #ax.set_xlim(-1, 1)
+            #ax.set_ylim(-1, 1)
+            #ax.set_zlim(-1, 1)
             
             
 # =============================================================================
