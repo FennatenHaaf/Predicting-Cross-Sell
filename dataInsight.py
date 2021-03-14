@@ -168,19 +168,28 @@ def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
       
         
 def plotFinergyCounts(df_experian, ids):
-    sns.set(rc={'figure.figsize':(15,10)})
+    sns.set(rc={'figure.figsize':(20,10)})
     sns.set_style("whitegrid")
     df_experian = df_experian[df_experian["personid"].isin(ids)] 
     print("plotting finergy counts")
     graph =sns.countplot(x="finergy_tp", data = df_experian)
+    
+    # set labels
+    graph.set_xlabel("Finergy type",fontsize = 21)
+    graph.set_ylabel("Count",fontsize = 21)
+    graph.tick_params(axis="x", labelsize=18) 
+    graph.tick_params(axis="y", labelsize=20) 
     plt.show()
     
         
 def plotCategorical(df, name, xlabel = None, annotate = True,
-                    colours = None):
+                    colours = None, onecol= False):
     sns.set(font_scale=2,rc={'figure.figsize':(12,8)})
     sns.set_style("whitegrid")
-    graph = sns.countplot(x=name, data = df, palette=colours,)
+    if onecol:
+        graph = sns.countplot(x=name, data = df, color=colours)
+    else:
+        graph = sns.countplot(x=name, data = df, palette=colours)
     
     
     graph.set_xticklabels(graph.get_xticklabels(),rotation=30,
@@ -202,7 +211,8 @@ def plotCategorical(df, name, xlabel = None, annotate = True,
     plt.show()
     
     
-def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0): 
+def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0,
+              make_perc=True, make_total_perc=False): 
     """Plot cooccurrences"""
     
     sns.set(font_scale=3,rc={'figure.figsize':(15,12)})
@@ -214,7 +224,6 @@ def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0):
     
     labels = ["business","retail","joint","accountoverlay"]  
         
-    #labels = graph.get_yticklabels()
     graph.set_yticklabels(labels,rotation=0,
                           horizontalalignment='right', fontweight='light',
                           fontsize=30)
@@ -223,24 +232,43 @@ def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0):
                           fontsize=30)
     plt.show()
     
-    # Now also make the percentages version
-    coocc_diagonal = np.diagonal(coocc)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        coocc_perc =  np.nan_to_num(round(np.true_divide(coocc,
-                                                 coocc_diagonal[:, None]),3))
+    if make_perc:
+        # Now also make the percentages version
+        coocc_diagonal = np.diagonal(coocc)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            coocc_perc =  np.nan_to_num(round(np.true_divide(coocc,
+                                                     coocc_diagonal[:, None]),3))
+        
+        graph = sns.heatmap(coocc_perc, center=cent, annot = annotate, 
+                            cmap=colors, fmt='g',cbar=False,vmin=0.2, vmax=1.2) 
     
-    graph = sns.heatmap(coocc_perc, center=cent, annot = annotate, 
-                        cmap=colors, fmt='g',cbar=False,vmin=0.2, vmax=1.2) 
-
-    graph.set_yticklabels(labels,rotation=0,
-                          horizontalalignment='right', fontweight='light',
-                          fontsize=30)
-    graph.set_xticklabels(labels,rotation=0,
-                          horizontalalignment='center', fontweight='light',
-                          fontsize=30)
+        graph.set_yticklabels(labels,rotation=0,
+                              horizontalalignment='right', fontweight='light',
+                              fontsize=30)
+        graph.set_xticklabels(labels,rotation=0,
+                              horizontalalignment='center', fontweight='light',
+                              fontsize=30)
+        
+        plt.show()
     
-    plt.show()
-    
+    if make_total_perc:
+        annotate = coocc.copy()
+        for i in range(0,annotate.shape[0]):
+            for j in range(0,annotate.shape[1]):
+                annotate.iloc[i,j] = f"{coocc.iloc[i,j]} ({round(coocc.iloc[i,j]/len(df),3)}%)"
+        
+        sns.set(font_scale=3,rc={'figure.figsize':(16,13)})
+        graph = sns.heatmap(coocc, center=cent, annot = annotate, 
+                            cmap=colors, fmt='', 
+                            cbar=False) 
+        graph.set_yticklabels(labels,rotation=0,
+                              horizontalalignment='right', fontweight='light',
+                              fontsize=30)
+        graph.set_xticklabels(labels,rotation=0,
+                              horizontalalignment='center', fontweight='light',
+                              fontsize=30)
+        
+        plt.show()
     
     
 def plot_portfolio_changes(dataset, varvector, percent = True,
@@ -274,10 +302,7 @@ def plot_portfolio_changes(dataset, varvector, percent = True,
     sns.set_style("whitegrid")
 
     dfstacked = df.stack().reset_index()
-    # dfstacked = dfstacked[(dfstacked[0]>0)] 
-    # select = 
-    # dfstacked[0][(dfstacked[0]==0)] = np.nan
-    
+
     fig, graph = plt.subplots()
     sns.barplot(x = dfstacked["level_1"], y =dfstacked[0],
                 data = dfstacked, hue = dfstacked["level_0"],
@@ -370,7 +395,7 @@ def plot_portfolio_changes_stacked(dataset, varvector, percent = True,
     graph.set_ylabel(None,fontsize = 21)
     graph.tick_params(axis="x", labelsize=20)
   
-    graph.legend(title = None, loc="upper left",bbox_to_anchor=(0.01, 1.13), ncol = len(unique_values),
+    graph.legend(title = None, loc="upper left",bbox_to_anchor=(0.07, 1.14), ncol = len(unique_values),
                    fontsize = 18)
     plt.show()
    
@@ -378,7 +403,8 @@ def plot_portfolio_changes_stacked(dataset, varvector, percent = True,
 
 
 
-def plotEvaluationMetrics(dfacc,dfsens,var,col = "#62aede"):
+def plotEvaluationMetrics(dfacc,dfsens,var,colours = ["#62aede","#de9262"],
+                          dash = "solid"):
     """Plot accuracy and sensitivity for different thresholds in one graph 
     for one portfolio type"""
     
@@ -391,10 +417,12 @@ def plotEvaluationMetrics(dfacc,dfsens,var,col = "#62aede"):
     data= data.set_index("threshold_high").stack().reset_index()
     
     # make the plot
-    sns.lineplot(x =data["threshold_high"], y = data[0],
-                 style = data["level_1"],
+    sns.lineplot(x=data["threshold_high"], y = data[0],
+                 hue=data["level_1"],
                  data=data,
-                 color=col)
+                 palette=colours,
+                 linestyle = dash,
+                 )
 
 
 
