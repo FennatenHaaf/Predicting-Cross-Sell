@@ -337,21 +337,20 @@ def plot_portfolio_changes_stacked(dataset, varvector, percent = True,
     
   column_values = dataset[varvector].values.ravel()
   unique_values = pd.Series(pd.unique(column_values)).sort_values().dropna()
+  if (ignore_0):
+      unique_values.pop(0) # remove the option 0
 
   df = pd.DataFrame(columns = varvector, index = unique_values)
 
   for var in varvector:
       group = dataset[var]
       for value in unique_values: 
-        if ((value == 0) & (ignore_0 == True)):
-            True # We do nothing
-        else: 
-            count = int((group == value).sum())
-            perc = (count/len(group))*100
-            if (percent):
-              df.loc[value,var] = perc
-            else:       
-              df.loc[value,var] = count
+        count = int((group == value).sum())
+        perc = (count/len(group))*100
+        if (percent):
+          df.loc[value,var] = perc
+        else:       
+          df.loc[value,var] = count
   df= df.set_index(unique_values)
   df= df.transpose()
 
@@ -370,10 +369,7 @@ def plot_portfolio_changes_stacked(dataset, varvector, percent = True,
     graph.set_xlabel("Percentage",fontsize = 21)
     graph.set_ylabel(None,fontsize = 21)
     graph.tick_params(axis="x", labelsize=20)
-    #graph.set_title("Overzicht van inkomstenbronnen percentages", fontsize=18, 
-    #                  weight='bold', ha='center', y=1.02) 
-    # Verander de locatie van de legenda
-    #graph.legend(loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1,fontsize = 17) 
+  
     graph.legend(title = None, loc="upper left",bbox_to_anchor=(0.01, 1.13), ncol = len(unique_values),
                    fontsize = 18)
     plt.show()
@@ -382,7 +378,7 @@ def plot_portfolio_changes_stacked(dataset, varvector, percent = True,
 
 
 
-def plotEvaluationMetrics(dfacc,dfsens,var):
+def plotEvaluationMetrics(dfacc,dfsens,var,col = "#62aede"):
     """Plot accuracy and sensitivity for different thresholds in one graph 
     for one portfolio type"""
     
@@ -396,8 +392,9 @@ def plotEvaluationMetrics(dfacc,dfsens,var):
     
     # make the plot
     sns.lineplot(x =data["threshold_high"], y = data[0],
-                 hue = data["level_1"],
-                 data=data)
+                 style = data["level_1"],
+                 data=data,
+                 color=col)
 
 
 
