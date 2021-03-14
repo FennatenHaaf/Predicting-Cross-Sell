@@ -17,6 +17,8 @@ from scipy.stats.distributions import chi2
 import pandas as pd
 import numpy as np
 import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 from os import path
 from tqdm import tqdm
 
@@ -68,12 +70,12 @@ if __name__ == "__main__":
 # =============================================================================
     
     time_series = False # Do we want to run the code for getting time series data
-    visualize_data = False # make some graphs and figures
+    visualize_data = True # make some graphs and figures
     
     run_hmm = False
-    run_cross_sell = True # do we want to run the model for cross sell or activity
+    run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    saldopredict = True # Do we want to run the methods for predicting saldo
+    saldopredict = False# Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -722,93 +724,7 @@ if __name__ == "__main__":
                                               cross_sell_true = diffdummies, 
                                               print_out = True)
          
-# =============================================================================
-# Evaluate thresholds
-# =============================================================================
 
-        evaluate_thresholds = False
-        if (run_cross_sell & evaluate_thresholds):
-            print("-----Plotting results for different thresholds-----")
-            lower = [0.01,0.02,0.03,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55]
-            #upper = [0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.82,0.85]
-            
-            #lower = np.arange(start = 0.01, stop = 0.75, step =0.01)
-            upper = np.arange(start = 0.10, stop = 0.85, step =0.01)
-            
-            order_active_high_to_low = [0,1,2]
-            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
-            active_value = active_value_pd.to_numpy()
-            
-            t = len(df_periods)
-            last_period = df_periods[t-1]
-            testing_period = dflist[10] # period 10 or 11 can be used
-            
-            def evaluate_threshold_plot(active_value, order_active_high_to_low ,
-                                        testing_period, last_period,
-                                        lower,upper,vary_lower=True,vary_upper=True,
-                                        lower_base=0.2,upper_base=0.7):
-                
-                diffdata = additdata.get_difference_data(testing_period, last_period,
-                                           select_variables = None,
-                                           dummy_variables = None,
-                                           select_no_decrease = False,
-                                           globalmin = None)         
-                diffdummies = diffdata[["business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]]  
-                
-                if vary_lower:
-                    low_bounds = lower
-                else:
-                    low_bounds = np.repeat(lower_base,len(upper))
-                if vary_upper: 
-                    up_bounds = upper
-                else:
-                    up_bounds = np.repeat(upper_base,len(upper))
-                                
-                sensitivity = pd.DataFrame()
-                accuracy = pd.DataFrame()
-                
-                for i in tqdm(range(0,len(low_bounds))):
-                    thresholds = [low_bounds[i],up_bounds[i]]
-                    dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
-                                                                                                          active_value, tresholds=thresholds, 
-                                                                                                          order_active_high_to_low = order_active_high_to_low)                    
-                    # Get accuracy measures
-                    evaluation = hmm.calculate_accuracy(cross_sell_pred = cross_sell_self,
-                                              cross_sell_true = diffdummies, 
-                                              print_out = False)
-                    
-                    select = (evaluation["measure"]=="sensitivity")
-                    sens = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]]
-                    sensitivity = pd.concat([sensitivity, sens], axis=0)
-       
-                    select = (evaluation["measure"]=="accuracy")
-                    acc = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
-                            "joint_change_dummy","accountoverlay_change_dummy"]]
-                    accuracy = pd.concat([accuracy, acc], axis=0)
-
-                sensitivity.columns = ["business","retail","joint","accountoverlay"]
-                sensitivity["threshold_low"] = low_bounds
-                sensitivity["threshold_high"] = up_bounds
-                
-                accuracy.columns = ["business","retail","joint","accountoverlay"]
-                accuracy["threshold_low"] = low_bounds
-                accuracy["threshold_high"] = up_bounds
-                
-                return accuracy, sensitivity
-                             
-            acc, sens = evaluate_threshold_plot(active_value, order_active_high_to_low ,
-                                        testing_period, last_period,
-                                        lower,upper,vary_lower=False,vary_upper=True,
-                                        lower_base=0.2,upper_base=0.6)
-            
-            
-            for var in ["business","retail","joint","accountoverlay"]: 
-                DI.plotEvaluationMetrics(dfacc=acc, dfsens=sens, var=var)
-                
-            
-            
 # =============================================================================
 # SALDO PREDICTION
 # =============================================================================
@@ -884,7 +800,102 @@ if __name__ == "__main__":
                                                                                  fin_segment = None)
             
             
+# =============================================================================
+# Evaluate thresholds
+# =============================================================================
 
+        evaluate_thresholds = True
+        if (run_cross_sell & evaluate_thresholds):
+            print("-----Plotting results for different thresholds-----")
+            lower = [0.01,0.02,0.03,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55]
+            #upper = [0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.82,0.85]
+            #lower = np.arange(start = 0.01, stop = 0.75, step =0.01)
+            
+            upper = np.arange(start = 0.10, stop = 0.85, step =0.01)
+            
+            order_active_high_to_low = [0,1,2]
+            active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+            active_value = active_value_pd.to_numpy()
+            
+            t = len(df_periods)
+            last_period = df_periods[t-1]
+            testing_period = dflist[10] # period 10 or 11 can be used
+            
+            def evaluate_threshold_plot(active_value, order_active_high_to_low ,
+                                        testing_period, last_period,
+                                        lower,upper,vary_lower=True,vary_upper=True,
+                                        lower_base=0.2,upper_base=0.7):
+                
+                diffdata = additdata.get_difference_data(testing_period, last_period,
+                                           select_variables = None,
+                                           dummy_variables = None,
+                                           select_no_decrease = False,
+                                           globalmin = None)         
+                diffdummies = diffdata[["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]  
+                
+                if vary_lower:
+                    low_bounds = lower
+                else:
+                    low_bounds = np.repeat(lower_base,len(upper))
+                if vary_upper: 
+                    up_bounds = upper
+                else:
+                    up_bounds = np.repeat(upper_base,len(upper))
+                                
+                sensitivity = pd.DataFrame()
+                accuracy = pd.DataFrame()
+                
+                for i in tqdm(range(0,len(low_bounds))):
+                    thresholds = [low_bounds[i],up_bounds[i]]
+                    dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
+                                                                                                          active_value, tresholds=thresholds, 
+                                                                                                          order_active_high_to_low = order_active_high_to_low)                    
+                    # Get accuracy measures
+                    evaluation = hmm.calculate_accuracy(cross_sell_pred = cross_sell_self,
+                                              cross_sell_true = diffdummies, 
+                                              print_out = False)
+                    
+                    select = (evaluation["measure"]=="sensitivity")
+                    sens = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]
+                    sensitivity = pd.concat([sensitivity, sens], axis=0)
+       
+                    select = (evaluation["measure"]=="accuracy")
+                    acc = evaluation.loc[select,["business_change_dummy", "retail_change_dummy",
+                            "joint_change_dummy","accountoverlay_change_dummy"]]
+                    accuracy = pd.concat([accuracy, acc], axis=0)
+
+                sensitivity.columns = ["business","retail","joint","accountoverlay"]
+                sensitivity["threshold_low"] = low_bounds
+                sensitivity["threshold_high"] = up_bounds
+                
+                accuracy.columns = ["business","retail","joint","accountoverlay"]
+                accuracy["threshold_low"] = low_bounds
+                accuracy["threshold_high"] = up_bounds
+                
+                return accuracy, sensitivity
+                             
+            acc, sens = evaluate_threshold_plot(active_value, order_active_high_to_low ,
+                                        testing_period, last_period,
+                                        lower,upper,vary_lower=False,vary_upper=True,
+                                        lower_base=0.2,upper_base=0.6)
+            
+            # Now make the plot - plot all the lines together in one figure
+            colours = ["#62aede","#de9262","#a462de","#62de9e"] #blue,orange,purple,green
+            sns.set(font_scale=1.1, rc={'figure.figsize':(14,7)})
+            sns.set_style("whitegrid")
+            fig, graph = plt.subplots()
+            legend_handles = []
+            for i, var in enumerate(["business","retail","joint","accountoverlay"]):  
+                DI.plotEvaluationMetrics(dfacc=acc, dfsens=sens, var=var,
+                                         col = colours[i])
+                legend_handles.append(mlines.Line2D([], [], color=colours[i],
+                                                    label=var)) 
+            plt.legend(handles=legend_handles,title = None,loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1,
+                fontsize = 20)
+            
+            
 
 # =============================================================================
 # Models testing
