@@ -945,6 +945,7 @@ if __name__ == "__main__":
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
                                                                 ols_final = ols_final) )
+                            print('iteratie ({i},{j})')
     
                 fig = plt.figure()
                 ax = fig.gca(projection='3d')
