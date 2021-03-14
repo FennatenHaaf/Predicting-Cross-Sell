@@ -801,6 +801,7 @@ if __name__ == "__main__":
             print(sens)
             
             
+            
 # =============================================================================
 # SALDO PREDICTION
 # =============================================================================
@@ -874,6 +875,53 @@ if __name__ == "__main__":
                                                                                  time=10, 
                                                                                  minimum = globalmin,
                                                                                  fin_segment = None)
+            
+            """
+            def treshold_saldo_plot(predict_data, dflist, interdir, param_cross, n_segments, minimum, active_value = None, order_active_high_to_low = [0,1,2]):
+                    
+                if active_value == None:
+                    active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+                    active_value = active_value_pd.to_numpy()
+                        
+                predict_saldo = ps.predict_saldo(saldo_data = predictdata,
+                                                 df_time_series = dflist,
+                                                    interdir = interdir)
+                
+                X_var_final, ols_final, r2adjusted, r2, mse = predict_saldo.train_predict()
+                        
+                #make meshgrid
+                t1 = arange(0, 1, 0.01)
+                t2 = arange(0, 1, 0.01)
+                t1, t2 = meshgrid(t1, t2)
+                    
+                for i in t1, t2:
+                        i = 2
+                    
+            def extra_saldo(tresholds, param_cross, n_segments, minimum, X_var_final = None, ols_final = None, active_value = None, order_active_high_to_low = [0,1,2], t = 10):
+                
+                if active_value == None:
+                    active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
+                    active_value = active_value_pd.to_numpy()
+                
+                dif_exp_own, cross_sell_target, cross_sell_self, cross_sell_total, prod_own = hmm.cross_sell_yes_no(param_cross, n_segments,
+                                                                                                              active_value, tresholds, 
+                                                                                                              order_active_high_to_low)
+                
+                if (X_var_final = None) or (ols_final = None):
+                    extra_saldo,  X_var_final, ols_final = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
+                                                                                         time=t, 
+                                                                                         minimum = minimum,
+                                                                                         fin_segment = None)
+                else: 
+                    extra_saldo = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
+                                                                time=t, 
+                                                                minimum = globalmin,
+                                                                fin_segment = None,
+                                                                X_var_final = X_var_final,
+                                                                ols_final)
+                
+            treshold_saldo_plot(param_cross, n_segments, active_value, order_active_high_to_low)
+"""
             
             
 
