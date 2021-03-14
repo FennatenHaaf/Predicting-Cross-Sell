@@ -338,7 +338,10 @@ class predict_saldo:
         fitted_values = self.df_ts_final.dot(beta)
         fitted_values2 = ols_final.predict(self.df_ts_final)
 
-        return fitted_values, X_var_final, ols_final
+        if (X_var_final == None) or (ols_final == None):
+            return fitted_values, X_var_final, ols_final
+        else:
+            return fitted_values
 
     def fitted_values_to_saldo(self, minimum, fitted_values, df):
         """

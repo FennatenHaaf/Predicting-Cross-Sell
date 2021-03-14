@@ -76,7 +76,7 @@ if __name__ == "__main__":
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    saldopredict = False# Do we want to run the methods for predicting saldo
+    saldopredict = True# Do we want to run the methods for predicting saldo
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -730,7 +730,7 @@ if __name__ == "__main__":
 # Evaluate thresholds
 # =============================================================================
 
-        evaluate_thresholds = True
+        evaluate_thresholds = False
         if (run_cross_sell & evaluate_thresholds):
             print("-----Plotting results for different thresholds-----")
             lower = [0.01,0.02,0.03,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55]     
@@ -978,8 +978,11 @@ if __name__ == "__main__":
                 
                 return extra_saldo_target, extra_saldo_self, extra_saldo_total
             
-            plot_saldo_treshold = False
+            #------------------------ PLOT SALDO AGAINST TRESHOLDS ------------------------ 
+            print('plot saldo against tresholds')
+            plot_saldo_treshold = True
             if plot_saldo_treshold:
+        
                 extra_saldo_target, extra_saldo_self, extra_saldo_total = treshold_saldo_plot(predictdata, dflist, interdir, param_cross, n_segments, globalmin, 
                                                                                               active_value = active_value, order_active_high_to_low = order_active_high_to_low, time = 10)
     
