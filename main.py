@@ -35,7 +35,7 @@ if __name__ == "__main__":
     interdir = "./interdata"
 
     save_intermediate_results = False # Save the intermediate outputs
-    print_information = False # Print things like frequency tables or not
+    print_information = True # Print things like frequency tables or not
 
     quarterly = True # In which period do we want to aggregate the data?
     #start_date = "2020-01-01" # From which moment onwards do we want to use
@@ -47,36 +47,34 @@ if __name__ == "__main__":
     subsample = False # Do we want to take a subsample
     sample_size = 1000 # The sample size
     finergy_segment = "B04"
-    #"B04" # The finergy segment that we want to be in the sample
+    # The finergy segment that we want to be in the sample
     # e.g.: "B04" - otherwise make it None
     
     # How to save the final result
     if (finergy_segment != None):
         if subsample:
             final_name = f"final_df_fin{finergy_segment}_n{sample_size}"
-            #saldo_name =  f"saldopredict_fin{finergy_segment}_n{sample_size}"
         else:
             final_name = f"final_df_fin{finergy_segment}"
-           #saldo_name = f"saldopredict_fin{finergy_segment}"
     else:
         if subsample:
             final_name = f"final_df_n{sample_size}"
-            #saldo_name = f"saldopredict_n{sample_size}"
         else:
             final_name = "final_df"
-           # saldo_name = f"saldopredict"
             
 # =============================================================================
 # DEFINE WHAT TO RUN
 # =============================================================================
     
     time_series = False # Do we want to run the code for getting time series data
-    visualize_data = True # make some graphs and figures
+    visualize_data = False # make some graphs and figures
     
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    saldopredict = True# Do we want to run the methods for predicting saldo
+    evaluate_thresholds = True # Plot accuracy and sensitivity for different thresholds
+    saldopredict = False# Do we want to run the methods for predicting saldo
+
 
 # =============================================================================
 # DEFINE SOME VARIABLE SETS TO USE FOR THE MODELS
@@ -260,7 +258,7 @@ if __name__ == "__main__":
         DI.plotCategorical(df, "income", xlabel = "Income category",
                            colours = "Blues")
         DI.plotCategorical(df, "age_bins", xlabel = "Age",
-                           colours = "Blues")
+                           colours = "#3debcb", onecol =True)
         DI.plotCategorical(df, "saldototaal_bins", xlabel = "Total account balance (EUR)",
                            colours = "Blues")
         
@@ -289,7 +287,8 @@ if __name__ == "__main__":
                                             colours = "Blues")
         
         # Plot how often they are purchased together (only looking at portfolio increases)
-        DI.plotCoocc(diffdata, increase_dummies)
+        DI.plotCoocc(diffdata, increase_dummies,make_total_perc=True,
+                     colors = "viridis")
 
     
 # =============================================================================
@@ -730,7 +729,6 @@ if __name__ == "__main__":
 # Evaluate thresholds
 # =============================================================================
 
-        evaluate_thresholds = False
         if (run_cross_sell & evaluate_thresholds):
             print("-----Plotting results for different thresholds-----")
             lower = [0.01,0.02,0.03,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55]     
@@ -804,20 +802,37 @@ if __name__ == "__main__":
                                         lower,upper,vary_lower=False,vary_upper=True,
                                         lower_base=0.2,upper_base=0.6)
             
-            # Now make the plot - plot all the lines together in one figure
-            colours = ["#62aede","#de9262","#a462de","#62de9e"] #blue,orange,purple,green
-            sns.set(font_scale=1.1, rc={'figure.figsize':(14,7)})
+            # Now make the plot - plot all the lines together in one figure          
+            sns.set(font_scale=1.1, rc={'figure.figsize':(13,7)})
             sns.set_style("whitegrid")
             fig, graph = plt.subplots()
+            
+            colours = ["#62aede","#de9262"] #orange, blue
+            dashes = ["solid", "dotted", "dashed" ,"dashdot"] # line styles
             legend_handles = []
             for i, var in enumerate(["business","retail","joint","accountoverlay"]):  
                 DI.plotEvaluationMetrics(dfacc=acc, dfsens=sens, var=var,
-                                         col = colours[i])
-                legend_handles.append(mlines.Line2D([], [], color=colours[i],
-                                                    label=var)) 
+                                         colours=colours,
+                                         dash = dashes[i])
+                legend_handles.append(mlines.Line2D([], [], label=var, 
+                                       color = "black", linestyle = dashes[i])) 
+            
+            # Now append the sensitivity and accuracy colours to the legend
+            legend_handles.append(mlines.Line2D([], [], linestyle='')) #whitespace
+            legend_handles.append(mlines.Line2D([], [], lw=4, color = colours[0],
+                                                label="accuracy")) 
+            legend_handles.append(mlines.Line2D([], [], lw=4, color = colours[1],
+                                                label="sensitivity")) 
+            
+            # add legend to the plot
             plt.legend(handles=legend_handles,title = None,loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1,
                 fontsize = 20)
-                   
+            
+            # set labels
+            graph.set_xlabel("Upper threshold",fontsize = 21)
+            graph.set_ylabel("Accuracy/Sensitivity",fontsize = 21)
+            graph.tick_params(axis="x", labelsize=17) 
+            graph.tick_params(axis="y", labelsize=17) 
             
 # =============================================================================
 # SALDO PREDICTION
