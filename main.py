@@ -72,8 +72,8 @@ if __name__ == "__main__":
     run_hmm = False
     run_cross_sell = False # do we want to run the model for cross sell or activity
     interpret = True #Do we want to interpret variables
-    evaluate_thresholds = True # Plot accuracy and sensitivity for different thresholds
-    saldopredict = False# Do we want to run the methods for predicting saldo
+    evaluate_thresholds = False # Plot accuracy and sensitivity for different thresholds
+    saldopredict = True# Do we want to run the methods for predicting saldo
 
 
 # =============================================================================
@@ -946,7 +946,9 @@ if __name__ == "__main__":
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
                                                                 ols_final = ols_final) 
-                            extra_saldo_target[i,j] = np.sum(saldo)
+                            saldo = np.sum(saldo)
+                            print(f"Extra saldo target: {saldo}")
+                            extra_saldo_target[i,j] = saldo
                             
                             saldo = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_self, 
                                                                 time=t, 
@@ -954,7 +956,9 @@ if __name__ == "__main__":
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
                                                                 ols_final = ols_final)
-                            extra_saldo_self[i,j] = np.sum(saldo)
+                            saldo = np.sum(saldo)
+                            print(f"Extra saldo target: {saldo}")
+                            extra_saldo_self[i,j] = saldo
                                                    
                             saldo = predict_saldo.get_extra_saldo(cross_sell_yes_no = cross_sell_total, 
                                                                 time=t, 
@@ -962,9 +966,11 @@ if __name__ == "__main__":
                                                                 fin_segment = None,
                                                                 X_var_final = X_var_final,
                                                                 ols_final = ols_final)
-                            extra_saldo_total[i,j] = np.sum(saldo)
+                            saldo = np.sum(saldo)
+                            print(f"Extra saldo target: {saldo}")
+                            extra_saldo_total[i,j] = saldo
                             
-                            #print(f"iteratie ({i},{j})")
+                            print(f"iteratie ({i},{j})")
     
                 return extra_saldo_target, extra_saldo_self, extra_saldo_total
             
