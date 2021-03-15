@@ -401,7 +401,9 @@ class predict_saldo:
         prev_saldo = df["saldototaal"]
         #self.df[[["business","retail","joint"]].sum(axis=1)]
         
-        extra_saldo = np.exp(fitted_values) * (prev_saldo + minimum) - minimum
+        new_saldo = np.exp(fitted_values) * (prev_saldo - minimum) + minimum
+        
+        extra_saldo = new_saldo - prev_saldo
         
         return extra_saldo
     
@@ -446,7 +448,7 @@ class predict_saldo:
         summation = np.sum(cross_sell_total, axis = 1)
         indices_cross_sell = np.nonzero(summation)
         
-        df_ts = df_ts.loc[indices_cross_sell]
+        df_ts_subset = df_ts.loc[indices_cross_sell].copy()
         cross_sell_self = cross_sell_self[indices_cross_sell]
         cross_sell_total = cross_sell_total[indices_cross_sell]
 
@@ -475,8 +477,8 @@ class predict_saldo:
                                                                                 X_var_final = X_var_final,
                                                                                 ols_final = ols_final)
     
-            extra_saldo_cs = self.fitted_values_to_saldo(minimum, fitted_values_cs, df = df_ts)
-            extra_saldo_no_targ = self.fitted_values_to_saldo(minimum, fitted_values_no_targ, df = df_ts)
+            extra_saldo_cs = self.fitted_values_to_saldo(minimum, fitted_values_cs, df = df_ts_subset)
+            extra_saldo_no_targ = self.fitted_values_to_saldo(minimum, fitted_values_no_targ, df = df_ts_subset)
             
             return extra_saldo_cs, extra_saldo_no_targ
     
