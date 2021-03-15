@@ -307,7 +307,7 @@ class predict_saldo:
         
         # PREDICT SALDO WITH ALL CROSS SELLS
         df_cs = pd.DataFrame(data = cross_sell_total, columns = cross_sell_types)        
-        df_ts_cs = df_ts
+        df_ts_cs = df_ts.copy()
         
         # create cross-effects dummies
         df_ts_cs['business_retail_joint'] = df_cs['business'].copy()* df_cs['retail'].copy()*df_cs['joint'].copy()
@@ -330,7 +330,7 @@ class predict_saldo:
         
         # PREDICT SALDO WITHOUT 'TARGET' CROSS SELLS
         df_no_targ = pd.DataFrame(data = cross_sell_self, columns = cross_sell_types)
-        df_ts_no_targ = df_ts
+        df_ts_no_targ = df_ts.copy()
         
         # create cross-effects dummies
         df_ts_no_targ['business_retail_joint'] = df_no_targ['business'].copy()* df_no_targ['retail'].copy()*df_no_targ['joint'].copy()
@@ -370,12 +370,12 @@ class predict_saldo:
             # use significant variables and corresponding parameters
             X_var_final = pd.Series(X_var_final)
             
-            self.df_ts_final_cs = df_ts_cs[X_var_final]
-            self.df_ts_final_no_targ = df_ts_no_targ[X_var_final]
+            df_ts_final_cs = df_ts_cs[X_var_final]
+            df_ts_final_no_targ = df_ts_no_targ[X_var_final]
             
             # calculate fitted values
-            fitted_values_cs = ols_final.predict(self.df_ts_final_cs)
-            fitted_values_no_targ = ols_final.predict(self.df_ts_final_no_targ)
+            fitted_values_cs = ols_final.predict(df_ts_final_cs)
+            fitted_values_no_targ = ols_final.predict(df_ts_final_no_targ)
 
             return fitted_values_cs, fitted_values_no_targ
 
