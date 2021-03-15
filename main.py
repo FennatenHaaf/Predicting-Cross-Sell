@@ -923,7 +923,7 @@ if __name__ == "__main__":
                 X_var_final, ols_final, r2adjusted, r2, mse = predict_saldo.train_predict()
                         
                 #make meshgrid
-                n_plot = 100
+                n_plot = 25
                 t1 = np.linspace(0, 1, num = n_plot)
                 t2 = np.linspace(0, 1, num = n_plot)
                 
@@ -967,7 +967,7 @@ if __name__ == "__main__":
                 extra_saldo_target = treshold_saldo_plot(predictdata, dflist, interdir, param_cross, n_segments, globalmin, 
                                                                                               active_value = active_value, order_active_high_to_low = order_active_high_to_low, time = 10)
     
-            n_plot = 100
+            n_plot = 25
             t1 = np.linspace(0, 1, num = n_plot)
             t2 = np.linspace(0, 1, num = n_plot)
             t1, t2 = np.meshgrid(t1, t2)
