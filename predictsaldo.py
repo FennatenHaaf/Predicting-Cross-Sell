@@ -275,7 +275,8 @@ class predict_saldo:
         return current_X_var, olsres, r2adjusted, r2, mse
     
 
-    def get_fitted_values(self, cross_sell_types, cross_sell_yes_no, df_ts, test_set_prop, random_state, p_bound, X_var_final = None, ols_final = None):
+    def get_fitted_values(self, cross_sell_types, cross_sell_total, cross_sell_self, df_ts, test_set_prop, 
+                          random_state, p_bound, X_var_final = None, ols_final = None):
         """
         Parameters
         ----------
@@ -304,24 +305,49 @@ class predict_saldo:
         """function for calculating the fitted values of the saldo prediction model"""
     
         
-        df_cross_sell = pd.DataFrame(data = cross_sell_yes_no, columns = cross_sell_types)
-
+        # PREDICT SALDO WITH ALL CROSS SELLS
+        df_cs = pd.DataFrame(data = cross_sell_total, columns = cross_sell_types)        
+        df_ts_cs = df_ts
+        
         # create cross-effects dummies
-        df_ts['business_retail_joint'] = df_cross_sell['business'].copy()* df_cross_sell['retail'].copy()*df_cross_sell['joint'].copy()
-        df_ts['business_retail'] = df_cross_sell['business'].copy()* df_cross_sell['retail'].copy()*(1 - df_cross_sell['joint'].copy())
-        df_ts['business'] = df_cross_sell['business'].copy()* (1 - df_cross_sell['retail'].copy())*(1 - df_cross_sell['joint'].copy())
-        df_ts['business_joint'] = df_cross_sell['business'].copy()*(1 - df_cross_sell['retail'].copy())*(df_cross_sell['joint'].copy())
-        df_ts['joint'] = (1 - df_cross_sell['business'].copy())* (1 - df_cross_sell['retail'].copy())*(df_cross_sell['joint'].copy())  
-        df_ts['retail_joint'] = (1-df_cross_sell['business'].copy())* (df_cross_sell['retail'].copy())*(df_cross_sell['joint'].copy())
-        df_ts['retail'] = (1-df_cross_sell['business'].copy())* (df_cross_sell['retail'].copy())*(1 -df_cross_sell['joint'].copy())
-        df_ts['constant'] = np.ones(len(df_ts))  #[1]* df_ts.shape[0]
+        df_ts_cs['business_retail_joint'] = df_cs['business'].copy()* df_cs['retail'].copy()*df_cs['joint'].copy()
+        df_ts_cs['business_retail'] = df_cs['business'].copy()* df_cs['retail'].copy()*(1 - df_cs['joint'].copy())
+        df_ts_cs['business'] = df_cs['business'].copy()* (1 - df_cs['retail'].copy())*(1 - df_cs['joint'].copy())
+        df_ts_cs['business_joint'] = df_cs['business'].copy()*(1 - df_cs['retail'].copy())*(df_cs['joint'].copy())
+        df_ts_cs['joint'] = (1 - df_cs['business'].copy())* (1 - df_cs['retail'].copy())*(df_cs['joint'].copy())  
+        df_ts_cs['retail_joint'] = (1-df_cs['business'].copy())* (df_cs['retail'].copy())*(df_cs['joint'].copy())
+        df_ts_cs['retail'] = (1-df_cs['business'].copy())* (df_cs['retail'].copy())*(1 -df_cs['joint'].copy())
+        df_ts_cs['constant'] = np.ones(len(df_ts_cs))  #[1]* df_ts.shape[0]
+        
+        # add a few variables which are not standard in the dataset
+        df_ts_cs['log_saldoprev'] = df_ts_cs["log_saldototaal"].copy()
+        df_ts_cs['prev_retail_dummy'] = df_ts_cs["retail_dummy"].copy()
+        df_ts_cs['prev_joint_dummy'] = df_ts_cs["joint_dummy"].copy()
+        df_ts_cs['prev_business_dummy'] = df_ts_cs["business_dummy"].copy()
         
         
+        
+        
+        # PREDICT SALDO WITHOUT 'TARGET' CROSS SELLS
+        df_no_targ = pd.DataFrame(data = cross_sell_self, columns = cross_sell_types)
+        df_ts_no_targ = df_ts
+        
+        # create cross-effects dummies
+        df_ts_no_targ['business_retail_joint'] = df_no_targ['business'].copy()* df_no_targ['retail'].copy()*df_no_targ['joint'].copy()
+        df_ts_no_targ['business_retail'] = df_no_targ['business'].copy()* df_no_targ['retail'].copy()*(1 - df_no_targ['joint'].copy())
+        df_ts_no_targ['business'] = df_no_targ['business'].copy()* (1 - df_no_targ['retail'].copy())*(1 - df_no_targ['joint'].copy())
+        df_ts_no_targ['business_joint'] = df_no_targ['business'].copy()*(1 - df_no_targ['retail'].copy())*(df_no_targ['joint'].copy())
+        df_ts_no_targ['joint'] = (1 - df_no_targ['business'].copy())* (1 - df_no_targ['retail'].copy())*(df_no_targ['joint'].copy())  
+        df_ts_no_targ['retail_joint'] = (1-df_no_targ['business'].copy())* (df_no_targ['retail'].copy())*(df_no_targ['joint'].copy())
+        df_ts_no_targ['retail'] = (1-df_no_targ['business'].copy())* (df_no_targ['retail'].copy())*(1 -df_no_targ['joint'].copy())
+        df_ts_no_targ['constant'] = np.ones(len(df_ts_no_targ))  #[1]* df_ts.shape[0]
+    
         #add a few variables which are not standard in the dataset
-        df_ts['log_saldoprev'] = df_ts["log_saldototaal"].copy()
-        df_ts['prev_retail_dummy'] = df_ts["retail_dummy"].copy()
-        df_ts['prev_joint_dummy'] = df_ts["joint_dummy"].copy()
-        df_ts['prev_business_dummy'] = df_ts["business_dummy"].copy()
+        df_ts_no_targ['log_saldoprev'] = df_ts_no_targ["log_saldototaal"].copy()
+        df_ts_no_targ['prev_retail_dummy'] = df_ts_no_targ["retail_dummy"].copy()
+        df_ts_no_targ['prev_joint_dummy'] = df_ts_no_targ["joint_dummy"].copy()
+        df_ts_no_targ['prev_business_dummy'] = df_ts_no_targ["business_dummy"].copy()
+        
         
         # train model to get parameters
         if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
@@ -331,25 +357,27 @@ class predict_saldo:
             
             # use significant variables and corresponding parameters
             X_var_final = pd.Series(X_var_final)
-            #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
-            self.df_ts_final = df_ts[X_var_final]
-            beta = ols_final.params
+            
+            self.df_ts_final_cs = df_ts_cs[X_var_final]
+            self.df_ts_final_no_targ = df_ts_no_targ[X_var_final]
+            
             # calculate fitted values
-            fitted_values = self.df_ts_final.dot(beta)
-            fitted_values2 = ols_final.predict(self.df_ts_final)
+            fitted_values_cs = ols_final.predict(self.df_ts_final_cs)
+            fitted_values_no_targ = ols_final.predict(self.df_ts_final_no_targ)
 
-            return fitted_values, X_var_final, ols_final
+            return fitted_values_cs, fitted_values_no_targ, X_var_final, ols_final
         else:
             # use significant variables and corresponding parameters
             X_var_final = pd.Series(X_var_final)
-            #X_var_final2 = X_var_final[~(X_var_final=="log_aantaltransacties_totaal")]
-            self.df_ts_final = df_ts[X_var_final]
-            beta = ols_final.params
+            
+            self.df_ts_final_cs = df_ts_cs[X_var_final]
+            self.df_ts_final_no_targ = df_ts_no_targ[X_var_final]
+            
             # calculate fitted values
-            fitted_values = self.df_ts_final.dot(beta)
-            fitted_values2 = ols_final.predict(self.df_ts_final)
+            fitted_values_cs = ols_final.predict(self.df_ts_final_cs)
+            fitted_values_no_targ = ols_final.predict(self.df_ts_final_no_targ)
 
-            return fitted_values
+            return fitted_values_cs, fitted_values_no_targ
 
 
     def fitted_values_to_saldo(self, minimum, fitted_values, df):
@@ -378,7 +406,7 @@ class predict_saldo:
         return extra_saldo
     
     
-    def get_extra_saldo(self, cross_sell_yes_no, time, minimum, fin_segment = None, 
+    def get_extra_saldo(self, cross_sell_total, cross_sell_self, time, minimum, fin_segment = None, 
                         test_set_prop = 0.2, random_state = 0, p_bound = 0.05, 
                         X_var_final = None, ols_final = None):
         """
@@ -409,35 +437,48 @@ class predict_saldo:
         """
         """function that predicts the extra saldo on the account balances when cross sells are done"""
 
-        if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
+        if (isinstance(fin_segment, type(None))):
             df_ts = self.df_time_series[time-1]
-            fitted_values, X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
-                                                                            cross_sell_yes_no = cross_sell_yes_no,
-                                                                            df_ts = df_ts,
-                                                                            test_set_prop = test_set_prop,
-                                                                            random_state = random_state,
-                                                                            p_bound= p_bound)
-            
-            extra_saldo = self.fitted_values_to_saldo(minimum=minimum, fitted_values = fitted_values,
-                                                      df = df_ts)
-            return extra_saldo, X_var_final, ols_final
-
-        else: 
+        else:
             df_ts = self.df_time_series[time-1]     
             df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
-            fitted_values =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
-                                                                            cross_sell_yes_no = cross_sell_yes_no,
-                                                                            df_ts = df_ts,
-                                                                            test_set_prop = test_set_prop,
-                                                                            random_state = random_state,
-                                                                            p_bound= p_bound,
-                                                                            X_var_final = X_var_final,
-                                                                            ols_final = ols_final)
+            
+        summation = np.sum(cross_sell_total, axis = 1)
+        indices_cross_sell = np.nonzero(summation)
+        
+        df_ts = df_ts.loc[indices_cross_sell]
+        cross_sell_self = cross_sell_self[indices_cross_sell]
+        cross_sell_total = cross_sell_total[indices_cross_sell]
+
+        
+        if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
+            fitted_values_cs, fitted_values_no_targ,  X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
+                                                                                                       cross_sell_total = cross_sell_total,
+                                                                                                       cross_sell_self = cross_sell_self,
+                                                                                                       df_ts = df_ts,
+                                                                                                       test_set_prop = test_set_prop,
+                                                                                                       random_state = random_state,
+                                                                                                       p_bound= p_bound)
+            
+            extra_saldo_cs = self.fitted_values_to_saldo(minimum, fitted_values_cs, df = df_ts)
+            extra_saldo_no_targ = self.fitted_values_to_saldo(minimum, fitted_values_no_targ, df = df_ts)
+            
+            return extra_saldo_cs, extra_saldo_no_targ, X_var_final, ols_final
+
+        else: 
+            fitted_values_cs, fitted_values_no_targ =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
+                                                                                cross_sell_total = cross_sell_total,
+                                                                                cross_sell_self = cross_sell_self,                                                                            df_ts = df_ts,
+                                                                                test_set_prop = test_set_prop,
+                                                                                random_state = random_state,
+                                                                                p_bound= p_bound,
+                                                                                X_var_final = X_var_final,
+                                                                                ols_final = ols_final)
     
-            extra_saldo = self.fitted_values_to_saldo(minimum=minimum, fitted_values = fitted_values,
-                                                      df = df_ts)
-    
-            return extra_saldo
+            extra_saldo_cs = self.fitted_values_to_saldo(minimum, fitted_values_cs, df = df_ts)
+            extra_saldo_no_targ = self.fitted_values_to_saldo(minimum, fitted_values_no_targ, df = df_ts)
+            
+            return extra_saldo_cs, extra_saldo_no_targ
     
 
 
