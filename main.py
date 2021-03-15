@@ -13,7 +13,6 @@ import extra_functions_HMM_eff as ef
 import dataInsight as DI
 import predictsaldo as ps
 
-import matplotlib.pyplot as plt
 from scipy.stats.distributions import chi2
 import pandas as pd
 import numpy as np
@@ -909,8 +908,8 @@ if __name__ == "__main__":
                                                                                  minimum = globalmin,
                                                                                  fin_segment = None)
             
-            def treshold_saldo_plot(predict_data, dflist, interdir, param_cross, n_segments, minimum, 
-                                    active_value = None, order_active_high_to_low = [0,1,2], time = 10):
+            def get_extra_saldo_for_plot(predict_data, dflist, interdir, param_cross, n_segments, minimum, 
+                                    active_value = None, order_active_high_to_low = [0,1,2], time = 10, n_plot = 25):
                     
                 if isinstance(active_value, type(None)):        
                     active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
@@ -923,7 +922,6 @@ if __name__ == "__main__":
                 X_var_final, ols_final, r2adjusted, r2, mse = predict_saldo.train_predict()
                         
                 #make meshgrid
-                n_plot = 25
                 t1 = np.linspace(0, 1, num = n_plot)
                 t2 = np.linspace(0, 1, num = n_plot)
                 
@@ -961,26 +959,31 @@ if __name__ == "__main__":
             
             #------------------------ PLOT SALDO AGAINST TRESHOLDS ------------------------ 
             print('plot saldo against tresholds')
-            plot_saldo_treshold = True
-            if plot_saldo_treshold:
-        
-                extra_saldo_target = treshold_saldo_plot(predictdata, dflist, interdir, param_cross, n_segments, globalmin, 
-                                                                                              active_value = active_value, order_active_high_to_low = order_active_high_to_low, time = 10)
-    
-            n_plot = 25
+            get_extra_saldo = True
+            if get_extra_saldo:
+                n_plot = 25
+                extra_saldo_target = get_extra_saldo_for_plot(predictdata, dflist, interdir, param_cross, n_segments, globalmin, active_value = active_value, 
+                                                                                              order_active_high_to_low = order_active_high_to_low, 
+                                                                                              time = 10, n_plot = n_plot)
+                extra_saldo_target_df = pd.DataFrame(extra_saldo_target)
+                utils.save_df_to_csv(extra_saldo_target_df, outdirec, "extra_saldo_target", add_time = False )
+            else:
+                extra_saldo_target = pd.read_csv(f"{outdirec}/extra_saldo_target.csv")
+                extra_saldo_target = extra_saldo_target.to_numpy()
+                
             t1 = np.linspace(0, 1, num = n_plot)
             t2 = np.linspace(0, 1, num = n_plot)
             t1, t2 = np.meshgrid(t1, t2)
-            
+                
             fig = plt.figure()
             ax = fig.gca(projection='3d')
             ax.plot_surface(t1, t2, extra_saldo_target)
             ax.set_xlabel('Lower treshold')
             ax.set_ylabel('Upper treshold')
             ax.set_zlabel('Extra Saldo')
-            #ax.set_xlim(-1, 1)
-            #ax.set_ylim(-1, 1)
-            #ax.set_zlim(-1, 1)
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.set_zlim(10000, 100000)
                 
 # =============================================================================
 # Models testing
