@@ -251,12 +251,16 @@ def plotCoocc(df, names, annotate = True, colors = "plasma", cent = 0,
         
         plt.show()
     
-    if make_total_perc:
+    # plot cooccurrences, but with percentage of total labelled in brackets
+    if make_total_perc: 
+        
+        # create an 'annotate' dataframe which is used as labels in the heatmap
         annotate = coocc.copy()
         for i in range(0,annotate.shape[0]):
             for j in range(0,annotate.shape[1]):
-                annotate.iloc[i,j] = f"{coocc.iloc[i,j]} ({round(coocc.iloc[i,j]/len(df),3)}%)"
+                annotate.iloc[i,j] = f"{coocc.iloc[i,j]} ({round((coocc.iloc[i,j]/len(df))*100,2)}%)"
         
+        # make the plot
         sns.set(font_scale=3,rc={'figure.figsize':(16,13)})
         graph = sns.heatmap(coocc, center=cent, annot = annotate, 
                             cmap=colors, fmt='', 
