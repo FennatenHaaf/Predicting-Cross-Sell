@@ -959,9 +959,10 @@ if __name__ == "__main__":
             
             #------------------------ PLOT SALDO AGAINST TRESHOLDS ------------------------ 
             print('plot saldo against tresholds')
-            get_extra_saldo = True
+            n_plot = 25
+
+            get_extra_saldo = False
             if get_extra_saldo:
-                n_plot = 25
                 extra_saldo_target = get_extra_saldo_for_plot(predictdata, dflist, interdir, param_cross, n_segments, globalmin, active_value = active_value, 
                                                                                               order_active_high_to_low = order_active_high_to_low, 
                                                                                               time = 10, n_plot = n_plot)
