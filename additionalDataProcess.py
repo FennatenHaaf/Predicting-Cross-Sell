@@ -490,6 +490,11 @@ class AdditionalDataProcess(object):
             self.input_cross.loc[self.input_cross['hh_size'] == 11, 'hh_size'] = 1
             self.input_cross.loc[self.input_cross['hh_size'] == 10, 'hh_size'] = 1
 
+        ##Change mannen to man and vrouwen to vrouw
+        geslacht_var = utils.do_find_and_select_from_list(self.input_cross.columns, ['geslacht'],[])
+        for var in geslacht_var:
+            self.input_cross.loc[self.input_cross[var] == 'Mannen', var] = 'Man'
+            self.input_cross.loc[self.input_cross[var] == 'Vrouwen', var] = 'Vrouw'
 
         # Drop unnecessary columns
         list_to_drop = ['valid_to_dateeow', 'valid_from_dateeow', 'valid_from_min', 'valid_to_max', 'saldototaal_agg']
@@ -506,7 +511,6 @@ class AdditionalDataProcess(object):
         Selected variables are chosen to be take a mean over the year.
         Method to impute missing values to more correctly balance
         """
-
         search_list_counts = ['aantalatmtrans','aantalbetaaltrans','aantalfueltrans','aantallogins','aantalposttrans',
                               'aantaltegenrek','aantaltrans', 'logins_']
         exclusion_list_counts = ['bins']
@@ -539,11 +543,13 @@ class AdditionalDataProcess(object):
         cross_df = cross_df[~incomplete_index]  # Select complete observations for now
 
         mean_values = cross_df.groupby('personid').mean()
+
         cross_df.set_index(["period_obs", "personid"], inplace = True)
 
         indexed_df = pd.DataFrame(columns = period_list, index = cross_df.columns)
         for period in period_list:
             indexed_result = cross_df.loc[period] / mean_values
+            indexed_result = indexed_result[(indexed_result != np.inf) & (indexed_result != -np.inf)]
             indexed_df[period] = indexed_result.mean()
         indexed_df = indexed_df.transpose()
         cross_df.reset_index(inplace = True)
