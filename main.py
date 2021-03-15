@@ -923,7 +923,7 @@ if __name__ == "__main__":
                 X_var_final, ols_final, r2adjusted, r2, mse = predict_saldo.train_predict()
                         
                 #make meshgrid
-                n_plot = 5
+                n_plot = 100
                 t1 = np.linspace(0, 1, num = n_plot)
                 t2 = np.linspace(0, 1, num = n_plot)
                 
