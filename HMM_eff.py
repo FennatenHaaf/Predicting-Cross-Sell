@@ -811,14 +811,12 @@ class HMM_eff:
         gamma_sr_0 =  np.ones( (n_segments-1,n_segments) )
         gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) ) 
         beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1))
-        # for s in range(n_segments):
-        #     for p in range(0,self.n_products):
-        #         beta[s,p,0:self.n_categories[p]-1] = 10*np.ones((1,self.n_categories[p]-1)) 
-                
+  
         #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
         shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], 
                            [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
-
+        
+        #check if one wants to get cross_sell decision for training or new data
         if isinstance(data, type(None)):
             alpha, beta = self.forward_backward_procedure(param, shapes, n_segments)
             Y = self.list_Y[self.T-1]
@@ -826,58 +824,64 @@ class HMM_eff:
             alpha, beta = self.forward_backward_procedure(param, shapes, n_segments, data)
             Y = np.array([ data[self.list_dep_var][len(data)-1] ])
 
-
+        #get prediction for the number of owned products for the customers
         prod_own = self.predict_product_ownership(param, shapes, n_segments, alpha)
         
-        expected_n_prod = np.zeros((self.n_customers, self.n_products))
-        dif_exp_own = np.zeros((self.n_customers, self.n_products))
-        cross_sell_target = np.zeros((self.n_customers, self.n_products))
-        cross_sell_self = np.zeros((self.n_customers, self.n_products))
-        cross_sell_total = np.zeros((self.n_customers, self.n_products))
+        #initialise matrices
+        expected_n_prod = np.zeros((self.n_customers, self.n_products)) #matrix that gives the number of expected ownership for each product
+        dif_exp_own = np.zeros((self.n_customers, self.n_products)) #difference between expected ownership and reality
+        cross_sell_target = np.zeros((self.n_customers, self.n_products)) #matrix that indicates whether a customer should be targeted
+        cross_sell_self = np.zeros((self.n_customers, self.n_products)) #matrix that indicates whether a customer is expected to acquire a product theirselve
+        cross_sell_total = np.zeros((self.n_customers, self.n_products)) #combination of above matrices, indicates target and self-acquiring cross-sells
         
 
         for i in range(0, self.n_customers):
             for p in range(0,self.n_products):
                 for c in range(0,self.n_categories[p]):
+                    #get number of expected ownership for each product
                     expected_n_prod[i,p] = expected_n_prod[i,p] + c*prod_own[i,p,c]
                     
+                #get difference between expected ownership of product and real ownership
                 dif_exp_own[i,p] = expected_n_prod[i,p] - Y[i,p]
+                #if difference is higher than upper threshold
                 if dif_exp_own[i,p] >= tresholds[1]:
-                    if active_value[i] == order_active_high_to_low[0]:
+                    if active_value[i] == order_active_high_to_low[0]: #if active value is high
                         cross_sell_target[i,p] = False
                         cross_sell_self[i,p] = True
                         cross_sell_total[i,p] = True
-                    if active_value[i] == order_active_high_to_low[1]:
+                    if active_value[i] == order_active_high_to_low[1]: #if active value is moderate
                         cross_sell_target[i,p] = True
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = True               
-                    if active_value[i] == order_active_high_to_low[2]:
+                    if active_value[i] == order_active_high_to_low[2]:#if active value is low
                         cross_sell_target[i,p] = True
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = True  
-                elif (dif_exp_own[i,p] < tresholds[1]) & (dif_exp_own[i,p] >= tresholds[0]):
-                    if active_value[i] == order_active_high_to_low[0]:
+                #if difference is lower than upper threshold and higher than lower threshold
+                elif (dif_exp_own[i,p] < tresholds[1]) & (dif_exp_own[i,p] >= tresholds[0]): 
+                    if active_value[i] == order_active_high_to_low[0]:#if active value is high
                         cross_sell_target[i,p] = True
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = True
-                    if active_value[i] == order_active_high_to_low[1]:
+                    if active_value[i] == order_active_high_to_low[1]:#if active value is moderate
                         cross_sell_target[i,p] = True
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = True               
-                    if active_value[i] == order_active_high_to_low[2]:
+                    if active_value[i] == order_active_high_to_low[2]:#if active value is low
                         cross_sell_target[i,p] = True
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = True 
+                #if difference is lower than lower threshold
                 else:
-                    if active_value[i] == order_active_high_to_low[0]:
+                    if active_value[i] == order_active_high_to_low[0]:#if active value is high
                         cross_sell_target[i,p] = False
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = False
-                    if active_value[i] == order_active_high_to_low[1]:
+                    if active_value[i] == order_active_high_to_low[1]:#if active value is moderate
                         cross_sell_target[i,p] = False
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = False               
-                    if active_value[i] == order_active_high_to_low[2]:
+                    if active_value[i] == order_active_high_to_low[2]:#if active value is low
                         cross_sell_target[i,p] = False
                         cross_sell_self[i,p] = False
                         cross_sell_total[i,p] = False 
@@ -904,7 +908,7 @@ class HMM_eff:
         # initialise return
         n_cross_sells = np.zeros((self.n_products, 3))
         
-        # for every every product, calculat the number of cross sells
+        # for every every product, calculate the number of cross sells
         for p in range(0,self.n_products):
                 n_cross_sells[p,0] = np.count_nonzero(cross_sell_target[:,p])
                 n_cross_sells[p,1] = np.count_nonzero(cross_sell_self[:,p])
@@ -1052,8 +1056,10 @@ class HMM_eff:
         """
         """function that gives whether a customers outside the training set are eligible for a cross sell"""
 
+        #get active value of the 'new' customers
         active_value = act_obj.active_value(self, param_act, n_segments_act, t, data)
 
+        #get whether customers should be target, acquire the product themselve or neither
         cross_sell_target, cross_sell_self, cross_sell_total = self.cross_sell_yes_no(param_cross, n_segments_cross, active_value, tresholds, order_active_high_to_low, data)
 
         return cross_sell_target, cross_sell_self, cross_sell_total
