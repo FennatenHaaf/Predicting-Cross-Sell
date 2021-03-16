@@ -652,7 +652,7 @@ if __name__ == "__main__":
 
         if run_cross_sell == True: # do we want to run the model for cross sell or activity
             print("-----Calculating targeting decision-----")
-            tresholds = [0.2, 0.7]
+            tresholds = [0.3, 0.7]
             order_active_high_to_low = [0,1,2]
             active_value_pd = pd.read_csv(f"{outdirec}/active_value.csv")
             active_value = active_value_pd.to_numpy()
@@ -902,11 +902,11 @@ if __name__ == "__main__":
                                              interdir = interdir,
                                              )
             #We predict for period 10
-            extra_saldo_cs, extra_saldo_no_targ,  X_var_final, ols_final = predict_saldo.get_extra_saldo(cross_sell_total = cross_sell_total, 
-                                                                                 cross_sell_self = cross_sell_self,
-                                                                                 time=10, 
-                                                                                 minimum = globalmin,
-                                                                                 fin_segment = None)
+            extra_saldo_cs, extra_saldo_no_targ, indices_cross_sell, X_var_final, ols_final = predict_saldo.get_extra_saldo(cross_sell_total = cross_sell_total, 
+                                                                                                 cross_sell_self = cross_sell_self,
+                                                                                                 time=10, 
+                                                                                                 minimum = globalmin,
+                                                                                                 fin_segment = None)
             
             def get_extra_saldo_for_plot(predict_data, dflist, interdir, param_cross, n_segments, minimum, 
                                     active_value = None, order_active_high_to_low = [0,1,2], time = 10, n_plot = 25):
@@ -922,8 +922,8 @@ if __name__ == "__main__":
                 X_var_final, ols_final, r2adjusted, r2, mse = predict_saldo.train_predict()
                         
                 #make meshgrid
-                t1 = np.linspace(0, 1, num = n_plot)
-                t2 = np.linspace(0, 1, num = n_plot)
+                t1 = np.linspace(0.10, 1, num = n_plot)
+                t2 = np.linspace(0.10, 1, num = n_plot)
                 
                 t1, t2 = np.meshgrid(t1, t2)
                 extra_saldo_target = np.zeros((n_plot,n_plot))
@@ -938,7 +938,7 @@ if __name__ == "__main__":
                                                                                                               active_value, tresholds = tresholds, 
                                                                                                               order_active_high_to_low = order_active_high_to_low)
        
-                            extra_saldo_cs, extra_saldo_no_targ = predict_saldo.get_extra_saldo(cross_sell_total = cross_sell_total, 
+                            extra_saldo_cs, extra_saldo_no_targ, indices_cross_sell = predict_saldo.get_extra_saldo(cross_sell_total = cross_sell_total, 
                                                                                                 cross_sell_self = cross_sell_self,
                                                                                                 time=t, 
                                                                                                 minimum = globalmin,
@@ -952,16 +952,14 @@ if __name__ == "__main__":
                             sum_extra_saldo_yes_targ = np.sum(extra_saldo_yes_targ)
                             extra_saldo_target[i,j] = sum_extra_saldo_yes_targ
                         
-                            print(f"Extra saldo target: {sum_extra_saldo_yes_targ}")
                             print(f"iteratie ({i},{j})")
-    
                 return extra_saldo_target
             
             #------------------------ PLOT SALDO AGAINST TRESHOLDS ------------------------ 
             print('plot saldo against tresholds')
-            n_plot = 25
+            n_plot = 24
 
-            get_extra_saldo = False
+            get_extra_saldo = True
             if get_extra_saldo:
                 extra_saldo_target = get_extra_saldo_for_plot(predictdata, dflist, interdir, param_cross, n_segments, globalmin, active_value = active_value, 
                                                                                               order_active_high_to_low = order_active_high_to_low, 
@@ -972,8 +970,8 @@ if __name__ == "__main__":
                 extra_saldo_target = pd.read_csv(f"{outdirec}/extra_saldo_target.csv")
                 extra_saldo_target = extra_saldo_target.to_numpy()
                 
-            t1 = np.linspace(0, 1, num = n_plot)
-            t2 = np.linspace(0, 1, num = n_plot)
+            t1 = np.linspace(0.10, 1, num = n_plot)
+            t2 = np.linspace(0.10, 1, num = n_plot)
             t1, t2 = np.meshgrid(t1, t2)
                 
             fig = plt.figure()
@@ -981,10 +979,13 @@ if __name__ == "__main__":
             ax.plot_surface(t1, t2, extra_saldo_target)
             ax.set_xlabel('Lower treshold')
             ax.set_ylabel('Upper treshold')
-            ax.set_zlabel('Extra Saldo')
+            #ax.set_zlabel('Extra account balance', linespacing=10)
+            ax.set_zlabel('')
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
-            ax.set_zlim(10000, 100000)
+            ax.set_zlim(10000, 120000)
+            #ax.ticklabel_format(style='plain')
+            plt.show()
                 
 # =============================================================================
 # Models testing

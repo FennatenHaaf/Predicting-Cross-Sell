@@ -465,7 +465,7 @@ class predict_saldo:
             extra_saldo_cs = self.fitted_values_to_saldo(minimum, fitted_values_cs, df = df_ts)
             extra_saldo_no_targ = self.fitted_values_to_saldo(minimum, fitted_values_no_targ, df = df_ts)
             
-            return extra_saldo_cs, extra_saldo_no_targ, X_var_final, ols_final
+            return extra_saldo_cs, extra_saldo_no_targ, indices_cross_sell, X_var_final, ols_final
 
         else: 
             fitted_values_cs, fitted_values_no_targ =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
@@ -480,7 +480,7 @@ class predict_saldo:
             extra_saldo_cs = self.fitted_values_to_saldo(minimum, fitted_values_cs, df = df_ts_subset)
             extra_saldo_no_targ = self.fitted_values_to_saldo(minimum, fitted_values_no_targ, df = df_ts_subset)
             
-            return extra_saldo_cs, extra_saldo_no_targ
+            return extra_saldo_cs, extra_saldo_no_targ, indices_cross_sell
     
 
 
