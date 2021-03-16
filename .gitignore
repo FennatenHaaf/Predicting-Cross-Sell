@@ -16,3 +16,5 @@ main2.py
 testing_outputs/maximization_results10march1100.pdf
 main_reserve.py
 main_reserve_2.py
+generatedata.py
+test_set.py
