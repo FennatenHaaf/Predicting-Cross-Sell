@@ -353,9 +353,9 @@ def joint_event(self, alpha, beta, t, n_segments,
       
     P_sr_given_Y_Z = np.zeros((self.n_customers, n_segments, n_segments))
     for s in range(0,n_segments):
-        mat = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])  #[sxi]' [ixs] = [ixs]  
-        mat = np.multiply(mat, np.transpose([P_y_given_s[:,s]])) #[ixs] [ixs] = [ixs]
-        mat = np.multiply(mat, np.transpose([beta[s,:,t]])) # [ixs] [sxi]' = [ixr]
+        mat = np.multiply(np.transpose(alpha[:,:,t-1]), P_s_given_r[:,s,:])
+        mat = np.multiply(mat, np.transpose([P_y_given_s[:,s]])) 
+        mat = np.multiply(mat, np.transpose([beta[s,:,t]]))
         P_sr_given_Y_Z[:,s,:] = mat
     
     sum_per_cust = np.sum(np.sum(P_sr_given_Y_Z, axis = 2), axis = 1)
@@ -402,7 +402,7 @@ def logsumexp(x, axis = 0, reshape = False):
     logsumexp : array
         array consisting of the sums of x
     """
-    """function for avoiding the overflow/underflow"""
+    """function for avoiding the overflow/underflow when taking exponents (logs) of high (low) variables"""
     c = x.max(axis = axis)
     
     if reshape == False:

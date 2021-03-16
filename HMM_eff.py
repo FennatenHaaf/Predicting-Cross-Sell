@@ -43,7 +43,11 @@ class HMM_eff:
             boolean indicating whether transition/state probabilities are modelled as logit model
         iterprint : boolean
             boolean indicating whether function evaluations within M-step are printed
-        initparam : 
+        initparam : 1D array
+            initialisation of the parameters 
+        do_backup_folder : boolean
+        
+        visualize_data : boolean
 
         """
         """Function for the Initialisation of a HMM object"""
@@ -244,8 +248,6 @@ class HMM_eff:
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
 
-            #hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
-            #print(f"Hessian: {hes}")
             
             if self.covariates:
                 gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
@@ -308,18 +310,11 @@ class HMM_eff:
         
         #-----------------------calculate hessian------------------------------
         
-        print(f"Calculating Hessian at {utils.get_time()}")
-        # hes = nd.Hessian(self.loglikelihood)(param_out,  shapes, n_segments)
-        # print(f"Done calculating at {utils.get_time()}!")
         
         print(f"Doing another BFGS step for the covariance at {utils.get_time()}")
         #do one last minimisation of the loglikelihood itself to retrieve the hessian 
         hess_inv, dfSE, param_afterBFGS = self.get_standard_errors(param_out, n_segments)
-        # param_out, hess_inv = self.maximization_step(alpha_out, beta_out, param_in, 
-        #                                              shapes, n_segments, reg_term,
-        #                                              max_method, bounded, end = True)
         logl_outafterBFGS = self.loglikelihood(param_afterBFGS, shapes, n_segments)
-        
         print(f"Done calculating at {utils.get_time()}!")
               
         if self.do_backup_folder:
