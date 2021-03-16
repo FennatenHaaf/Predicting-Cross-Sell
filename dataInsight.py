@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This file contains extra functions for gaining some insight into the Knab
 data 
@@ -168,8 +167,11 @@ def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
       
         
 def plotFinergyCounts(df_experian, ids):
+    """Makes a plot of how frequently each finergy type occurs in a dataset"""
+    
     sns.set(rc={'figure.figsize':(20,10)})
     sns.set_style("whitegrid")
+
     df_experian = df_experian[df_experian["personid"].isin(ids)] 
     print("plotting finergy counts")
     graph =sns.countplot(x="finergy_tp", data = df_experian)
@@ -184,6 +186,8 @@ def plotFinergyCounts(df_experian, ids):
         
 def plotCategorical(df, name, xlabel = None, annotate = True,
                     colours = None, onecol= False):
+    """Make a plot of the frequency of each category for a categorical variable"""
+    
     sns.set(font_scale=2,rc={'figure.figsize':(12,8)})
     sns.set_style("whitegrid")
     if onecol:
@@ -282,11 +286,14 @@ def plot_portfolio_changes(dataset, varvector, percent = True,
   """Make a plot of cross-sell occurrences or changes in portfolio ownerships
   between time periods in a full dataset"""
   
+  # Select the different values for portfolio change occurring in the 
+  # dataset
   column_values = dataset[varvector].values.ravel()
   unique_values = pd.Series(pd.unique(column_values)).sort_values().dropna()
 
+  # create a dataframe that contains for each portfolio type how often each
+  # change value occurs
   df = pd.DataFrame(columns = varvector, index = unique_values)
-
   for var in varvector:
       group = dataset[var]
       for value in unique_values: 
@@ -299,13 +306,13 @@ def plot_portfolio_changes(dataset, varvector, percent = True,
               df.loc[value,var] = perc
             else:       
               df.loc[value,var] = count
-
-  # NOW MAKE THE PLOT
-  if plot:
+              
+  if plot:# Now make the plot
     sns.set(font_scale=1.1, rc={'figure.figsize':(20,6)})
     sns.set_style("whitegrid")
 
-    dfstacked = df.stack().reset_index()
+    # stack so we get a 'long form' df for plotting
+    dfstacked = df.stack().reset_index() 
 
     fig, graph = plt.subplots()
     sns.barplot(x = dfstacked["level_1"], y =dfstacked[0],
@@ -333,21 +340,21 @@ def plot_portfolio_changes(dataset, varvector, percent = True,
           if (value !=0):
               graph.annotate(int(value), (x, y), size = 20)
 
-    # Maak labels voor de assen en de titel van het figuur
+    # Make labels for the axes
+    graph.set_xlabel(xlabel,fontsize = 20)
     if percent:
         graph.set_ylabel(None,fontsize = 20)
     else:
         graph.set_ylabel("Number of portfolio ownership changes over all periods",fontsize = 20)
-    graph.set_xlabel(xlabel,fontsize = 20)
+        
+    # Add legend
     if legend:
-        # plt.legend(title = None,loc='upper left',bbox_to_anchor=(1.01, 0.99), ncol=1,
-        #            fontsize = 20)
         plt.legend(title = None, loc="lower left",bbox_to_anchor=(0.1, -0.3), ncol = len(graph.lines),
                    fontsize = 20)
-        
     else:
         plt.legend([],[], frameon=False)
     
+    # Add the ticks to the axes
     labels = ["business","retail","joint","accountoverlay"]  
     graph.set_xticklabels(labels,rotation=0,
                           horizontalalignment='center', fontweight='light',
@@ -358,19 +365,23 @@ def plot_portfolio_changes(dataset, varvector, percent = True,
   return df
 
 
+
 def plot_portfolio_changes_stacked(dataset, varvector, percent = True,
                            ignore_0 = True, legend = True, xlabel = None,
                            plot=True, labelwidth = 30,
                            colours = "coolwarm"):
   """Plots portfolio changes in a horizontal stacked bar chart"""
     
+  # Select the different values for portfolio change occurring in the 
+  # dataset
   column_values = dataset[varvector].values.ravel()
   unique_values = pd.Series(pd.unique(column_values)).sort_values().dropna()
   if (ignore_0):
       unique_values.pop(0) # remove the option 0
 
+  # create a dataframe that contains for each portfolio type how often each
+  # change value occurs
   df = pd.DataFrame(columns = varvector, index = unique_values)
-
   for var in varvector:
       group = dataset[var]
       for value in unique_values: 
@@ -434,7 +445,6 @@ def plotEvaluationMetrics(dfacc,dfsens,var,colours = ["#62aede","#de9262"],
 # OTHER EXPLORE METHODS
 # =============================================================================
     
-#TODO show PA explorer in here
 def exploreSets(self, link_corp = False, link_pat = False):
     df_exp = pd.read_csv(f"{self.indir}/experian.csv")
     df_lpp= pd.read_csv(f"{self.indir}/linkpersonportfolio.csv")

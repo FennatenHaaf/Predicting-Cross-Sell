@@ -13,7 +13,6 @@ import utils
 import dataInsight
 import declarationsFile
 import gc
-from tqdm import tqdm
 from os import path
 import re
 
@@ -53,8 +52,6 @@ class dataProcessor:
         # Declare other variables
         self.time_format = "%Y-%m-%d"
         self.endDate = datetime(2020, 12, 31) #Initalizes a last date for NaN values
-        #TODO check if this is necessary, could also coerce errors or set it to
-        # self.last_date later like I did in select_ids function?
 
 
       
@@ -284,8 +281,8 @@ class dataProcessor:
         # haal de active portfolio IDs op voor een specifieke periode
         active_portfolios = self.get_active_portfolios() 
         
-        # We willen de person IDs waarvoor TEN MINSTE 1 portfolio ten minste
-        # 1 activiteits entry heeft in de periode 2018-2020
+        # We want the person IDs for which AT LEAST 1 portfolio has at least
+        # 1 activity entry in th period 2018-2020
         active_person_ids = \
         self.df_link["personid"][(self.df_link["portfolioid"].isin(active_portfolios))]  
         valid_ids = valid_ids[(valid_ids.isin(active_person_ids))]
@@ -335,7 +332,7 @@ class dataProcessor:
                                           date, outname = "portfoliolink_temp",
                                           save=False)
                 
-                # TODO this is not efficient, but: make crosssec per person 
+                # TODO this is not very efficient, but: make crosssec per person 
                 df_final = self.create_cross_section_perperson(df_cross,
                                                     df_cross_link, date,
                                                     outname = "df_final_temp",
@@ -389,7 +386,7 @@ class dataProcessor:
                     f"{self.indir}/portfolio_activity_business_2020.csv",
                     f"{self.indir}/portfolio_activity_retail_2020.csv"]
         
-        # We gebruiken start en end date
+        # We use start and end date
         ids = pd.DataFrame()
         for readpath in readlist:
            add_ids = pd.read_csv(readpath, **readArgs)
@@ -711,9 +708,6 @@ class dataProcessor:
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],)
                 
-                # TODO: Possibly we want to do other things for the joint porfolio 
-                # data to take into account that joint accounts may be more active?
-            
             if name == 'business':
                 # See if they have a bookkeeping overlay
                 indicator = df.loc[:,["personid"]][df["accountoverlays"]>0]
@@ -808,9 +802,6 @@ class dataProcessor:
         df_cross= df_cross.merge(characteristics[["personid","birthyear","geslacht"]], 
                                   how="left", left_on=["personid"],
                                   right_on=["personid"],) 
-
-        # TODO: eventueel nog duration variables toevoegen, zoals de tijd sinds
-        # de meest recente transaction, tijd sinds klant worden
         
         #------------------------ SORT DATASET -------------------------
         df_cross = df_cross.sort_values("personid")   
@@ -829,17 +820,16 @@ class dataProcessor:
     
     
         
-
     def aggregateBusinessPerPerson(self, temp, count_name):
         """ Aggregates some business characteristics by changing it to type
         'multiple' if the person has business portfolios from multiple sectors"""
         
         temp = temp.drop_duplicates()
-        # Pak nu de IDs en per ID hoe vaak hij voor komt in temp
+        # Take the ids and per ID take how often it appears in temp
         indicator = temp["personid"].value_counts().rename_axis(\
                     'personid').to_frame(count_name).reset_index(level=0)
         
-        # Merge de data die maar 1 keer voorkomt en dus maar 1 type sector heeft
+        # Merge the data which only appears once and so has only 1 sector type
         IDtemp = indicator["personid"][indicator[count_name]==1]
         temp = temp[temp["personid"].isin(IDtemp)]
         temp= temp.fillna("missing")
@@ -847,37 +837,41 @@ class dataProcessor:
                           how="left", left_on=["personid"],
                           right_on=["personid"],)
           
-        # Vervolgens, voor mensen die nog wel meerdere keren voorkomen
-        # willen we type 'meerdere' geven 
+        # Next, those who still appear multiple times get type "meerdere"
         indicator = indicator.fillna("meerdere")
         indicator = indicator.replace("missing", np.nan)
-        # TODO wat als voor de meerdere codes de data eigenlijk ook missing is?
-        
+
         return indicator
 
-    def aggregate_business_to_one_category_per_person( self, data, column_to_agg_on,columns_to_use, filter_threshold_high = 0.8,
-                                                       filter_threshold_low = 0.15, filter_string_list = [] ):
+    def aggregate_business_to_one_category_per_person(self, data, column_to_agg_on,
+                                                      columns_to_use,
+                                                      filter_threshold_high = 0.8,
+                                                      filter_threshold_low = 0.15,
+                                                      filter_string_list = [] ):
+        """An alternative to the method above, where only one category is taken
+        per person for the business type based on the value"""
+        
         if len(filter_string_list) > 0:
             filter_active = True
         else:
             filter_active = False
 
-
         for column in columns_to_use:
-            # data = data[~( data['SBIname'].isna() & data['SBIname'].isna() & data['SBIname'].isna() )]
             tempindex = data[column].notna()
         data = data.drop_duplicates()
 
-        #calculate the total balance for the person and merge this new value to the data
+        # Calculate the total balance for the person and merge this new value to the data
         balance_total_per_person = pd.DataFrame( data.groupby('personid')[column_to_agg_on].apply(lambda x: x.abs().sum() ) )
         balance_total_per_person.reset_index(inplace = True) #ensure that personid stays in dataset and not index
-        data = pd.merge(data, balance_total_per_person, how = "left", on = "personid", suffixes = ["", "_agg"])
+        data = pd.merge(data, balance_total_per_person, how = "left",
+                        on = "personid", suffixes = ["", "_agg"])
 
         # Create column to create a fraction of total value
         data[f'{column_to_agg_on}_fraction'] = data[column_to_agg_on].abs() / data[f'{column_to_agg_on}_agg'].abs()
-        # Create a file to merge, start with values which have nan for the column because of 0 division. Create a dataframe for
-        # these values and fill these values with one and grab the first category.
-
+        
+        # Create a file to merge, start with values which have nan for the column
+        # because of 0 division. Create a dataframe for these values and fill 
+        # these values with one and grab the first category.
         above_low_threshold_index = data.eval(f"{column_to_agg_on}_fraction >= {filter_threshold_low}")
         tempindex = data.eval(f"{column_to_agg_on}_fraction >= {filter_threshold_high}")
 
@@ -885,26 +879,25 @@ class dataProcessor:
                                                                                                      ).first().fillna(1).reset_index()
         to_merge = pd.concat([ data[tempindex], to_merge ], ignore_index =  True)
 
-        #Now merge with values above threshold to create larger merge file
-
-        tempindex = ~(data['personid'].isin(to_merge['personid'])) & above_low_threshold_index #Take every person that is not yet in
-        # the set to merge
-
-
+        # Now merge with values above threshold to create larger merge file
+        # Take every person that is not yet in the set to merge
+        tempindex = ~(data['personid'].isin(to_merge['personid'])) & above_low_threshold_index
+        
         if filter_active:
-            # Choose if you want to filter on financial institutions. Adds extra Values to index on in prev index
+            # Choose if you want to filter on financial institutions. 
+            #Adds extra Values to index on in prev index
             tempindex2 = tempindex
             for column in columns_to_use:
                 tempindex2 = tempindex2 & data.loc[tempindex,column].isin(filter_string_list)
             tempindex = tempindex2
 
-        #Concatenate the large file to merge. Here the row with the highest saldo_fraction will be returned
+        # Concatenate the large file to merge. Here the row with the highest saldo_fraction will be returned
         portfolio_sum_per_sector = data[tempindex].groupby(['personid']).apply(lambda x:
                                                                                x.loc[x[f'{column_to_agg_on}_fraction'].idxmax(),:])
         to_merge = pd.concat([to_merge, portfolio_sum_per_sector], ignore_index = True)
 
-        #Check if there are values below the threshold value after selecting on certain strings. Return the values from the original
-        # data
+        # Check if there are values below the threshold value after selecting on certain strings. 
+        # Return the values from the original data
         templist = to_merge['personid'].to_list()
         portfolio_sum_per_sector2 = data.query("personid != @templist" ).groupby( ['personid'] ).apply( lambda x:x.loc[
             x[f'{column_to_agg_on}_fraction'].idxmax(),:] )
@@ -913,6 +906,9 @@ class dataProcessor:
         to_merge.drop(f'{column_to_agg_on}_agg', axis = 1, inplace = True)
 
         return to_merge
+
+
+
 
 # =============================================================================
 # Some helper methods that are used to handle time ============================
@@ -1298,11 +1294,6 @@ class dataProcessor:
         dataset = logins.merge(remain, how="left", left_on=["portfolioid"],
                                right_on=["portfolioid"],)
 
-        #TODO grotere kans op missing values als er geen voorgaande data is??
-        # Oplossing: sowieso alleen naar de afgelopen maand/ etc kijken, anders 
-        # krijgt het eventueel iets als inactive ofzo?
-        #TODO: maak een variabele van aantal weken sinds laatste dateeow?
-                
         dataset = dataset.rename(columns={"dateeow": "lastactivityeow",})
         return dataset
 

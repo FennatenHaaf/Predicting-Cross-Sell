@@ -2,6 +2,7 @@ data/
 largeData/
 fulldata/
 output/
+testing_outputs/
 __pycache__/
 otherStuff.py
 *.zip
