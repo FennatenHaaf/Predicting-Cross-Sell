@@ -57,8 +57,6 @@ class HMM_eff:
         self.initparam = initparam
         self.do_backup_folder = do_backup_folder
         self.visualize_data = visualize_data
-        
-        
         self.reg_term = reg_term
         self.max_method = max_method
         self.n_covariates = len(list_covariates) #initialise the number of covariates
@@ -140,14 +138,14 @@ class HMM_eff:
             
         else: 
             if seed == None: #initialise parameters with random startingvalues, without setting the seed
-            gamma_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1)) #parameters for P(S_0 = s|Z)
-            gamma_sr_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1,n_segments)) #parameters for P(S_t = s | S_t-1 = r)
-            gamma_sk_t = np.random.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates)) #parameters for P(S_t = s | S_t-1 = r)
-        
-            beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
-            for s in range(n_segments):
-                for p in range(0,self.n_products):
-                    beta[s,p,0:self.n_categories[p]-1] = np.random.uniform(low=-5, high=5, size=(1,self.n_categories[p]-1)) 
+                gamma_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1)) #parameters for P(S_0 = s|Z)
+                gamma_sr_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1,n_segments)) #parameters for P(S_t = s | S_t-1 = r)
+                gamma_sk_t = np.random.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates)) #parameters for P(S_t = s | S_t-1 = r)
+            
+                beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
+                for s in range(n_segments):
+                    for p in range(0,self.n_products):
+                        beta[s,p,0:self.n_categories[p]-1] = np.random.uniform(low=-5, high=5, size=(1,self.n_categories[p]-1)) 
                             
             else: #initialise parameters with random startingvalues, with a set seed
                 fixed_random_seed = np.random.RandomState(seed)
