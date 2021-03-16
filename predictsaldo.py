@@ -334,7 +334,7 @@ class predict_saldo:
         fitted_values_cs : 1D array
             array with the fitted values of the saldo prediction model, when all cross-sells are done
         fitted_values_no_targ : 1D array
-            array with the fitted values of the saldo prediction model, when only cross-sells are done of customers acquiring themselve
+            array with the fitted values of the saldo prediction model, when no targeting cross-sells are done
         X_var_final : list
             list of variables that turn out to be significant for predicing the extra saldo
         ols_final : ols object
@@ -387,7 +387,7 @@ class predict_saldo:
         df_ts_no_targ['prev_business_dummy'] = df_ts_no_targ["business_dummy"].copy()
         
         
-        #if the saldo prediction model does not exist yet
+        #if the final saldo prediction model does not exist yet
         if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
             #train model to get parameters
             X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop = test_set_prop,
@@ -398,8 +398,8 @@ class predict_saldo:
             X_var_final = pd.Series(X_var_final)
             
             #get final datasets after backward elimination
-            df_ts_final_cs = df_ts_cs[X_var_final]
-            df_ts_final_no_targ = df_ts_no_targ[X_var_final]
+            df_ts_final_cs = df_ts_cs[X_var_final] #for dataset when all cross-sells are done
+            df_ts_final_no_targ = df_ts_no_targ[X_var_final] #for dataset when no targeting cross-sells are done
             
             # calculate fitted values
             fitted_values_cs = ols_final.predict(self.df_ts_final_cs)
@@ -476,8 +476,12 @@ class predict_saldo:
             object of the last OLS model that is passed from the backward elimination
         Returns
         -------
-        extra_saldo : 1D array
-            array consisting of all the extra saldos on the account balances when cross_sells are done   
+        extra_saldo_cs : 1D array
+            array consisting of all the extra saldos on the account balances when all cross_sells are done   
+        extra_saldo_cs : 1D array
+            array consisting of all the extra saldos on the account balances when no targeting cross_sells are done   
+        indices_cross_sell : 1D
+            array with indices of customers eligible for a cross-sell
         X_var_final : list
             list of variables that turn out to be significant for predicing the extra saldo
         ols_final : ols object
@@ -502,8 +506,9 @@ class predict_saldo:
         cross_sell_self = cross_sell_self[indices_cross_sell]
         cross_sell_total = cross_sell_total[indices_cross_sell]
 
-        
+        #if the final saldo prediction model does not exist yet
         if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
+            #get fitted values. Note that X_var_final and ols_final are not passed to the function
             fitted_values_cs, fitted_values_no_targ,  X_var_final, ols_final =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
                                                                                                        cross_sell_total = cross_sell_total,
                                                                                                        cross_sell_self = cross_sell_self,
@@ -512,12 +517,15 @@ class predict_saldo:
                                                                                                        random_state = random_state,
                                                                                                        p_bound= p_bound)
             
+            #transform fitted values to extra saldo when all cross-sells are done 
             extra_saldo_cs = self.fitted_values_to_saldo(minimum, fitted_values_cs, df = df_ts)
+            #transform fitted values to extra saldo when no targeting cross-sells are done
             extra_saldo_no_targ = self.fitted_values_to_saldo(minimum, fitted_values_no_targ, df = df_ts)
             
             return extra_saldo_cs, extra_saldo_no_targ, indices_cross_sell, X_var_final, ols_final
-
+        #if the final saldo prediction model does already exist
         else: 
+            #get fitted values. Note that X_var_final and ols_final are passed to the function
             fitted_values_cs, fitted_values_no_targ =  self.get_fitted_values(cross_sell_types = self.cross_sell_types ,
                                                                                 cross_sell_total = cross_sell_total,
                                                                                 cross_sell_self = cross_sell_self,                                                                            df_ts = df_ts,
@@ -526,8 +534,9 @@ class predict_saldo:
                                                                                 p_bound= p_bound,
                                                                                 X_var_final = X_var_final,
                                                                                 ols_final = ols_final)
-    
+            #transform fitted values to extra saldo when all cross-sells are done 
             extra_saldo_cs = self.fitted_values_to_saldo(minimum, fitted_values_cs, df = df_ts_subset)
+            #transform fitted values to extra saldo when no targeting cross-sells are done
             extra_saldo_no_targ = self.fitted_values_to_saldo(minimum, fitted_values_no_targ, df = df_ts_subset)
             
             return extra_saldo_cs, extra_saldo_no_targ, indices_cross_sell
