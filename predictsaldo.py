@@ -273,7 +273,7 @@ class predict_saldo:
                 xx = X_test[list(temp_current_X.columns)] 
                 pred = np.mean(np.square(np.array(olsres.predict(xx) - y_test)))
 
-            #OLS with temporary dataset performs well (MSE does get smaller), remove that variable
+            #OLS with temporary dataset performs well (MSE does get smaller)
             if (pred < min(mse)):
                 #add pred to the list of MSE's
                 mse.append(pred)
@@ -282,23 +282,29 @@ class predict_saldo:
                 r2adjusted.append(olsres.rsquared_adj)
                 r2.append(olsres.rsquared)
                 
-                #remove variable
+                #remove the variable not included in temporary dataset definitive from the dataset
                 current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
                 print(current_X.columns[max_p_index], " is dropped with p-val", max_p)
 
-                
-                p_val.remove(max(p_val))
-                max_p = max(p_val)
 
+                #perform new OLS with the new definitive dataset
                 new_p = True
-            # OLS with variable with highest p-value does not perform well, remove the p-value
+                
+            #OLS with temporary dataset does not perform well (MSE does get smaller), 
+            #remove the p-value of the variable not included in the temporary dataset, and look for the variable with the second highest p-value
             else:
+                #remove the p-value of the variable not included in the temporary dataset
                 p_val.remove(max(p_val))
+                #get the p-value of the variable with the second highest p-value
                 max_p = max(p_val)
 
+                #do not perform new OLS
                 new_p = False
             
+            #do one last OLS to get the final model with the variables that remain after backward elimination
             olsres = sm.OLS(y_train, current_X).fit()
+            
+            #get a list woith names of the remaining variables
             current_X_var_arr = current_X.columns.values
             current_X_var = list(current_X_var_arr)
 
@@ -325,8 +331,10 @@ class predict_saldo:
                 
         Returns
         -------
-        fitted_values : 1D array
-            array with the fitted values of the saldo prediction model
+        fitted_values_cs : 1D array
+            array with the fitted values of the saldo prediction model, when all cross-sells are done
+        fitted_values_no_targ : 1D array
+            array with the fitted values of the saldo prediction model, when only cross-sells are done of customers acquiring themselve
         X_var_final : list
             list of variables that turn out to be significant for predicing the extra saldo
         ols_final : ols object
@@ -379,17 +387,19 @@ class predict_saldo:
         df_ts_no_targ['prev_business_dummy'] = df_ts_no_targ["business_dummy"].copy()
         
         
-        # train model to get parameters
+        #if the saldo prediction model does not exist yet
         if (isinstance(X_var_final, type(None))) or (isinstance(ols_final, type(None))):
+            #train model to get parameters
             X_var_final, ols_final, r2adjusted, r2, mse = self.train_predict(test_set_prop = test_set_prop,
                                                                              random_state = random_state,
                                                                              p_bound = p_bound)    
             
-            # use significant variables and corresponding parameters
+            #use significant variables and corresponding parameters
             X_var_final = pd.Series(X_var_final)
             
-            self.df_ts_final_cs = df_ts_cs[X_var_final]
-            self.df_ts_final_no_targ = df_ts_no_targ[X_var_final]
+            #get final datasets after backward elimination
+            df_ts_final_cs = df_ts_cs[X_var_final]
+            df_ts_final_no_targ = df_ts_no_targ[X_var_final]
             
             # calculate fitted values
             fitted_values_cs = ols_final.predict(self.df_ts_final_cs)
@@ -397,9 +407,10 @@ class predict_saldo:
 
             return fitted_values_cs, fitted_values_no_targ, X_var_final, ols_final
         else:
-            # use significant variables and corresponding parameters
+            #use significant variables and corresponding parameters
             X_var_final = pd.Series(X_var_final)
             
+            #get final datasets after backward eliminations
             df_ts_final_cs = df_ts_cs[X_var_final]
             df_ts_final_no_targ = df_ts_no_targ[X_var_final]
             
@@ -427,12 +438,13 @@ class predict_saldo:
         """
         """function that derives the actual extra saldo from the fitted values"""
     
-
+        #get the saldo of the previous time
         prev_saldo = df["saldototaal"]
-        #self.df[[["business","retail","joint"]].sum(axis=1)]
         
+        #calculate the new saldo with the fitte values
         new_saldo = np.exp(fitted_values) * (prev_saldo - minimum) + minimum
         
+        #calculate the difference between the new and old saldo to get the extra saldo
         extra_saldo = new_saldo - prev_saldo
         
         return extra_saldo
@@ -458,6 +470,10 @@ class predict_saldo:
             seed for taking a random training/test set
         p_bound : float
             bound that indicates whether a variable is significant  
+        X_var_final : list
+            list of variables that remain after already performing backward elimination on the training set
+        ols_final : ols object
+            object of the last OLS model that is passed from the backward elimination
         Returns
         -------
         extra_saldo : 1D array
@@ -469,15 +485,19 @@ class predict_saldo:
         """
         """function that predicts the extra saldo on the account balances when cross sells are done"""
 
+        #get data from the right time period and only from customers from one segment (or not)
         if (isinstance(fin_segment, type(None))):
             df_ts = self.df_time_series[time-1]
         else:
             df_ts = self.df_time_series[time-1]     
             df_ts = df_ts[df_ts['finergy_tp'] == fin_segment]
             
+        #for each customer, get the number of potential cross-sells he is eligible for
         summation = np.sum(cross_sell_total, axis = 1)
+        #get the indices of customers that are eligble for at least one cross-sell
         indices_cross_sell = np.nonzero(summation)
         
+        #get subsets of the dataframe, and cross-sell data that exist of customers that are eligble for at least one cross-sell
         df_ts_subset = df_ts.loc[indices_cross_sell].copy()
         cross_sell_self = cross_sell_self[indices_cross_sell]
         cross_sell_total = cross_sell_total[indices_cross_sell]
