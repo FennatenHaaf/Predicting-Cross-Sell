@@ -4,4 +4,27 @@ Maintaining the relationship with existing customers and identifying opportuniti
 constraint on the inflow of deposits.
 
 ## Instructions: 
-Everything can be run from main.py. In order to perform specific tasks, make sure that the relevant variables at the beginning of the page are set to `True'.
+Everything can be run from main.py. In order to perform specific tasks, make sure that the relevant variables at the beginning of the page are set to 'True'.
+
+
+## Code file descriptions:
+`HMM_eff.py` contains code to execute a Baum-Welch/forward-backward algorithm to estimate a Hidden Markov Model 
+(with modelling the transition and initialisation probabilities by covariates) 
+
+`additionalDataProcess.py` contains methods to transform the variables in datasets before being used as input to our model.
+
+`dataInsight.py` contains methods to make plots and visualise datasets. 
+
+`declarationsFile.py`
+
+`extra_functions_HMM_eff.py` contains additional functions to calculate parameters for the Hidden markov Model.
+
+`knab_dataprocessor.py` contains methods to process various datasets containing customer and portfolio information provided by Dutch online bank Knab.
+
+`machine_learning_model.py`
+
+`main.py` Main method for the Knab Predicting Cross Sell case
+
+`predictsaldo.py` Contains methods to predict an increase in saldo for bank customers over one period transition. 
+
+`utils.py` contains extra functions for saving files, etc. that could be necessary in other classes
