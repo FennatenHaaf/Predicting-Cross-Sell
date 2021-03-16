@@ -4,7 +4,7 @@ Maintaining the relationship with existing customers and identifying opportuniti
 constraint on the inflow of deposits.
 
 ## Instructions: 
-Everything can be run from main.py. In order to perform specific tasks, make sure that the relevant variables at the beginning of the page are set to 'True'.
+Everything can be run from `main.py`. In order to perform specific tasks, make sure that the relevant variables at the beginning of the page are set to 'True'.
 
 
 ## Code file descriptions:
