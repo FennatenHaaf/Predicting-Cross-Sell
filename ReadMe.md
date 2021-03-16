@@ -4,4 +4,9 @@ Maintaining the relationship with existing customers and identifying opportuniti
 constraint on the inflow of deposits.
 
 ## Instructions: 
-Everything can be run from main.py. In order to perform specific tasks, make sure that the relevant variables at the beginning of the page are set to `True'.
+Everything can be run from main.py. In order to perform specific tasks, make sure that the relevant variables at the beginning of the page are set to 'True'.
+
+
+## Code file descriptions:
+`<HMM_eff.py>` contains code to execute a Baum-Welch/forward-backward algorithm to estimate a Hidden Markov Model 
+(with modelling the transition and initialisation probabilities by covariates) 
