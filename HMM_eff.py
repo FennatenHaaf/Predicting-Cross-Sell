@@ -126,63 +126,47 @@ class HMM_eff:
         """function for running the EM algorithm"""
         
         #-----------------INITIALISE STARTING VALUES-------------------------
-        
-        if self.covariates == True:         #initialise parameters for HMM with the probabilities as logit model
-        
-            #initialise parameters with set startingvalues
-            if random_starting_points == False: 
-                gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
-                gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
-                gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
                 
+            #initialise parameters with set startingvalues
+        if random_starting_points == False: 
+            gamma_0 = np.ones( (n_segments-1, self.n_covariates+1) ) #parameters for P(S_0 = s|Z)
+            gamma_sr_0 =  np.ones( (n_segments-1,n_segments) ) #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t =  np.ones( (n_segments-1,self.n_covariates) )  #parameters for P(S_t = s | S_t-1 = r)
+                
+            beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
+            for s in range(n_segments):
+                for p in range(0,self.n_products):
+                    beta[s,p,0:self.n_categories[p]-1] = np.ones((1,self.n_categories[p]-1))                    
+            
+        else: 
+            if seed == None: #initialise parameters with random startingvalues, without setting the seed
+            gamma_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1)) #parameters for P(S_0 = s|Z)
+            gamma_sr_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1,n_segments)) #parameters for P(S_t = s | S_t-1 = r)
+            gamma_sk_t = np.random.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates)) #parameters for P(S_t = s | S_t-1 = r)
+        
+            beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
+            for s in range(n_segments):
+                for p in range(0,self.n_products):
+                    beta[s,p,0:self.n_categories[p]-1] = np.random.uniform(low=-5, high=5, size=(1,self.n_categories[p]-1)) 
+                            
+            else: #initialise parameters with random startingvalues, with a set seed
+                fixed_random_seed = np.random.RandomState(seed)
+                gamma_0 = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1)) #parameters for P(S_0 = s|Z)
+                gamma_sr_0 = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1,n_segments)) #parameters for P(S_t = s | S_t-1 = r)
+                gamma_sk_t = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates)) #parameters for P(S_t = s | S_t-1 = r)
+    
                 beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
                 for s in range(n_segments):
                     for p in range(0,self.n_products):
-                        beta[s,p,0:self.n_categories[p]-1] = np.ones((1,self.n_categories[p]-1))                    
-            
-            else: 
-                if seed == None: #initialise parameters with random startingvalues, without setting the seed
-                    gamma_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1)) #parameters for P(S_0 = s|Z)
-                    gamma_sr_0 = np.random.uniform(low=-10, high=10, size=(n_segments-1,n_segments)) #parameters for P(S_t = s | S_t-1 = r)
-                    gamma_sk_t = np.random.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates)) #parameters for P(S_t = s | S_t-1 = r)
-        
-                    beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
-                    for s in range(n_segments):
-                        for p in range(0,self.n_products):
-                            beta[s,p,0:self.n_categories[p]-1] = np.random.uniform(low=-5, high=5, size=(1,self.n_categories[p]-1)) 
+                        beta[s,p,0:self.n_categories[p]-1] = fixed_random_seed.uniform(low=-5, high=5, size=(1,self.n_categories[p]-1))  
                             
-                else: #initialise parameters with random startingvalues, with a set seed
-                    fixed_random_seed = np.random.RandomState(seed)
-                    gamma_0 = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1, self.n_covariates+1)) #parameters for P(S_0 = s|Z)
-                    gamma_sr_0 = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1,n_segments)) #parameters for P(S_t = s | S_t-1 = r)
-                    gamma_sk_t = fixed_random_seed.uniform(low=-10, high=10, size=(n_segments-1,self.n_covariates)) #parameters for P(S_t = s | S_t-1 = r)
-    
-                    beta = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) #parameters for P(Y| S_t = s)
-                    for s in range(n_segments):
-                        for p in range(0,self.n_products):
-                            beta[s,p,0:self.n_categories[p]-1] = fixed_random_seed.uniform(low=-5, high=5, size=(1,self.n_categories[p]-1))  
-                            
-            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
-            shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
-            param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
+        #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
+        shapes = np.array([[gamma_0.shape,gamma_0.size], [gamma_sr_0.shape, gamma_sr_0.size], [gamma_sk_t.shape, gamma_sk_t.size], [beta.shape, beta.size]], dtype = object)
+        param = ef.param_matrices_to_list(self, n_segments, gamma_0 = gamma_0, gamma_sr_0 = gamma_sr_0, gamma_sk_t = gamma_sk_t, beta = beta)  #convert parametermatrices to list
             
-            param_out = param #set name of parameterlist for the input of the algorithm
+        param_out = param #set name of parameterlist for the input of the algorithm
         
-        else:         #initialise parameters for HMM without the probabilities as logit model
-            A = 1/n_segments * np.ones((n_segments-1,n_segments)) #parameters of P(S_t = s | S_t-1 = r)
-            pi = 1/n_segments * np.ones((n_segments-1))  #parameters for P(S_0 = s)
-            
-            b = np.zeros((n_segments, self.n_products, max(self.n_categories)-1)) ##parameters for P(Y| S_t = s)
-            for s in range(n_segments):
-                for p in range(0,self.n_products):
-                    b[s,p,0:self.n_categories[p]-1] = 0.5 * np.ones((1,self.n_categories[p]-1)) 
-            
-            #shapes indicate the shapes of the parametermatrices, such that parameters easily can be converted to 1D array and vice versa
-            shapes = np.array([[A.shape,A.size], [pi.shape, pi.size], [b.shape, b.size]], dtype = object)
-            param = ef.param_matrices_to_list(self, n_segments, A = A, pi = pi, b = b) #convert parametermatrices to list
-            param_out = param #set name of parameterlist for the input of the algorithm
 
-            
         # If initial parameters had already been specified,
         # Replace what we just initialised (but we can still use the shapes)
         if not( isinstance(self.initparam, type(None)) ): 
@@ -234,10 +218,8 @@ class HMM_eff:
             diff = utils.get_time_diff(start,end)#get difference of start and end time, thus time to run maximisation 
             print(f"Finished iteration {self.iteration}, duration M step {diff}")
 
-            
-            if self.covariates:
-                gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
-                print(f"{param_out}")
+            gamma_0, gamma_sr_0, gamma_sk_t, beta = ef.param_list_to_matrices(self, n_segments, param_out, shapes)
+            print(f"{param_out}")
             
             # Save the output to a text file
             with open(f'{self.outdir}/{self.outname}.txt', 'w') as f:
@@ -358,15 +340,12 @@ class HMM_eff:
                 #get the data from the right person at the right time
                 if data == None: # if data is used from the trainingset
                     Y_t = np.array([self.list_Y[t][i,:]])
-                    if self.covariates == True:
-                        Z_t = np.array([self.list_Z[t][i,:]])
-                    else:
-                        Z_t = []
+                    Z_t = np.array([self.list_Z[t][i,:]])
+
                 else: # if data is used from a 'new' customer
                     data_t = data[t]
                     Y_t = np.array([ data[self.list_dep_var][t][i,:] ])
-                    if self.covariates == True:
-                        Z_t = np.array([ data[self.list_covariates][t][i,:] ])
+                    Z_t = np.array([ data[self.list_covariates][t][i,:] ])
                     
                 #compute alpha and beta if t = 0
                 if t == 0:
@@ -379,11 +358,8 @@ class HMM_eff:
                 else:
                     #get the data from the right person at the right time, data_v1 is for the backward algorithm
                     Y_v1 = np.array([self.list_Y[v+1][i,:]])
-                    if self.covariates == True:
-                        Z_v1 = np.array([self.list_Z[v+1][i,:]])
-                    else:
-                        Z_v1 = []
-                        
+                    Z_v1 = np.array([self.list_Z[v+1][i,:]])
+   
                     #compute probabilties for estimating alpha and beta
                     P_s_given_r_t = ef.prob_P_s_given_r(self, param, shapes, Z_t, n_segments)
                     P_s_given_r_v1 = ef.prob_P_s_given_r(self, param, shapes, Z_v1, n_segments)
@@ -446,10 +422,8 @@ class HMM_eff:
         
         for t in range(0,self.T):
             Y = self.list_Y[t]
-            if self.covariates == True:
-                Z = self.list_Z[t]   
-            else: 
-                Z = []
+            Z = self.list_Z[t]   
+ 
             P_s_given_r = ef.prob_P_s_given_r(self, param_in, shapes, Z, n_segments)
             P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js_cons, n_segments)
             list_P_s_given_r.append(P_s_given_r)
@@ -990,10 +964,8 @@ class HMM_eff:
         list_P_s_given_Z = []
         for t in range(0,self.T):
             Y = self.list_Y[t]
-            if self.covariates == True:
-                Z = self.list_Z[t]   
-            else: 
-                Z = []
+            Z = self.list_Z[t]   
+
             P_s_given_r = ef.prob_P_s_given_r(self, parameters, shapes, Z, n_segments)
             P_y_given_s = ef.prob_P_y_given_s(self, Y, p_js, n_segments)
             P_s_given_Z = ef.prob_P_s_given_Z(self, parameters, shapes, Z, n_segments) #[ixs]
