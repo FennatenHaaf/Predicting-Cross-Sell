@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This file contains extra functions for saving files, etc. 
 that could be necessary in other classes
@@ -18,6 +17,7 @@ from tqdm import tqdm
 import re
 
 import declarationsFile
+
 """
 TIME
 """
