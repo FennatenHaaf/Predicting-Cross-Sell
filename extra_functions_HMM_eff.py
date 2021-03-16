@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 """
-Created on Fri Feb  5 14:39:33 2021
+Contains additional functions to calculate parameters for the Hidden markov Model
 
-@author: Matthijs van Heese
+Written for the Quantitative Marketing & Business Analytics seminar
+Erasmus School of Economics
 """
+
 import numpy as np 
 import math
 from tqdm import tqdm
