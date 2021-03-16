@@ -47,12 +47,13 @@ class predict_saldo:
         self.interdir = interdir
         self.outdir = outdir
         
-        # initialise dataframes
+        #initialise dataframe for training the model
         if isinstance(saldo_data, type(None)):        
             self.saldo_data = pd.read_csv(f'{interdir}/saldopredict.csv')
         else: 
             self.saldo_data = saldo_data
             
+        #initialise dataframe for predicting actual sald
         if isinstance(df_time_series, type(None)):
             name = "final_df"
             self.df_time_series = [pd.read_csv(f"{interdir}/{name}_2018Q1.csv"),
@@ -69,7 +70,8 @@ class predict_saldo:
                             pd.read_csv(f"{interdir}/{name}_2020Q4.csv")]
         else:
             self.df_time_series = df_time_series
-            
+        
+        #get names of cross-sell types, used variables within the dataframes
         if isinstance(cross_sell_types, type(None)):        
             self.cross_sell_types = ["business",
                                      "retail",
@@ -83,8 +85,8 @@ class predict_saldo:
         y = self.saldo_data['percdiff']
         X = self.saldo_data.drop(columns = ['percdiff'])
 
+        #Drop some of the variables that we do not use from x
         if isinstance(drop_variables, type(None)):
-            #Drop some of the variables that we do not use from x
             X = X.drop(columns = ['personid','portfolio_change','saldo_prev',
                                   'business_change','retail_change','joint_change',
                                   'accountoverlay_change','retail_change_dummy',
@@ -97,9 +99,8 @@ class predict_saldo:
         else: 
             X = X.drop(columns = drop_variables)
         
-        
+        #Drop the base cases
         if isinstance(base_variables, type(None)):
-            # Drop the base cases
             X = X.drop(columns = ['income_1.0', 'educat4_1.0', 'housetype_1.0', 'lfase_1.0', 'hh_size_1.0',
                               'huidigewaarde_klasse_1.0','age_bins_(0, 18]','age_bins_(18, 30]', 
                               'geslacht_Man', 'geslacht_Man(nen) en vrouw(en)',
@@ -118,6 +119,7 @@ class predict_saldo:
         X['retail'] = (1-saldo_data['business_change_dummy'])* (saldo_data['retail_change_dummy'])*(1 -saldo_data['joint_change_dummy'])
         X['constant'] = [1]* X.shape[0]
         
+        #set datasets for training purposes
         self.y = y
         self.X = X
 
@@ -133,6 +135,8 @@ class predict_saldo:
             seed for taking a random training/test set
         p_bound : float
             bound that indicates whether a variable is significant
+        outname : string
+            name for the file in which we can save the trained model 
         Returns
         -------
         X_var_final : list
@@ -148,15 +152,18 @@ class predict_saldo:
         """
         """function for training the saldo prediction model"""
         
+        #split the training dataset in a training and testset
         X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size = test_set_prop, random_state = random_state) 
 
-
+        #train the model by performing backward elimination
         X_var_final, ols_final, r2adjusted, r2, mse = self.backwardel(X_train, X_test, y_train, y_test, p_bound)
+        #print summary of final ols model
         print(ols_final.summary())
         
         
         print(f"saving OLS results to {outname}.csv")
          
+        #safe the final ols_model to a csv file
         df = pd.DataFrame(columns = [ "coef", "stderr", "pval", 'coefprint'])  
         df["coef"]  = ols_final.params
         df["stderr"] = ols_final.bse
@@ -190,8 +197,6 @@ class predict_saldo:
         """
         Parameters
         ----------
-        olsres : ols object
-            ols object where all variables are included
         X_train : dataframe
             training set of the independent variables 
         X_test : dataframe
@@ -200,6 +205,8 @@ class predict_saldo:
             training set of the dependent variables 
         y_test : dataframe
             test set of the dependent variables 
+        p_bound : float
+            bound for which every parameter has to have a lower p-value in the backward elimination
         Returns
         -------
         X_var_final : list
@@ -213,49 +220,72 @@ class predict_saldo:
         mse : list
             list of mse's of the backward elimination
         """
-        """function for the backward elimination of the saldo predicition model"""
+        """function for the backward elimination of the saldo predicting model"""
         
-        r2adjusted = []   # Will store R Square adjusted value for each loop
+        #initialise list of (adjusted) R2 values
+        r2adjusted = []
         r2 = [] 
+        
+        #initialise list of mse's
         mse =[100]
         
+        #initialise current X and the maximum of (not yet) obtained p-values
         current_X = X_train
         max_p = 1
 
+        #set new_p = True, so start with an ols estimation
         new_p = True
 
+        #stay in loop while the max of obtained p-values is still higher than the set bound of p-values
         while (max_p >= p_bound):
               
-            # do new OLS, and calculate performance if variable with highest p-value is removed
+            #perform new OLS, and calculate performance if variable with highest p-value is removed
             if new_p:
+                #perform new OLS
                 olsres = sm.OLS(y_train, current_X).fit()
-                p_val = list(olsres.pvalues)
                 
+                #get p-values
+                p_val = list(olsres.pvalues)
+                #get highest p-value and it's index
                 max_p = max(p_val)
                 max_p_index = p_val.index(max_p)
+                
+                #get temporary training dataset of X's without the variable with the highest p-value
                 temp_current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
+                #perform new OLS with this temporary dataset
                 olsres = sm.OLS(y_train, temp_current_X).fit()
-
+                
+                #calculate prediction performance of the temporary training dataset on the test-set
                 xx = X_test[list(temp_current_X.columns)]
                 pred = np.mean(np.square(np.array(olsres.predict(xx) - y_test)))
-            # use old OLS, but look at the list of p-values but without the p-values that cannot be removed
-            else:                
+            #use old OLS, but look at the list of p-values but without the highest p-values of which removing leads to lower MSE
+            else:        
+                #get highest p-value and it's index
                 max_p = max(p_val)
                 max_p_index = p_val.index(max_p)
+                
+                #get temporary training dataset of X's without the variable with the highest p-values
                 temp_current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
+                #perform new OLS with this temporary dataset
                 olsres = sm.OLS(y_train, temp_current_X).fit()
                 
+                #calculate prediction performance of the temporary training dataset on the test-set
                 xx = X_test[list(temp_current_X.columns)] 
                 pred = np.mean(np.square(np.array(olsres.predict(xx) - y_test)))
 
-            # OLS without variable with highest p-value performs well, remove that variable
+            #OLS with temporary dataset performs well (MSE does get smaller), remove that variable
             if (pred < min(mse)):
+                #add pred to the list of MSE's
                 mse.append(pred)
-
-                print(current_X.columns[max_p_index], " is dropped with p-val", max_p)
-                current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
+                
+                #add (adjusted) R2 values to list of (adjusted) R2 values
                 r2adjusted.append(olsres.rsquared_adj)
                 r2.append(olsres.rsquared)
+                
+                #remove variable
+                current_X = current_X.drop(current_X.columns[max_p_index], axis=1)
+                print(current_X.columns[max_p_index], " is dropped with p-val", max_p)
+
                 
                 p_val.remove(max(p_val))
                 max_p = max(p_val)
