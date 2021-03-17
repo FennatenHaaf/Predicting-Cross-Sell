@@ -950,6 +950,44 @@ if __name__ == "__main__":
             ax.set_zlim(10000, 120000)
             #ax.ticklabel_format(style='plain')
             plt.show()
+
+            ##ALTERNATIVE PLOT
+            # from matplotlib.ticker import LinearLocator
+            # from matplotlib.ticker import AutoMinorLocator
+            # max_z = 150000
+            # est2 = extra_saldo_target.copy()
+            # est2diag = np.diagonal(est2)
+            # est2diag = np.where(est2diag <= max_z, est2diag, 150000)
+            # np.fill_diagonal(est2, est2diag)
+            #
+            # t1 = np.linspace(0, 1, num = n_plot)
+            # t2 = np.linspace(0, 1, num = n_plot)
+            # t1, t2 = np.meshgrid(t1, t2)
+            # t1diag = np.diagonal(t1)
+            # t2diag = np.diagonal(t2)
+            # t1 = np.where(est2 <= 150000, t1, np.nan)
+            # t2 = np.where(est2 <= 150000, t2, np.nan)
+            # np.fill_diagonal(t1, t1diag)
+            # np.fill_diagonal(t2, t2diag)
+            #
+            # fig = plt.figure()
+            # ax = plt.axes(projection = '3d')
+            # ax.set_xlabel('Lower treshold')
+            # ax.set_ylabel('Upper treshold')
+            # ax.set_zlabel('Extra Saldo', labelpad = 7)
+            # ax.set_xlim(0, 1)
+            # ax.set_ylim(0, 1)
+            #
+            # # ax.view_init(elev = 8, azim = 10)
+            # ax.view_init = 5
+            # ax.set_zlim3d(0, max_z)
+            # ax.plot_surface(t1, t2, est2, vmax = 150000, cmap = 'viridis')
+            # ax.get_xaxis().set_minor_locator(AutoMinorLocator())
+            # ax.get_yaxis().set_minor_locator(AutoMinorLocator())
+            # ax.yaxis.set_major_locator(LinearLocator(5))
+            # ax.xaxis.set_major_locator(LinearLocator(5))
+            # ax.zaxis.set_major_locator(LinearLocator(6))
+            # plt.show()
                 
             
             
