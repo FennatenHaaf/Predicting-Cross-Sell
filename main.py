@@ -387,7 +387,6 @@ if __name__ == "__main__":
         hmm = ht.HMM_eff(outdirec, outname,
                          df_periods, reg, max_method,
                          name_dep_var, name_covariates, 
-                         covariates = True,
                          iterprint = True,
                          initparam = initial_param)
 
@@ -420,9 +419,9 @@ if __name__ == "__main__":
         if (not run_hmm): # read in parameters if we have not run hmm
             print("-----Reading in existing parameters-----")
              
-            #source = "finalActivity"
+            source = "finalActivity"
             #source = "crosssell4seg"
-            source = "crosssell5seg" 
+            #source = "crosssell5seg" 
             #source = "crosssell6seg"
             
             if (source == "finalActivity"):         
@@ -584,7 +583,7 @@ if __name__ == "__main__":
             hmm = ht.HMM_eff(outdirec, outname,
                          df_periods, reg, max_method,
                          name_dep_var, 
-                         name_covariates, covariates = True,
+                         name_covariates, 
                          iterprint = True,
                          initparam = param_cross,
                              visualize_data = True)
