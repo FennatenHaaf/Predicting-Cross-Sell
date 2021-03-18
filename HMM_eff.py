@@ -940,9 +940,14 @@ class HMM_eff:
             y_axis = self.list_dep_var
             x_axis = np.arange(np.max(self.n_categories))
             matrix = p_js[seg,:,:]
-            dataInsight.visualize_matrix(self,matrix, x_axis, y_axis, "Level",
-                                  "dependent variable",
-                                   f"P_js for segment {seg}")
+            #title = f"P_js for segment {seg}"
+            title = None
+            yticks = ["activity status", "total logins", "total transactions"]
+            dataInsight.visualize_matrix(self,matrix, x_axis, y_axis, 
+                                         xlabel = "Level",
+                                         ylabel = None, #"dependent variable"
+                                         title = title,
+                                         yticks = ["","",""])
         
         # ------Visualize Ps_given_Y_Z---------
         P_s_given_Y_Z = ef.state_event(self, alpha, beta)
@@ -1281,33 +1286,3 @@ class HMM_eff:
         return evaluation
          
   
-
-
-    # def new_hessian(self,parameters, n_segments = None):
-    #     if self.function_for_hessian == None:
-    #         visualize_old = self.visualize_data
-    #         self.visualize_data = False
-    #         self.interpret_parameters(parameters,n_segments)
-    #         self.visualize_data = visualize_old
-    #
-    #     self.maximization_iters = 0
-    #     change = 1e-10
-    #     n = parameters.shape[0]
-    #     value_0 = self.function_for_hessian(parameters, reg = self.reg_term)
-    #     hessian = np.full((n, n), np.nan)
-    #     for i, outer_number in enumerate(parameters):
-    #         outer_parameters = parameters
-    #         outer_parameters[i] = outer_number + change
-    #         value_1_outer = self.function_for_hessian(outer_parameters, reg = self.reg_term)
-    #         gradient_val_outer = (value_1_outer - value_0) / change
-    #         for j, inner_number in enumerate(outer_parameters):
-    #             inner_parameters = outer_parameters
-    #             inner_parameters[j] = inner_number + change
-    #             value_1_inner = self.function_for_hessian(inner_parameters, reg = self.reg_term)
-    #             gradient_val_inner = (value_1_inner - value_1_outer) / change
-    #             hessian[j, i] = gradient_val_inner - gradient_val_outer
-    #     self.maximization_iters = 0
-    #
-    #     hessian_inv = np.linalg.inv(hessian)
-    #     return hessian_inv
-        

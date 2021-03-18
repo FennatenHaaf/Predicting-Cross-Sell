@@ -108,7 +108,8 @@ def checkAVL(list):
 # =============================================================================
         
 def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
-                         diverging = False, annotate = True):
+                         diverging = False, annotate = True, xticks = None,
+                         yticks = None):
         """Visualize a 2D matrix in a figure with labels and title"""
         if not self.visualize_data:
             return
@@ -127,18 +128,30 @@ def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
         # Now plot the values
         im = ax.imshow(matrix, cmap = colMap)
         # set the max color to >1  so that the lightest areas are not too light
-        # below the min we want it to be white
+        # below the min we want it to be white!
         if diverging:
             im.set_clim(-1.5, 1.5)  
         else:
-            im.set_clim(1e-30, 1.2)  
+            im.set_clim(1e-15, 1.2)  
            
+        #Set font sizes
+        labelfont = 20
+        tickfont = 19
+        annotfont = 30
+        titlefont = 20
+        
         # We want to show all ticks...
         ax.set_xticks(np.arange(len(x_axis)))
         ax.set_yticks(np.arange(len(y_axis)))
         # ... and label them with the respective list entries
-        ax.set_xticklabels(x_axis,fontsize = 15)
-        ax.set_yticklabels(y_axis,fontsize = 15)
+        if not( isinstance(xticks, type(None)) ): 
+            ax.set_xticklabels(xticks,fontsize = tickfont)
+        else: 
+            ax.set_xticklabels(x_axis,fontsize = tickfont)
+        if not( isinstance(yticks, type(None)) ): 
+            ax.set_yticklabels(yticks,fontsize = tickfont)
+        else:
+            ax.set_yticklabels(y_axis,fontsize = tickfont)
         
         #ax.xaxis.set_label_position('top') 
         #ax.xaxis.tick_top()
@@ -147,8 +160,8 @@ def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
                  rotation_mode="anchor")
         
         #Label the axes   
-        ax.set_xlabel(xlabel,fontsize = 15)
-        ax.set_ylabel(ylabel,fontsize = 15)
+        ax.set_xlabel(xlabel,fontsize = labelfont)
+        ax.set_ylabel(ylabel,fontsize = labelfont)
 
         # Loop over data dimensions and create text annotations.
         if annotate:
@@ -156,9 +169,9 @@ def visualize_matrix(self,matrix,x_axis,y_axis,xlabel,ylabel,title,
                 for j in range(len(x_axis)):
                     text = ax.text(j, i, round(matrix[i, j],3),
                                    ha="center", va="center", color="w",
-                                   fontsize = 20)
+                                   fontsize = annotfont)
         
-        ax.set_title(title,fontsize = 20, fontweight='bold')
+        ax.set_title(title,fontsize = titlefont, fontweight='bold')
         fig.tight_layout()
         
         #cbar = plt.colorbar()
