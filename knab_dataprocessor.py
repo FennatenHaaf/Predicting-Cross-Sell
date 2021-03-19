@@ -11,10 +11,8 @@ from datetime import datetime
 from datetime import timedelta
 import utils
 import dataInsight
-import declarationsFile
-import gc
 from os import path
-import re
+
 
 
 class dataProcessor:
@@ -1180,7 +1178,7 @@ class dataProcessor:
         """creates transaction data based on the cross-section for a specific date"""
         
         # Bepaalde variabelen zijn in sommige jaren altijd 0 dus gebruiken we niet
-        readArgs = {"usecols": declarationsFile.getPatColToParseCross(subset = "transactions")}
+        readArgs = {"usecols": self.getPatColToParseCross(subset = "transactions")}
 
         if date.year >2019:
             dataset = pd.concat(
@@ -1227,7 +1225,7 @@ class dataProcessor:
         """creates activity data based on the cross-section for a specific date"""
         
         # Get the columns that we use - we do not need the payment alert variables
-        readArgs = {"usecols": declarationsFile.getPatColToParseCross(subset = "activity")}
+        readArgs = {"usecols": self.getPatColToParseCross(subset = "activity")}
         
         # Read the necessary data
         if date.year >2019:
@@ -1326,605 +1324,64 @@ class dataProcessor:
         
         return dataset
 
-
-
-
-
-
-
-# =============================================================================
-# linkTimeSets=================================================================
-# =============================================================================
-
-    def link_data_to_timeseries(self, use_sample = False, select_col = True):
-        """
-        Links the already imported Portfolio Activity File to other data files.
-        This method will produce a dataset with activity of portfolios linked to personid's
-        associated with this portfolio.
-
-        This happens in these steps:
-        -> Combine Linkperson Portfolio to experian on personid
-        -> Combine This combined dataset to portfolio activity
-
-        -> Combine corporate details and linkpersonportfolio
-        -> Join this combined dataset to portfolio activity
-
-        -> Join boekhoudkoppelingen to this larger dataset
-
-        -> An indicator is created to follow which
-        row contains either corporate info, experian info or
-        account overlay info.
-
-
-        It is possible to sample the a
-        """
-
-        print(f"****linking timeseries sets, starting at {utils.get_time()}****")
-
-
-        if self.df_corporate_details.empty:
-            try:
-                self.importSets('cored')
-            except:
-                self.processCorporateData()
-
-        if self.df_pat.empty:
-            if use_sample:
-                try:
-                    self.importSets('patsmp', select_col= select_col)
-                except:
-                    self.importPortfolioActivity(convertData= True,selectColumns= select_col)
-                    self.portfolioActivitySampler()
-                    self.df_pat = self.df_pat_sample
-            else:
-                try:
-                    self.importSets('patot')
-                except:
-                    self.importPortfolioActivity(convertData=True, selectColumns=True)
-
-        df_lpp = pd.read_csv(f'{self.indir}/linkpersonportfolio.csv')
-        df_exp = pd.read_csv(f'{self.indir}/experian.csv')
-        df_bhk = pd.read_csv(f'{self.indir}/portfolio_boekhoudkoppeling.csv')
-        df_pin = pd.read_csv(f'{self.indir}/portfolio_info.csv')
-        df_cor = self.df_corporate_details
-
-
-        '''Convert total portfolio activty and create a list to check if values can be found in this list. This unique value list
-        #Is also used to ensure that LPP is sampled to reduce computation and get a grip on if the right data is parsed. After 
-        That the df_pat file is converted to less memory intensive datatypes and an enddate is given to ensure a consistent end of 2020 
-        ending of portofolios.
-        '''
-        pat_unique = self.df_pat['portfolioid'].unique()
-        self.df_pat = utils.doConvertFromDict(self.df_pat)
-        # self.df_pat = utils.select_time_in_data(self.df_pat, 'dateeow',period_to_use= 'Q', start = '2018Q1')
-
-        self.df_pat.loc[self.df_pat["dateeow"] == "2021-01-03 00:00:00", "dateeow"] = self.endDate
-
-
-        if use_sample == True:
-            # SAMPLEFORTEST
-            df_lpp = df_lpp.loc[pd.eval("df_lpp['portfolioid'].isin(pat_unique)"), :]
-            # SAMPLEFORTESTEND
-
-        '''
-        Creating an index and indicator to see which personid'' are linked to a portfolio with business and retail ID's
-        '''
-        lpp_columns_to_use = ['personid', 'portfolioid', "iscorporatepersonyn", 'validfromdate']
-        df_lpp = df_lpp[lpp_columns_to_use]
-        df_lpp.rename({'validfromdate': 'validfromdate_lpp'}, axis=1, inplace = True)
-        df_lpp = utils.doConvertFromDict(df_lpp)
-
-        df_lpp_table_port_corp_retail = df_lpp.groupby("portfolioid")["iscorporatepersonyn"].mean()
-        df_lpp_table_port_corp_retail = df_lpp_table_port_corp_retail.reset_index()
-        df_lpp_table_port_corp_retail.loc[:, "indicator_corp_and_retail"] = 0
-        lpp_index_both = pd.eval(" (df_lpp_table_port_corp_retail['iscorporatepersonyn'] > 0) & "
-                                 "(df_lpp_table_port_corp_retail['iscorporatepersonyn'] < 1) ")
-        df_lpp_table_port_corp_retail.loc[lpp_index_both, "indicator_corp_and_retail"] = 1
-        df_lpp_table_port_corp_retail.drop("iscorporatepersonyn", axis=1, inplace=True)
-        df_lpp = pd.merge(df_lpp, df_lpp_table_port_corp_retail, on="portfolioid")
-
-        #Different indices to be used for checks and conversion
-        index_link_cr = pd.eval("df_lpp['indicator_corp_and_retail'] == 1")
-        index_corp_pers = pd.eval("df_lpp['iscorporatepersonyn'] == 1")
-        portid_link_cr = df_lpp.loc[index_link_cr, "portfolioid"].unique()
-        persid_link_cr = df_lpp.loc[index_link_cr, "personid"].unique()
-        persid_no_link_cr = df_lpp.loc[~index_link_cr, "personid"].unique()
-        persid_no_link_cr = persid_no_link_cr[~persid_no_link_cr.isin(persid_link_cr)]
-        portid_no_link_cr = df_lpp.loc[~index_link_cr, "portfolioid"].unique()
-        port_no_link_cr = portid_no_link_cr[~portid_no_link_cr.isin(portid_link_cr)]
-
-
-        ztest3a1 = "dataInsight.mostCommon(df_pin['enofyn'] == 0], 'geslacht',5)"
-        ztest3a2 = "dataInsight.mostCommon(df_pin['enofyn'] == 1], 'geslacht',5)"
-        ztest3a3 = """only_man_female_pin = df_pin[pd.eval("df_pin['geslacht'] != 'Man' & df_pin['geslacht'] != 'Vrouw'")]"""
-        ztest3a4 = "(df_pin['portfolioid'].value_counts()>1).sum()"
-        ztest3a5 = "pat_pin_dates_merge = self.df_pat.groupby('portfolioid')['dateeow'].min()"
-        ztest3a6 = "pat_pin_dates_merge = pd.merge(pat_pin_dates_merge, df_pin[['portfolioid','dateinstroomweek']], on = 'portfolioid')"
-
-
-        """"
-        Link with Portfolio Info Data
-        """
-        #SAMPLING
-        if use_sample == True:
-            df_pin = df_pin[pd.eval("df_pin['portfolioid'].isin(pat_unique)")]
-
-        print(self.df_pat.shape)
-        joined_linked = self.df_pat.copy()
-        df_pin = utils.doConvertFromDict(df_pin)
-
-        selected_columns_pin = ['portfolioid', 'dateinstroomweek', 'birthyear', 'geslacht', 'type', 'enofyn']
-        joined_linked = pd.merge(joined_linked, df_pin[selected_columns_pin],
-                                 on='portfolioid')  # Are a few NA rows which start on the last date,
-        # discarded for now
-
-        portfolio_start_date_list = joined_linked.groupby('portfolioid').aggregate({'dateeow': np.min, 'dateinstroomweek': np.min})
-        portfolio_start_date_list.reset_index(inplace=True)
-        portfolio_start_date_list.dropna(inplace=True)
-        correct_date_portfolio_list = portfolio_start_date_list.query("dateeow <= dateinstroomweek")['portfolioid']
-        joined_linked['has_correct_startdate'] = 0
-        joined_linked.loc[pd.eval("joined_linked['portfolioid'].isin(correct_date_portfolio_list)"),'has_correct_startdate'] = 1
-
-        ''''
-        EXPERIAN, LPP : Merge Experian and LPP. After that merge these sets to the larger file.  
-        '''
-
-        # SAMPLEFORTEST START
-        if use_sample == True:
-            df_exp = df_exp[(df_exp['personid'].isin(persid_link_cr)) | (df_exp['personid'].isin(persid_no_link_cr))].copy()
-        # END SAMPLE
-
-        # CHECK IF VALUES CAN BOTH HAVE INFO
-        df_exp['valid_to_dateeow'] = pd.to_datetime(df_exp['valid_to_dateeow'])
-        df_exp['valid_to_dateeow'].fillna(self.endDate, inplace=True)
-        df_exp.sort_values(['valid_to_dateeow', 'personid'], inplace=True)
-        df_exp.dropna(axis=0, subset=df_exp.columns[3:].tolist(), how='all', inplace=True)
-        index_only_buss_finergy = df_exp['age_hh'].isna()
-        # exp_only_buss_finergy = df_exp[index_only_buss_finergy].copy()
-        df_exp = df_exp[~index_only_buss_finergy]
-        df_exp = utils.doConvertFromDict(df_exp)
-
-        df_exp['retail_id_with_corp_and_retail'] = 0
-        df_exp.loc[df_exp['personid'].isin(persid_link_cr), 'retail_id_with_corp_and_retail'] = 1
-
-
-        # Link self.df_pat and
-        exp_lpp_joined = pd.merge(df_exp, df_lpp, on=['personid'])
-        exp_lpp_joined.sort_values(['valid_to_dateeow', 'personid', 'portfolioid'], inplace=True)
-        self.df_pat.sort_values(['dateeow', 'portfolioid'], inplace=True)
-
-        # Merge joined by picking records to match that are before valid_to_dateeow, not matching records or expired records discarded
-        self.df_linked_ts_unc = pd.merge(self.df_pat, exp_lpp_joined, on="portfolioid")
-        temp_index = pd.eval("(self.df_linked_ts_unc['valid_from_dateeow'] <= self.df_linked_ts_unc['dateeow']) & \
-                               (self.df_linked_ts_unc['valid_to_dateeow'] >= self.df_linked_ts_unc['dateeow'])")
-        self.df_linked_ts_unc = self.df_linked_ts_unc[temp_index]
-
-        temp_index = pd.eval("self.df_pat['portfolioid'].isin(self.df_linked_ts_unc['portfolioid'])")
-        self.df_linked_ts_unc = pd.concat([self.df_linked_ts_unc, self.df_pat[~temp_index].copy()], ignore_index=True)
-
-        del exp_lpp_joined #delete to clear more memory
-        gc.collect()
-        ''''
-        CORPORATE DETAILS AND LINK PERSON PORTFOLIO. Merge Corporate details and Link Person Portfolio. After that, 
-        merge this to the larger set. 
-        '''
-        corporate_columns_to_use = ['personid', 'businessType', 'businessAgeInDays', 'foundingYear', 'SBIcode', 'SBIname', 'SBIsector',
-                                    'SBIsectorName']
-
-        # SAMPLED SIZE#
-        print("amount of observations of corp in lpp linked :", df_cor['personid'].isin(persid_link_cr).sum())
-
-        df_cor = df_cor[corporate_columns_to_use]
-        df_cor = utils.doConvertFromDict(df_cor)
-        print("Dimension corporate details before merge :", df_cor.shape)
-
-        temp_list = ['personid', 'portfolioid', 'indicator_corp_and_retail', "iscorporatepersonyn"]
-        cor_lpp_linked = pd.merge(df_cor, df_lpp[temp_list], on="personid")
-        print("Dimension of merged file :", cor_lpp_linked.shape)
-
-        cor_lpp_linked['business_id_with_corp_and_retail'] = 0
-        cor_lpp_linked.loc[cor_lpp_linked['personid'].isin(persid_link_cr), 'business_id_with_corp_and_retail'] = 1
-
-        # Merge corp_lpp with large joined table
-
-        cor_lpp_linked.rename({'personid': 'businessid'}, axis=1, inplace = True)
-        print(f"before merge dimension of self.df_linked_ts_unc : {self.df_linked_ts_unc.shape} and dimension of cor_lpp : {cor_lpp_linked.shape}")
-        self.df_linked_ts_unc = pd.merge(self.df_linked_ts_unc, cor_lpp_linked, how="left", on="portfolioid", suffixes=['', '_business'])
-        print(f"after merge dimension: {self.df_linked_ts_unc.shape}")
-
-        del cor_lpp_linked #save memory
-        gc.collect()
-        """
-        Merge Boekhoudkoppeling to large file
-        """
-        ##SAMPLESTART
-        df_bhk[pd.eval("df_bhk['portfolioid'].isin(pat_unique)")].shape
-        ##SAMPLEEND
-
-        df_bhk = utils.doConvertFromDict(df_bhk)
-        df_bhk.loc[df_bhk['valid_to_dateeow'].isna(), 'valid_to_dateeow'] = self.endDate
-        df_bhk.drop(['accountid', 'accountoverlayid'], axis=1, inplace=True)  # Drop unused vars
-        df_bhk.drop_duplicates(inplace=True)
-        df_bhk.sort_values(['valid_to_dateeow', 'personid', 'portfolioid'], inplace=True)
-        self.df_linked_ts_unc.sort_values(['dateeow', 'personid', 'portfolioid'])
-
-        # Chosen to merge on person rather than portfolio
-        person_id_in_bhk = df_bhk['personid'].unique()
-        before_merge_index_bhk = self.df_linked_ts_unc['personid'].isin(person_id_in_bhk)
-
-        print("with bhk dimensions before merge :", self.df_linked_ts_unc.shape)
-
-        templist = ['dateeow', 'personid', 'portfolioid']
-        self.df_linked_ts_unc_bkh = pd.merge(self.df_linked_ts_unc.loc[before_merge_index_bhk, templist], df_bhk, on=['personid', 'portfolioid'])
-
-        self.df_linked_ts_unc_bkh.query("valid_from_dateeow <= dateeow <= valid_to_dateeow", inplace = True)
-        self.df_linked_ts_unc_bkh.query("valid_from_dateeow != valid_to_dateeow", inplace = True) # Probably erronous that bhk can be active one day only
-
-        print('Size file after merge :', self.df_linked_ts_unc_bkh.shape)
-        print('Not NA after merge :', self.df_linked_ts_unc_bkh["boekhoudkoppeling"].notna().sum())
-        print('Not NA after merge :', self.df_linked_ts_unc_bkh["valid_from_dateeow"].notna().sum())
-
-        self.df_linked_ts_unc_bkh.drop(['valid_from_dateeow', 'valid_to_dateeow'], axis=1, inplace=True)
-        self.df_linked_ts_unc = pd.merge(self.df_linked_ts_unc, self.df_linked_ts_unc_bkh, how="left", on=["dateeow", "personid", "portfolioid"])
-        print(f"Final Joined File after merge {self.df_linked_ts_unc.shape}")
-
-        del self.df_linked_ts_unc_bkh #clear up some memory
-        gc.collect()
-
-        #Final indices to add
-        self.df_linked_ts_unc['has_account_overlay'] = 0
-        self.df_linked_ts_unc.loc[pd.eval("self.df_linked_ts_unc['boekhoudkoppeling'].notna()"), 'has_account_overlay'] = 1
-
-        self.df_linked_ts_unc['has_business_id'] = 0
-        self.df_linked_ts_unc.loc[pd.eval("self.df_linked_ts_unc['businessid'].notna()"), 'has_business_id'] = 1
-
-        self.df_linked_ts_unc['has_experian_data'] = 0
-        self.df_linked_ts_unc.loc[pd.eval("self.df_linked_ts_unc['finergy_tp'].notna()"), 'has_experian_data'] = 1
-
-        no_extra_information_index = self.df_linked_ts_unc.eval('has_business_id == 0 & has_account_overlay == 0 & has_experian_data == 0')
-
-        self.df_linked_ts_unc = self.df_linked_ts_unc[~no_extra_information_index].copy()
-        print(f"the dimension of the linked file is {self.df_linked_ts_unc.shape} and the dimension of observations with no experian, "
-              f"corporate or accountoverlay data is {no_extra_information_index.shape} ")
-        print(f"****Finished linking timeseries sets at {utils.get_time()}****")
-
-    ###################----------------------------------------------------------------------------
-
-    def convert_time_linked_time_series(self, period_to_convert_to ="Q", period_to_use ="All", use_sample = False, select_col = True):
-        ''''
-        Aggregation of Data based on time and personid
-        '''
-        print(f"****Importing needed files at {utils.get_time()}****")
-        if self.df_linked_ts_unc.empty: #check if linked time series has been defined
-            if use_sample:
-                try:
-                    self.importSets('ltsuncsmp',select_col= select_col)
-                except:
-                    self.link_data_to_timeseries()
-                    self.linked_ts_unconverted_sampler()
-            else:
-                try:
-                    self.importSets('ltsunc', select_col= select_col)
-                except:
-                    self.link_data_to_timeseries()
-
-        print(f"****Started converting period of timeset {utils.get_time()}****")
-        self.df_linked_ts_time_converted = self.df_linked_ts_unc.copy()
-        self.df_linked_ts_time_converted = pd.get_dummies(self.df_linked_ts_time_converted, columns=['activitystatus'], prefix="indicator")
-        time_convert_dict = utils.doDictIntersect(self.df_linked_ts_time_converted.columns, declarationsFile.getTimeConvertDict())
-
-        self.df_linked_ts_time_converted = utils.doConvertFromDict(self.df_linked_ts_time_converted, ignore_errors=True)
-        self.df_linked_ts_time_converted['converted_period'] = self.df_linked_ts_time_converted['dateeow'].dt.to_period(
-            period_to_convert_to)
-
-
-        self.df_linked_ts_time_converted = self.df_linked_ts_time_converted. \
-            groupby(['personid', 'portfolioid', 'converted_period'], observed=True, as_index = False).aggregate(time_convert_dict)
-        print(f"****Finished converting time period of time series at  {utils.get_time()}****")
-
-    def aggregate_over_personid_time_series(self):
-        if self.df_linked_ts_time_converted.empty:
-            self.convert_time_linked_time_series()
-
-        print(f"****Started aggregating data of timeseries at {utils.get_time()}****")
-
-        id_aggregate_dict = utils.doDictIntersect(self.df_linked_ts_time_converted.columns, declarationsFile.getPersonAggregateDict())
-
-        self.df_lts_agg = self.df_linked_ts_time_converted.groupby(['personid', 'converted_period'], observed=True,
-                                                                   as_index = False).aggregate(
-            id_aggregate_dict)
-
-        new_name_list = []
-        prev_name = ""
-        #Change several things in columns names
-        for value in self.df_lts_agg.columns:
-            new_name = value[0]
-            if prev_name == value[0]:
-                new_name += "_" + value[1]
-            prev_name = value[0]
-            new_name = new_name.replace('<lambda_0>', 'mode')
-            new_name = new_name.rstrip('_')
-            new_name_list.append(new_name)
-        self.df_lts_agg.columns = new_name_list
-
-
-        print(f"****Finished aggregating data of timeseries at {utils.get_time()}****")
-        pass
-
-    def importPortfolioActivity(self, convertData=False, selectColumns=False,
-                                discardPat=False, **readArgs):
-
-        mergeSet = ["dateeow", "yearweek", "portfolioid", "pakketcategorie"]
-
-        if selectColumns:
-            readArgsAct = {**readArgs,
-                           "usecols": declarationsFile.getPatColToParseTS("activity")}
-            readArgsTrans = {**readArgs,
-                             "usecols": declarationsFile.getPatColToParseTS("transaction")}
-            readArgs = {**readArgsTrans, **readArgsAct}
-            mergeSetNew = []
-            for item in mergeSet:
-                if item in readArgs["usecols"]:
-                    mergeSetNew.append(item)
-            mergeSet = mergeSetNew
+    ##SELECTED VARIABLES FOR IMPORT
+    def getPatColToParseCross(self, subset = "total" ):
+        """ Method to select which specific columns are imported from the Knab
+        transaction and activity datasets"""
+
+        columnsToParse1 = [
+            "dateeow",
+            # "yearweek",
+            "portfolioid",
+            "pakketcategorie"]
+
+        columnsToParse2 = [  # activity
+            'overstapserviceyn',
+            'betaalalertsyn',
+            # 'aantalbetaalalertsubscr',
+            # 'aantalbetaalalertsontv',
+            'roodstandyn',
+            'saldoregulatieyn',
+            'appyn',
+            'aantalloginsapp',
+            'aantalloginsweb',
+            'activitystatus'
+        ]
+
+        columnsToParse3 = [  # transactions
+            'betalenyn',
+            'saldobetalen',
+            'aantalbetaaltransacties',
+            'aantalatmtransacties',
+            'aantalpostransacties',
+            'aantalfueltransacties',
+            'depositoyn',
+            'saldodeposito',
+            'flexibelsparenyn',
+            'saldoflexibelsparen',
+            'kwartaalsparenyn',
+            'saldokwartaalsparen',
+            # De onderstaande variabelen zijn in sommige jaren altjd 0 dus
+            # deze gebruiken we niet!
+            # 'gemaksbeleggenyn',
+            # 'saldogemaksbeleggen',
+            # 'participatieyn',
+            # 'saldoparticipatie',
+            # 'vermogensbeheeryn',
+            # 'saldovermogensbeheer',
+            'saldototaal',
+            'saldolangetermijnsparen',
+            'aantaltegenrekeningenlaatsteq'
+        ]
+        if subset == "total":
+            return (columnsToParse1 + columnsToParse2 + columnsToParse3)
+        elif subset == "activity":
+            return (columnsToParse1 + columnsToParse2)
+        elif subset == "transactions":
+            return (columnsToParse1 + columnsToParse3)
+        elif subset == "all":
+            return (columnsToParse1 + columnsToParse2 + columnsToParse3), (columnsToParse1 + columnsToParse2), \
+                   (columnsToParse1 + columnsToParse3)
         else:
-            readArgsAct = {**readArgs}
-            readArgsTrans = {**readArgs}
-
-        tempList = [f"{self.indir}/portfolio_activity_business_2018.csv", f"{self.indir}/portfolio_activity_business_2019.csv",
-                    f"{self.indir}/portfolio_activity_business_2020.csv"]
-        pab1820 = utils.importAndConcat(tempList, **readArgsAct)
-
-        print(pab1820.shape, " are the dimensions of pab18-20")
-
-        tempList = [f"{self.indir}/portfolio_activity_retail_2018.csv", f"{self.indir}/portfolio_activity_retail_2019.csv",
-                    f"{self.indir}/portfolio_activity_retail_2020.csv"]
-        par1820 = utils.importAndConcat(tempList, **readArgsAct)
-        print(par1820.shape, " are the dimensions of par18-20")
-
-        pa1820 = pd.concat(
-            [pab1820, par1820], ignore_index=True)
-        del par1820, pab1820
-        gc.collect()
-        print(pa1820.shape, " are the dimensions of pa 18-20 before merge")
-        if convertData:
-            pa1820 = utils.doConvertFromDict(pa1820)
-
-        tempList = [f"{self.indir}/portfolio_activity_transactions_business_2018.csv",
-                    f"{self.indir}/portfolio_activity_transactions_business_2019.csv",
-                    f"{self.indir}/portfolio_activity_transactions_business_2020.csv"]
-        patb1820 = utils.importAndConcat(tempList, **readArgsTrans)
-        print(patb1820.shape, " are the dimensions of patb 18-20")
-
-        tempList = [f"{self.indir}/portfolio_activity_transactions_retail_2018.csv",
-                    f"{self.indir}/portfolio_activity_transactions_retail_2019.csv",
-                    f"{self.indir}/portfolio_activity_transactions_retail_2020.csv"]
-        patr1820 = utils.importAndConcat(tempList, **readArgsTrans)
-        print(patr1820.shape, " are the dimensions of patr 18-20")
-
-        pat1820 = pd.concat(
-            [patr1820, patb1820],
-            ignore_index=True)
-        print(pat1820.shape, " are the dimensions of pa before merge 18-20")
-        del patr1820, patb1820
-        gc.collect()
-        if convertData:
-            pat1820 = utils.doConvertFromDict(pat1820)
-
-        pat1820 = pd.merge(pa1820,
-                           pat1820, how="inner",
-                           on=mergeSet)
-        del pa1820
-        gc.collect()
-        print(pat1820.shape, " are the dimensions of pat 18-20")
-
-        if convertData:
-            pat1820 = utils.doConvertFromDict(pat1820)
-
-        # Todo verander of dee naam van deze bestanden of de naam van de andere bestanden
-        tempList = [f"{self.indir}/portfolio_activity_business.csv", f"{self.indir}/portfolio_activity_retail.csv", ]
-        pa1420 = utils.importAndConcat(tempList, chunkSize=250000, **readArgsAct)
-        print(pa1420.shape, " are the dimensions of pa before merge 14-20")
-
-        tempList = [f"{self.indir}/portfolio_activity_transaction_business.csv",
-                    f"{self.indir}/portfolio_activity_transaction_retail.csv"]
-        pat1420 = utils.importAndConcat(tempList, chunkSize=250000, **readArgsTrans)
-        print(pat1420.shape, " are the dimensions of pa before merge 14-20")
-        patotal1420 = pd.merge(pa1420,
-                               pat1420, how="inner",
-                               on=mergeSet)
-        del pa1420, pat1420
-        gc.collect()
-        print(patotal1420.shape, " are the dimensions of pat 14-20")
-
-        if convertData:
-            patotal1420 = utils.doConvertFromDict(patotal1420)
-
-        pat = pd.concat([patotal1420, pat1820])
-        print(pat.shape, " are the dimensions of pat 14-20")
-
-        self.df_pat = pat
-
-
-        ##IMPORT AND CONVERT METHODS--------------------------------------------------------##
-
-    def importSets(self, fileID, select_col = False, addition_to_name = "", **readArgs):
-        def remove_datetime_from_dict(data):
-            a_dict = utils.doDictIntersect(data.columns, declarationsFile.getConvertDict())
-            date_list = []
-            return_dict = {}
-            for value in a_dict:
-                if re.match(r"datetime.", a_dict[value]):
-                    date_list.append(value)
-                else:
-                    if re.match(r'.?int[8,16]', a_dict[value]):
-                        return_dict[value] = 'float16'
-                    elif re.match(r'.?int[32]', a_dict[value]):
-                        return_dict[value] = 'float32'
-                    else:
-                        return_dict[value] = a_dict[value]
-
-            return return_dict, date_list
-
-
-        if fileID == "lpp" or fileID == "linkpersonportfolio.csv":
-            return pd.read_csv(f"{self.indir}/linkpersonportfolio.csv", **readArgs)
-
-        elif fileID == "bhk" or fileID == "portfolio_boekhoudkoppeling.csv":
-            return pd.read_csv(f"{self.indir}/portfolio_boekhoudkoppeling.csv", **readArgs)
-
-        elif fileID == "pin" or fileID == "portfolio_info.csv":
-            return pd.read_csv(f"{self.indir}/portfolio_info.csv", **readArgs)
-
-        elif fileID == "pst" or fileID == "portfolio_status.csv":
-            return pd.read_csv(f"{self.indir}/portfolio_status.csv", **readArgs)
-
-        elif fileID == "exp" or fileID == "experian.csv":
-            return pd.read_csv(f"{self.indir}/experian.csv", **readArgs)
-
-        elif fileID == 'cor' or fileID == 'corporate_details.csv':
-            return pd.read_csv(f"{self.indir}/corporate_details.csv")
-
-        ##Import Intermediate Files
-        elif fileID == "ltsunc" or fileID == "linked_ts_unconverted.csv":
-
-            # readArgs = {**readArgs, 'low_memory': False}
-            self.df_linked_ts_unc = pd.read_csv(f"{self.interdir}/linked_ts_unconverted{addition_to_name}.csv", nrows=0, **readArgs)
-            convert_at_import_dict, time_parse_list = remove_datetime_from_dict(self.df_linked_ts_unc)
-            if select_col:
-                col_to_parse = declarationsFile.getPatColToParseTSunc()
-                readArgs = {**readArgs, 'usecols' : col_to_parse}
-                convert_at_import_dict= utils.doDictIntersect(col_to_parse,convert_at_import_dict)
-                time_parse_list = utils.doListIntersect(time_parse_list,col_to_parse)
-
-            readArgs = {**readArgs, 'dtype': convert_at_import_dict}
-            if len(time_parse_list) > 0:
-                readArgs = {**readArgs,'parse_dates':time_parse_list}
-            try:
-                self.df_linked_ts_unc = utils.importChunk(f"{self.interdir}/linked_ts_unconverted{addition_to_name}.csv", 250000, **readArgs)
-            except Exception as e:
-                print(type(e))
-
-        elif fileID == "ltsuncsmp" or fileID == "linked_ts_unconverted_sample.csv":
-            if select_col:
-                readArgs = {**readArgs, 'usecols' : declarationsFile.getColToParseLTSunc()}
-            readArgs = {**readArgs, 'low_memory': False}
-            self.df_linked_ts_unc = utils.importChunk(f"{self.interdir}/linked_ts_unconverted_sample{addition_to_name}.csv", 250000, **readArgs)
-
-        elif fileID == "cored" or fileID == "df_corporate_details":
-            self.df_corporate_details = pd.read_csv(f"{self.interdir}/corporate_details_processed.csv", **readArgs)
-
-        elif fileID == "patot" or fileID == "total_portfolio_activity.csv":
-            if select_col:
-                readArgs = {**readArgs, 'usecols' : declarationsFile.getPatColToParseTS()}
-            self.df_pat = utils.importChunk(f"{self.interdir}/total_portfolio_activity{addition_to_name}.csv", 250000, **readArgs)
-
-        elif fileID == "patsmp" or fileID == "total_portfolio_activity_sample.csv":
-            if select_col:
-                readArgs = {**readArgs, 'usecols' : declarationsFile.getPatColToParseTS()}
-            self.df_pat = pd.read_csv(f"{self.interdir}/total_portfolio_activity_sample{addition_to_name}.csv", **readArgs)
-
-        elif fileID == 'ltsagg' or fileID == 'linked_ts_aggregated.csv':
-            self.df_lts_agg = pd.read_csv(f"{self.interdir}/linked_ts_aggregated.csv", **readArgs)
-            self.df_lts_agg = utils.doConvertFromDict(self.df_lts_agg)
-
-        else:
-            print("error importing")
-
-    def exportEdited(self, fileID, addition_to_name = ""):
-        errorMessage = "No file to export"
-
-        if fileID == "patot" or fileID == "total_portfolio_activity.csv":
-            if self.df_pat.empty:
-                return print(errorMessage)
-            writeArgs = {"index": False}
-            utils.exportChunk(self.df_pat, 250000, f"{self.interdir}/total_portfolio_activity{addition_to_name}.csv", **writeArgs)
-
-        if fileID == "cored" or fileID == "df_corporate_details.csv":
-            if self.df_corporate_details.empty:
-                return print(errorMessage)
-            self.df_corporate_details.to_csv(f"{self.interdir}/corporate_details_processed{addition_to_name}.csv", index=False)
-
-        if fileID == "patsmp" or fileID == "total_portfolio_activity_sample{addition_to_name}.csv":
-            if self.df_pat_sample.empty:
-                return print(errorMessage)
-            return print(errorMessage)
-            self.df_pat_sample.to_csv(f"{self.interdir}/total_portfolio_activity_sample{addition_to_name}.csv", index=False)
-
-        if fileID == "ltsunc" or fileID == "linked_ts_unconverted.csv":
-            if self.df_linked_ts_unc.empty:
-                return print(errorMessage)
-            writeArgs = {"index": False}
-            utils.exportChunk(self.df_linked_ts_unc, 250000, f"{self.interdir}/linked_ts_unconverted{addition_to_name}.csv", **writeArgs)
-        else:
-            print("error exporting")
-
-        if fileID == "ltsuncsmp" or fileID == "linked_ts_unconverted_sample.csv":
-            if self.df_linked_ts_unc_sample.empty:
-                return print(errorMessage)
-            writeArgs = {"index": False}
-            utils.exportChunk(self.df_linked_ts_unc_sample, 250000, f"{self.interdir}/linked_ts_unconverted_sample{addition_to_name}.csv", **writeArgs)
-
-        elif fileID == 'ltsagg' or fileID == 'linked_ts_aggregated.csv':
-            writeArgs = {"index": False}
-            self.df_lts_agg = self.df_lts_agg(f"{self.interdir}/linked_ts_aggregated.csv", **writeArgs)
-        else:
-            print("error exporting")
-
-
-
-    def portfolioActivitySampler(self, n = 4000, export_after = False, replaceGlobal = False, addition_to_file_name = ""):
-        randomizer = np.random.RandomState(self.seed)
-        if self.df_pat.empty:
-            self.importPortfolioActivity()
-        uniqueList = self.df_pat['portfolioid'].unique()
-        chosenID = randomizer.choice(uniqueList, n)
-        indexID = self.df_pat['portfolioid'].isin(chosenID)
-        self.df_pat_sample = self.df_pat[indexID].copy()
-        if replaceGlobal:
-            self.df_pat = self.df_pat_sample.copy()
-        self.exportEdited("patsmp", addition_to_file_name)
-
-    def linked_ts_unconverted_sampler(self, n = 5000, replaceGlobal = False, addition_to_file_name = ""):
-        ''''
-        Samples observations from self.df_linked_ts. First make sure to import self.df_linked_ts or
-        create it with the linkTimeSets functions.
-        '''
-        randomizer = np.random.RandomState(self.seed)
-        if self.df_linked_ts_unc.empty:
-            print('No Linked Time file selected to sample')
-            return
-        unique_personids = self.df_linked_ts_unc['personid'].unique()
-        chosenID = randomizer.choice(unique_personids, n)
-        self.df_linked_ts_unc_sample  = self.df_linked_ts_unc.query("personid.isin(@chosenID)").copy()
-        self.exportEdited("ltsuncsmp", addition_to_file_name)
-
-    def general_sampler(self, data,n = 5000, column_to_sample_from = "personid"):
-        ''''
-        Samples observations from a dataset and return a dataset which is filtered on these values.
-        '''
-        randomizer = np.random.RandomState(self.seed)
-        unique_ids = data[column_to_sample_from].unique()
-        chosenID = randomizer.choice(unique_ids, n)
-        data_sample  = self.df_linked_ts_unc.query(f"{column_to_sample_from}.isin(@chosenID)").copy()
-        return data_sample
-
-    def doConvertPAT(self):
-        if self.df_pat.empty:
-            return print("No df_pat to convert")
-        self.df_pat = utils.doConvertFromDict(self.df_pat)
-
-    def doConvertLTS(self, do_ignore_errors = True):
-        if self.df_linked_ts_unc.empty:
-            return print("No df_pat to convert")
-        self.df_linked_ts_unc = utils.doConvertFromDict(self.df_linked_ts_unc, ignore_errors=do_ignore_errors)
-
-    def test_in_dataprocessor(self):
-        "Method to enable debugging with self. and test the data## "
-
-        test_pivot = pd.pivot_table(self.df_lts_agg, values='personid', index=
-        ['has_experian_data', 'has_business_id', 'has_account_overlay'], aggfunc='nunique')
-
-        pass
-
+            print("error getting list")
 

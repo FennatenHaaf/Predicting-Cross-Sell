@@ -304,7 +304,7 @@ def doConvertFromDict(data, ignore_errors = True, exclusion_list = []):
         error_handling = 'ignore'
     else:
         error_handling = 'raise'
-    fullDict = declarationsFile.getConvertDict()
+    fullDict = getConvertDict()
     endDict = doDictIntersect(small_set=data.columns, full_dict=fullDict, exclusion_list = exclusion_list)
     return data.astype(endDict, errors = error_handling)
 
@@ -339,3 +339,209 @@ def do_find_and_select_from_list(list_to_search,search_string_list, exclusion_st
                 if append_if_found:
                     variable_list.append(variable)
     return variable_list
+
+
+def getConvertDict():
+    """ Define datatypes to import variables as, in order to make it more
+    memory efficient"""
+
+    datatypeGeneralActivity = {
+        'dateeow'        : "datetime64",
+        'yearweek'       : "string",
+        'portfolioid'    : "category",
+        'pakketcategorie': "category"}
+
+    datatypeActivity = {
+        'overstapserviceyn'      : "uint8",
+        'betaalalertsyn'         : "uint8",
+        'aantalbetaalalertsubscr': "uint16",
+        'aantalbetaalalertsontv' : "uint16",
+        'roodstandyn'            : "uint8",
+        'saldoregulatieyn'       : "uint8",
+        'appyn'                  : "uint8",
+        'aantalloginsapp'        : "uint16",
+        'aantalloginsweb'        : "uint16",
+        'activitystatus'         : "category"}
+
+    datatypeTrans = {
+        'betalenyn'                    : "uint8",
+        'saldobetalen'                 : "int32",
+        'aantalbetaaltransacties'      : "uint16",
+        'aantalatmtransacties'         : "uint16",
+        'aantalpostransacties'         : "uint16",
+        'aantalfueltransacties'        : "uint16",
+        'depositoyn'                   : "uint8",
+        'saldodeposito'                : "uint32",
+        'flexibelsparenyn'             : "uint8",
+        'saldoflexibelsparen'          : "uint32",
+        'kwartaalsparenyn'             : "uint8",
+        'saldokwartaalsparen'          : "uint32",
+        'gemaksbeleggenyn'             : "uint8",
+        'saldogemaksbeleggen'          : "uint32",
+        'participatieyn'               : "uint8",
+        'saldoparticipatie'            : "uint32",
+        'vermogensbeheeryn'            : "uint8",
+        'saldovermogensbeheer'         : "uint32",
+        'saldototaal'                  : "int32",
+        'saldolangetermijnsparen'      : "uint32",
+        'aantaltegenrekeningenlaatsteq': "uint16"}
+
+    df_lpp_dict = {
+        "validfromdate"      : "datetime64",
+        "validfromyearweek"  : "int32",
+        "personid"           : "category",
+        "iscorporatepersonyn": "uint8"
+    }
+
+    df_exp_dict = {
+        'valid_from_dateeow'  : "datetime64",
+        'valid_to_dateeow'    : "datetime64",
+        'age_hh'              : "uint8",
+        'hh_child'            : "uint8",
+        'hh_size'             : "uint8",
+        'income'              : "uint8",
+        'educat4'             : "uint8",
+        'housetype'           : "uint8",
+        'finergy_tp'          : "category",
+        'lfase'               : "uint8",
+        'business'            : "uint8",
+        'huidigewaarde_klasse': "uint8"}
+
+    df_cor_dict = {
+        'personid'           : "category",
+        'businessid'         : 'category',
+        'businessType'       : "category",
+        'foundingDate'       : 'uint16',
+        'businessAgeInDays'  : 'uint16',
+        'businessAgeInMonths': 'uint16',
+        'businessAgeInYears' : 'float16',
+        'foundingYear'       : 'uint16',
+        'SBIcode'            : 'category',
+        'SBIname'            : 'category',
+        'SBIsector'          : 'category',
+        'SBIsectorName'      : 'category'
+    }
+
+    df_pin_dict = {
+        'dateinstroomweek': 'datetime64[ns]',
+        'instroomjaarweek': 'datetime64[ns]',
+        'instroompakket'  : 'category',
+        'birthyear'       : 'uint16',
+        'geslacht'        : 'category',
+        'type'            : 'category',
+        'enofyn'          : 'uint8'
+    }
+
+    df_bhk_dict = {
+        'boekhoudkoppeling': 'category'
+    }
+
+    time_sets_new = {
+        'has_experian_data'                 : 'uint8',
+        'has_business_id'                   : 'uint8',
+        'has_account_overlay'               : 'uint8',
+        'indicator_corp_and_retail'         : 'uint8',
+        'indicator_corp_and_retail_business': 'uint8',
+        'iscorporatepersonyn_business'      : 'uint8',
+        'business_id_with_corp_and_retail'  : 'uint8',
+        'retail_id_with_corp_and_retail'    : 'uint8'
+    }
+    time_set_new2 = {
+        'converted_period'         : 'datetime64',
+        'indicator_1_inactief'     : 'uint8',
+        'indicator_2_SparenOnlyYN' : 'uint8',
+        'indicator_3_actief'       : 'uint8',
+        'indicator_4_primaire bank': 'uint8'
+    }
+
+    final_df_dict = {
+        'aantal_SBI'                            : 'uint8',
+        'aantal_sector'                         : 'uint8',
+        'aantal_types'                          : 'uint8',
+        'aantalatmtransacties_business'         : 'uint8',
+        'aantalatmtransacties_joint'            : 'uint8',
+        'aantalatmtransacties_retail'           : 'uint16',
+        'aantalbetaaltransacties_business'      : 'uint16',
+        'aantalbetaaltransacties_joint'         : 'uint16',
+        'aantalbetaaltransacties_retail'        : 'uint8',
+        'aantalfueltransacties_business'        : 'uint8',
+        'aantalfueltransacties_joint'           : 'uint8',
+        'aantalfueltransacties_retail'          : 'uint8',
+        'aantalloginsapp_business'              : 'uint16',
+        'aantalloginsapp_joint'                 : 'uint16',
+        'aantalloginsapp_retail'                : 'uint16',
+        'aantalloginsweb_business'              : 'uint16',
+        'aantalloginsweb_joint'                 : 'uint16',
+        'aantalloginsweb_retail'                : 'uint16',
+        'aantalpostransacties_business'         : 'uint16',
+        'aantalpostransacties_joint'            : 'uint16',
+        'aantalpostransacties_retail'           : 'uint16',
+        'aantaltegenrekeningenlaatsteq_business': 'uint16',
+        'aantaltegenrekeningenlaatsteq_joint'   : 'uint16',
+        'aantaltegenrekeningenlaatsteq_retail'  : 'uint16',
+        'accountoverlay'                        : 'uint8',
+        'activitystatus_business'               : 'uint8',
+        'activitystatus_joint'                  : 'uint8',
+        'activitystatus_retail'                 : 'uint8',
+        'betalenyn_business'                    : 'uint8',
+        'betalenyn_joint'                       : 'uint8',
+        'betalenyn_retail'                      : 'uint8',
+        'depositoyn_business'                   : 'uint8',
+        'depositoyn_joint'                      : 'uint8',
+        'depositoyn_retail'                     : 'uint8',
+        'flexibelsparenyn_business'             : 'uint8',
+        'flexibelsparenyn_joint'                : 'uint8',
+        'flexibelsparenyn_retail'               : 'uint8',
+        'geslacht_joint'                        : 'category',
+        'joint'                                 : 'uint8',
+        'kwartaalsparenyn_business'             : "uint8",
+        'kwartaalsparenyn_joint'                : "uint8",
+        'kwartaalsparenyn_retail'               : "uint8",
+        'retail'                                : "uint8",
+        'saldototaal_business'                  : 'int32',
+        'saldototaal_joint'                     : 'int32',
+        'saldototaal_retail'                    : 'int32'
+    }
+
+    final_df_dict2 = {'SBIname_on_saldofraction'      : "category",
+                      'SBIsectorName_on_saldofraction': "category",
+                      'businessType_on_saldofraction' : "category",
+                      'saldototaal_agg'               : 'int32',
+                      'saldototaal_fraction'          : 'float8',
+                      'SBIcode_on_saldofraction'      : "uint8",
+                      'SBIsector_on_saldofraction'    : "category",
+                      'period_obs'                    : "datetime64"
+                      }
+
+    lowercase_input_df_dict = {
+        'aantal_sbi'                    : "uint8",
+        'businessageinyears'            : "float16",
+        'businesstype'                  : "category",
+        'businesstype_on_saldofraction' : "category",
+        'sbicode'                       : "uint8",
+        'sbicode_on_saldofraction'      : "uint8",
+        'sbiname'                       : "category",
+        'sbiname_on_saldofraction'      : "category",
+        'sbisector'                     : "category",
+        'sbisector_on_saldofraction'    : "category",
+        'sbisectorname'                 : "category",
+        'sbisectorname_on_saldofraction': "category"}
+
+    additional_dataprocess_dict = {
+        'aantalproducten_totaal'           : "uint8",
+        'aantalproducten_totaal_business'  : "uint8",
+        'aantalproducten_totaal_joint'     : "uint8",
+        'aantalproducten_totaal_retail'    : "uint8",
+        'aantaltransacties_totaal'         : "uint8",
+        'aantaltransacties_totaal_business': "uint16",
+        'aantaltransacties_totaal_joint'   : "uint16",
+        'aantaltransacties_totaal_retail'  : "uint16",
+        'logins_totaal'                    : "uint8",
+        'logins_totaal_business'           : "uint8",
+        'logins_totaal_joint'              : "uint8",
+        'logins_totaal_retail'             : "uint8"
+    }
+
+    return {**datatypeGeneralActivity, **datatypeActivity, **datatypeTrans, **df_lpp_dict, **df_exp_dict,
+            **df_cor_dict, **df_pin_dict, **time_sets_new, **time_set_new2, **final_df_dict, **final_df_dict2,
+            **lowercase_input_df_dict, **additional_dataprocess_dict}
