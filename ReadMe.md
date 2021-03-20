@@ -15,13 +15,11 @@ Everything can be run from `main.py`. In order to perform specific tasks, make s
 
 `dataInsight.py` contains methods to make plots and visualise datasets. 
 
-`declarationsFile.py`
-
 `extra_functions_HMM_eff.py` contains additional functions to calculate parameters for the Hidden markov Model.
 
 `knab_dataprocessor.py` contains methods to process various datasets containing customer and portfolio information provided by Dutch online bank Knab.
 
-`machine_learning_model.py`
+`machine_learning_model.py` Class to transform data and perform analysis on a cross-section of Knab Data. This code has not been used in the final analysis, but is a layout for possible further use of a machine learning model.
 
 `main.py` Main method for the Knab Predicting Cross Sell case
 
