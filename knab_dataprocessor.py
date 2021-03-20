@@ -844,9 +844,31 @@ class dataProcessor:
                                                       filter_threshold_high = 0.8,
                                                       filter_threshold_low = 0.15,
                                                       filter_string_list = [] ):
-        """An alternative to the method above, where only one category is taken
-        per person for the business type based on the value"""
-        
+        """
+        An alternative method to aggregate business types, where only one category is taken (instead of multiple)
+        per person for the business type based on the value. The absolute value of a numerical column will be taken to
+        benchmark the fraction that a categorical variable has for one personid. The largest part of someone's portfolio will
+        be taken as the aggregated value unless it's filtered.
+
+        The reason for the filter is demonstrated with the following example:
+        If you take business sector as categorical variable, it might be that the largest is a financial holding.
+        This financial holding might not be the actual industry but an overarching holding for activities in another industry.
+        Adding this value to a filter will ensure that if the fraction is below the higher threshold, it will not be
+        taken as primary industry.
+
+        :param data: full dataset to aggregate
+        :param column_to_agg_on: a numerical column which serves as benchmark to see how large
+        the fraction of total each businesstype for a person is.
+        :param columns_to_use: the business column to create aggregated values for per personid
+        :param filter_threshold_high: if fraction of sector is above this threshold, this will be the new value regardless
+        of sector
+        :param filter_threshold_low: after filtering for certain values , it could be that the remaining fraction of a value
+        is very small. Below this threshold, the largest sector will be taken regardless of filtering.
+        :param filter_string_list: A list which filters what values
+        :return:
+        """
+
+        #If a value is passed to filter, will activate the filtering parts of the method
         if len(filter_string_list) > 0:
             filter_active = True
         else:
@@ -899,11 +921,10 @@ class dataProcessor:
             x[f'{column_to_agg_on}_fraction'].idxmax(),:] )
         to_merge = pd.concat([to_merge, portfolio_sum_per_sector2], ignore_index =  True)
 
+        #Drop the column that was used to aggregate on before passing the value which can be used to merge to the old data
         to_merge.drop(f'{column_to_agg_on}_agg', axis = 1, inplace = True)
 
         return to_merge
-
-
 
 
 # =============================================================================
@@ -1072,8 +1093,19 @@ class dataProcessor:
 
         # -------------PROCESS SBI CODES------------
         """
-        Create overarching SBI codes for the more specific sBI codes within the data
+        Create overarching SBI codes for the specific SBI codes within the data.
+        This is done in the follwing way:
+        The new file with more SBI codes(SBI_2019DATA) will be loaded
+        This file contains one column with numbers and letters corresponding to a sector code 
+        and another column containing a description of this sector. This file is cleaned in a way
+        that we can map values from corporate details to to an overarching sector from the SBI_2019Data.
+        
+        This is done by cleaning the values in this new data in order to be able to merge them later and
+        by creating a list with upper and lower thresholds that a value from corporate details should fall into.
+        If a value falls within a threshold a first level sector code (denoted with a letter) and a second level sector code
+        (denoted with a number from 0-99) will be mapped to corporate details. 
         """
+        # ------------------------------------------
         #Read SBI codes from an external file (not from Knab)
         SBI_2019Data = pd.read_excel("SBI_2019.xlsx")
         #Create strings to use
