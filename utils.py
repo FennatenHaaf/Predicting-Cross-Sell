@@ -16,8 +16,6 @@ from csv import writer
 from tqdm import tqdm
 import re
 
-import declarationsFile
-
 """
 TIME
 """
@@ -49,6 +47,15 @@ def get_time_diff(start, end, time_format= '%H:%M:%S'):
         return end - start
 
 def select_time_in_data(data, date_column, period_to_use, start, end =""):
+    """
+    Selecting a slice of data for a certain time. Will check if the date is correct
+    :param data: data to slice
+    :param date_column: column containing the date
+    :param period_to_use: period to use
+    :param start: starting period
+    :param end: ending period
+    :return:
+    """
     allowed_period_set = {"Q":(r'20[1-2][0,3-9]-?Q[0-4]', '2019Q2'),
                           "M": (r'20[1-2][0,3-9]-?[0-1][0-9]', '201903 or 2019-03'),
                           "D": (r'20[1-2][0,3-9]-?[0-1][0-9]-?[0-3][0-9]', '20190331 or 2019-03-31'),
@@ -65,6 +72,11 @@ def select_time_in_data(data, date_column, period_to_use, start, end =""):
     return data
 
 def infer_date_frequency(date):
+    """
+    date frequency to return for conversion
+    :param date: date to put into
+    :return:
+    """
     allowed_period_set = {r'20[1-2][0,3-9]-?Q[0-4]':"Q",
                           r'20[1-2][0,3-9]-?[0-1][0-9]':"M",
                           r'20[1-2][0,3-9]-?[0-1][0-9]-?[0-3][0-9]': 'D',
@@ -82,7 +94,12 @@ PRINTING
 """   
 
 def printarray(array, removenewlines = False):
-    """Replaces all whitespaces with commas using regular expressions""" 
+    """
+    Replaces all whitespaces with commas using regular expressions
+    :param array:
+    :param removenewlines:
+    :return:
+    """
     
     if removenewlines:
         string = re.sub(r"\r\n", " ", str(array))
@@ -95,10 +112,13 @@ def printarray(array, removenewlines = False):
     return arraystring
    
 def print_seperated_list(a_list, seperator_char = "|"):
-    ''''
+    """
     Returns a string with all items in a list printed in one string
     and seperated by a seperator_char (default = '|').
-    '''
+    :param a_list:
+    :param seperator_char:
+    :return:
+    """
     return_string = f" {seperator_char} "
     for item in a_list:
         return_string = f"{return_string} {str(item)} |"
@@ -109,9 +129,16 @@ def print_seperated_list(a_list, seperator_char = "|"):
 EXPORTING FUNCTIONS
 """
 def save_df_to_csv(df, outdir, filename, add_time = True, add_index = False):
-    """Saves a dataframe to a csv file in a specified directory, with a
-    filename and attached to that the time at which the file is created"""
-    
+    """
+    Saves a dataframe to a csv file in a specified directory, with a
+    filename and attached to that the time at which the file is created
+    :param df:
+    :param outdir:
+    :param filename:
+    :param add_time:
+    :param add_index:
+    :return:
+    """
     if not os.path.exists(outdir):
             os.mkdir(outdir)
     
@@ -126,7 +153,13 @@ def save_df_to_csv(df, outdir, filename, add_time = True, add_index = False):
 
 #TODO: Fix this function!
 def write_to_csv(data, outdir, filename):
-    """Function to write data into an existing csv file"""
+    """
+    Function to write data into an existing csv file
+    :param data:
+    :param outdir:
+    :param filename:
+    :return:
+    """
     
     print("writing file to csv")
     #print(data)
@@ -146,12 +179,14 @@ def create_result_archive(subfolder = None, archive_name = "archive",subarchive_
                           files_string_to_archive_list = [], file_string_to_exclude_list = []):
     """
     Creates a folder to create an archive for different results.
-    |archive_name| = name of folder where archive will be created
-    |subarchive_addition| = addition to the subarchive name to distuinguish from other results for the same
-    analysis
-    |files_string_to_archive| = will look for the string in this list
-    |files_string_to_exclude| = will exclude items that contain these strings
+    :param subfolder:
+    :param archive_name:
+    :param subarchive_addition:
+    :param files_string_to_archive_list:
+    :param file_string_to_exclude_list:
+    :return:
     """
+
     if subfolder != None:
         subfolder = f"{subfolder}/"
 
@@ -190,6 +225,12 @@ def create_subfolder_and_import_files(first_date, last_date, subfolder = "", fol
     -Need to fill in a first_date, last_date.
     -Also possible to go to a subfolder or add an additional stirng to the folder name
     First checks if the folder exists to backup previously saved files.
+    :param first_date: first_date of the data or the date of the data
+    :param last_date: last_date to use
+    :param subfolder: Name of the subfolder within the larger folder where to create a new subfolder
+    :param folder_name_addition: addition to the subfolder name to archive
+    :param find_list: names of files that should be found to be copied to this archive
+    :return:
     """
     if not subfolder == "":
         subfolder_path = f"{subfolder}/"
@@ -221,7 +262,14 @@ def create_subfolder_and_import_files(first_date, last_date, subfolder = "", fol
 
 
 def replace_time_period_folder(first_date = "", last_date= "", subfolder = None, remove_list = [] ):
-    "Replaces all the files for the final_df with another time period"
+    """
+    Replaces all the files with a string that is contained in the remove list with another time period
+    :param first_date:
+    :param last_date:
+    :param subfolder:
+    :param remove_list:
+    :return:
+    """
     if subfolder != None:
         subfolder = f"{subfolder}/"
     os.listdir(subfolder)
@@ -237,12 +285,29 @@ def replace_time_period_folder(first_date = "", last_date= "", subfolder = None,
             shutil.copy2(f"{new_folder}/{item}", f"{subfolder}")
 
 def importChunk(importString, chunksize=500000, **readerArg):
+    """
+    Importing chunks of data when the data to  be imported is too large
+    to fit into the memory directly
+    :param importString: filename to import
+    :param chunksize: the size of the chunks used to import in number of rows
+    :param readerArg: arguments to be parsed in pd.read_csv
+    :return:
+    """
     dfList = []
     for chunk in pd.read_csv(importString, chunksize=chunksize, **readerArg):
         dfList.append(chunk)
     return pd.concat(dfList, ignore_index=True)
 
 def exportChunk(data, chunkSize, exportString, check_if_exists = True ,**writeArgs):
+    """
+    Exporting data dat is too large to fit into memory immediately
+    :param data:
+    :param chunkSize:
+    :param exportString:
+    :param check_if_exists:
+    :param writeArgs:
+    :return:
+    """
     if os.path.isfile(exportString) and check_if_exists:
         print("File already exists")
         return
@@ -262,6 +327,13 @@ def exportChunk(data, chunkSize, exportString, check_if_exists = True ,**writeAr
     print("Export of {} completed".format(exportString))
 
 def importAndConcat(listOfDataLocations, chunkSize=0, **readArgs):
+    """
+    Import files and concatenate immediately to a new file
+    :param listOfDataLocations:
+    :param chunkSize:
+    :param readArgs:
+    :return:
+    """
     importList = []
     for dataLocation in listOfDataLocations:
         print("Importing from " + dataLocation)
@@ -273,32 +345,9 @@ def importAndConcat(listOfDataLocations, chunkSize=0, **readArgs):
     return pd.concat(importList, ignore_index=True)
 
 
-
-
-
-
-
-
 """
 Large Data Methods
 """
-def selectChunk(data, numberOfChunks=4):
-    totalRows = data.shape[0]
-    chunkSize = totalRows // numberOfChunks
-    prevValue = 0
-    chunkList = []
-    for i in range(1, numberOfChunks):
-        currentValue = chunkSize * i
-        chunk = data.iloc[prevValue:currentValue, :]
-        chunkList.append(chunk)
-        prevValue += 11
-
-    if (totalRows - currentValue) > 0:
-        chunk = data.iloc[currentValue:totalRows, :]
-        chunkList.append(chunk)
-
-    return pd.concat(chunkList, ignore_index=True)
-
 def doConvertFromDict(data, ignore_errors = True, exclusion_list = []):
     if ignore_errors == True:
         error_handling = 'ignore'
@@ -316,6 +365,12 @@ def doConvertNumeric(self, data):
     return data
 
 def doDictIntersect(small_set, full_dict : dict, exclusion_list = []):
+    """
+    :param small_set: smaller dictionary or set
+    :param full_dict: larger list to search if the smaller set has been contained
+    :param exclusion_list: values not to include
+    :return:
+    """
     end_dict = {}
     resulting_set = (set(small_set) & set(full_dict)) - set(exclusion_list)
     for value in resulting_set:
@@ -323,10 +378,22 @@ def doDictIntersect(small_set, full_dict : dict, exclusion_list = []):
     return end_dict
 
 def doListIntersect(list_to_check, full_list : list, exclusion_list = []):
+    """
+    :param list_to_check: smaller list or list of strings that should be found in full list
+    :param full_list: larger list to check
+    :param exclusion_list: full names of strings that should be excluded from the intersection
+    """
     result = ( set(list_to_check) & set(full_list) ) - set(exclusion_list)
     return list(result)
 
-def do_find_and_select_from_list(list_to_search,search_string_list, exclusion_string_list = []):
+def do_find_and_select_from_list(list_to_search: list,search_string_list: list, exclusion_string_list = []):
+    """
+    :param list_to_search: input a list that has to be searched
+    :param search_string_list: if one string in the list contains a string from the search list, will return unless
+    this string is also in the exclusion list
+    :param exclusion_string_list: strings to be excluded when found in the list of string to search
+    :return:
+    """
     variable_list = []
     for variable in list_to_search:
         for search_string in search_string_list:
@@ -342,8 +409,10 @@ def do_find_and_select_from_list(list_to_search,search_string_list, exclusion_st
 
 
 def getConvertDict():
-    """ Define datatypes to import variables as, in order to make it more
-    memory efficient"""
+    """
+    Conversion of different variables used through the analysis in order to save memory
+    at different points. Outputs a large dictionary to use as input for the doConvertFromDict() function
+    """
 
     datatypeGeneralActivity = {
         'dateeow'        : "datetime64",

@@ -98,11 +98,9 @@ class dataProcessor:
             print(f"Finished and output saved, at {utils.get_time()}")
 
 
-
 # =============================================================================
 # Methods to select which IDs to use & make the base dataset
 # =============================================================================
-
 
     def select_ids(self, subsample = True, sample_size = 500, 
                    finergy_segment=None,
@@ -135,7 +133,7 @@ class dataProcessor:
         self.first_date = all_dates.min()
                 
         if self.print_info:
-            print(f"Most recent data in Experian is from "\
+            print(f"Most recent data in Experian is from "
                   f"{self.last_date.strftime(self.time_format)},")
             
             print(f"Oldest data in Experian is from "\
@@ -1001,8 +999,12 @@ class dataProcessor:
 # =============================================================================
 
     def processCorporateData(self):
-        """processes the corporate information data and creates some extra
-        variables"""
+        """
+        processes 'corporate_details.csv' and creates some extra
+        variables for age in years, overarching SBI sectors.
+        If "print_info" = True, several statistics are printed to
+        describe this data
+        """
 
         # -------------READ IN CORPORATE DETAILS AND PROCESS------------
         self.df_corporate_details = pd.read_csv(f"{self.indir}/corporate_details.csv")
@@ -1029,7 +1031,7 @@ class dataProcessor:
 
         # ---------- CREATE foundingDate, companyAgeInDays AND foundingYear--------
 
-        # use shorter var to refer to new columns
+        # use shorter var to refer to new columns relating to age
         aid = "businessAgeInDays"
         aim = "businessAgeInMonths"
         aiy = "businessAgeInYears"
@@ -1037,9 +1039,10 @@ class dataProcessor:
 
         # convert to datetime and to age in days of company
         self.df_corporate_details[foundingDateString] = pd.to_datetime(self.df_corporate_details["birthday"])
-        currentTime = datetime(2021, 1, 1)
+        currentTime = datetime(2021, 1, 1) #Set a date to be the benchmark date to compute age to
         self.df_corporate_details["timeDelta"] = (currentTime - self.df_corporate_details[foundingDateString])
-        self.df_corporate_details[aid] = self.df_corporate_details["timeDelta"].dt.days
+        self.df_corporate_details[aid] = self.df_corporate_details["timeDelta"].dt.days #Extract days
+        #Extract Month and year, should be divided by time delta of these periods to convert
         self.df_corporate_details[aim] = self.df_corporate_details["timeDelta"] / np.timedelta64(1, "M")
         self.df_corporate_details[aiy] = self.df_corporate_details["timeDelta"] / np.timedelta64(1, "Y")
         self.df_corporate_details.drop("timeDelta", inplace=True, axis=1)
@@ -1051,61 +1054,91 @@ class dataProcessor:
         self.df_corporate_details = self.df_corporate_details[self.df_corporate_details[aid] > 0].copy()
 
         if self.print_info:
+            ##Prints a description of different birthday values
             print(self.df_corporate_details["birthday"].describe())
 
+            #Print the top 10 ages in day that have been found
             dataInsight.mostCommon(self.df_corporate_details, aid, 10)
-            print(self.df_corporate_details[aid].describe())
+            print(self.df_corporate_details[aid].describe()) #print descriptive statistics for ageindays
             self.df_corporate_details.sample(5)
 
+            #Print the top 10 of foundingyear and types of business and
             dataInsight.mostCommonDict(self.df_corporate_details, ["businessType", "foundingYear"], 10)
-            self.df_corporate_details[aid].describe()
 
-        a = self.df_corporate_details.index[:10].to_list()
-        a.append(220682)
-        self.df_corporate_details[self.df_corporate_details.index.isin(a)]
+            #Print ten random rows from the data to see how these rows have been changed
+            a = self.df_corporate_details.index[:10].to_list()
+            a.append(220682)
+            print( self.df_corporate_details[self.df_corporate_details.index.isin(a)] )
 
         # -------------PROCESS SBI CODES------------
-        # TODO: add comments to describe what is happening here
-
+        """
+        Create overarching SBI codes for the more specific sBI codes within the data
+        """
+        #Read SBI codes from an external file (not from Knab)
         SBI_2019Data = pd.read_excel("SBI_2019.xlsx")
-
+        #Create strings to use
         tempString = "SBIcode"
-        tempString2 = "SBIname"
 
+        #Copy data to create new set to edit. Later the original set will be used again
         SBI_2019DataEdited = SBI_2019Data.copy()
+        #Rename columns to more descriptive names
         SBI_2019DataEdited.rename(columns={
-            "Unnamed: 0": tempString,
+            "Unnamed: 0": "SBIcode",
             "Standaard Bedrijfsindeling 2008 - update 2019 ":
-                tempString2}, inplace=True)
+                "SBIname"}, inplace=True)
 
-        SBI_2019DataEdited = SBI_2019DataEdited[[tempString, tempString2]]
-        ztestc21 = "SBI_2019New = SBI_2019DataEdited.copy()"
-        ztestc22 = "SBI_2019DataEdited = SBI_2019New.copy()"
-        ztestc23 = "examp2 = pd.DataFrame([SBI_2019DataEdited.loc[78,tempString]])"
+        #Select columns to remove columns which are not used or empty
+        SBI_2019DataEdited = SBI_2019DataEdited[["SBIcode", "SBIname"]]
 
-        SBI_2019DataEdited.dropna(subset=[tempString], inplace=True)
+        #Drop all empty rows and reset the index to ensure that later methods are going well
+        SBI_2019DataEdited.dropna(subset=["SBIcode"], inplace=True)
         SBI_2019DataEdited.reset_index(drop=True, inplace=True)
 
-        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].astype('string') + "a"
-        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace(u"\xa0", u".0", regex=True)
-        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace("a", "", regex=True)
-        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace("\.0", "", regex=True)
-        SBI_2019DataEdited.dropna(subset=[tempString], inplace=True)
-        SBI_2019DataEdited = SBI_2019DataEdited.loc[:, [tempString, tempString2]]
-        codesList = list(SBI_2019DataEdited[tempString].unique())
+        """
+        The data has some properties which make it hard to replace certain values which interfere with
+        proper mapping from more specific codes to more general sector codes.
+        A workaround is to create a slightly longer string with new characters and replace the parts of the string
+        interfering after. Then remove this increased part
+        """
+        SBI_2019DataEdited["SBIcode"] = SBI_2019DataEdited["SBIcode"].astype('string') + "a"
+        SBI_2019DataEdited["SBIcode"] = SBI_2019DataEdited["SBIcode"].str.replace(u"\xa0", u".0", regex=True)
+        SBI_2019DataEdited["SBIcode"] = SBI_2019DataEdited["SBIcode"].str.replace("a", "", regex=True)
+        SBI_2019DataEdited["SBIcode"] = SBI_2019DataEdited["SBIcode"].str.replace("\.0", "", regex=True)
+        #Drop all remaning NA values
+        SBI_2019DataEdited.dropna(subset=["SBIcode"], inplace=True)
+        #Select the correct columns
+        SBI_2019DataEdited = SBI_2019DataEdited.loc[:, ["SBIcode", "SBIname"]]
+        #Extract all unique codes in order to create a list of a higher and lower bound for codes
+        codesList = list(SBI_2019DataEdited["SBIcode"].unique())
 
+        #List of Upper Value of overarching sector, lower bound value, higher bound value for this sector
         sectorList = []
-        tempList = ["A", 0, 0]
-        tempList2 = ["A"]
+        tempList = ["A", 0, 0] #Creating starting values for the sectorlist loop
+        tempList2 = ["A"] #Create the first sector
+
+        #Get from dataset and automatically create bounds
         for value in codesList[1:]:
+            """
+            If value is unicode character, it will be converted to an integer 
+            value representing this character. If this value is form A to Z, 
+            which corresponds to a value between 64 and 123,
+            it will be added to the new first position as letter and the previous value will
+            be added as upper bound of the previous. tempList[1] is the lower bound and has been
+            set when the new sector was found.
+            """
             try:
+                #Replace the spaces and see if it can be converted to a string
                 text = str(value)
                 text = text.replace(" ", "")
                 val = ord(text)
+                #64 < val < 123 corresponds to A to Z
                 if 64 < val < 123:
+                    #Current values in templist are added to sector
                     sectorList.append(tempList.copy())
+                    #The new value is now in the temporary list
                     tempList2.append(text)
                     tempList[0] = text
+                    #Add the lower bound the new sector
                     tempList[1] = tempList[2]
                 else:
                     pass
@@ -1113,25 +1146,34 @@ class dataProcessor:
                 pass
 
             try:
+                #Value is curretnly a string. If starts with 0, replace with second character
                 if value[0] == '0':
                     edited_value = value[1]
-                else:
+                else: #Else edited_value is the whole value
                     edited_value = value
+                #Add the first two charcters to the templist as new upper bound for current sector
                 tempList[2] = int(edited_value[:2])
-            except:
+            except: #Else nothing
                 pass
 
-        sectorList.append(tempList.copy())
-        sectorData = pd.DataFrame(tempList2)
-        sectorData.rename({0: tempString}, axis=1, inplace=True)
-        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace(" ", "")
-        sectorData = pd.merge(sectorData, SBI_2019DataEdited[[tempString, tempString2]], how="inner", on=tempString)
-        sectorData.rename({tempString: "SBIsector", tempString2: "SBIsectorName"}, axis=1, inplace=True)
-        SBI_2019DataEdited.dropna(inplace=True)
-        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].str.replace(" ", "")
-        SBI_2019DataEdited.reset_index(drop=True, inplace=True)
+
+        sectorList.append(tempList.copy()) #Last value to be added to the sectorlist at end of loop
+        sectorData = pd.DataFrame(tempList2) #All data sectors that have been found in a new dataframe
+        sectorData.rename({0: "SBIcode"}, axis=1, inplace=True) #Rename the columns
+        SBI_2019DataEdited["SBIcode"] = SBI_2019DataEdited["SBIcode"].str.replace(" ", "") #Replace spaces
+        #Merge the larger data to the new sectordata on the SBIcode found. So now the sectorname will be
+        # Associated with different code values
+        sectorData = pd.merge(sectorData, SBI_2019DataEdited[["SBIcode", "SBIname"]], how="inner", on="SBIcode")
+        #Give new column names to these new overarching values
+        sectorData.rename({"SBIcode": "SBIsector", "SBIname": "SBIsectorName"}, axis=1, inplace=True)
+        SBI_2019DataEdited.dropna(inplace=True) #Drop all NA values
+        SBI_2019DataEdited["SBIcode"] = SBI_2019DataEdited["SBIcode"].str.replace(" ", "") #replace spaces
+        SBI_2019DataEdited.reset_index(drop=True, inplace=True) #reset the index in order to parse correctly
 
         def cleanSBI(x):
+            """
+            Remove 0's at the beginning of a string
+            """
             try:
                 if x[0] == '0':
                     x = x[1:]
@@ -1141,34 +1183,42 @@ class dataProcessor:
             except:
                 return np.nan
 
-        SBI_2019DataEdited[tempString] = SBI_2019DataEdited[tempString].apply(lambda x: cleanSBI(x))
-        SBI_2019DataEdited = SBI_2019DataEdited[SBI_2019DataEdited[tempString] <= 99]
-        SBI_2019DataEdited.drop_duplicates(inplace=True)
-        SBI_2019DataEdited[tempString2] = SBI_2019DataEdited[tempString2].astype("str")
+        #Remove all 0's in on the first position in SBIcode
+        SBI_2019DataEdited["SBIcode"] = SBI_2019DataEdited["SBIcode"].apply(lambda x: cleanSBI(x))
+        #Select values which are small enough to be a main code. Subnumbers will be higher than 99.
+        SBI_2019DataEdited = SBI_2019DataEdited[SBI_2019DataEdited["SBIcode"] <= 99]
+        SBI_2019DataEdited.drop_duplicates(inplace=True) # Drop duplicate values
+        SBI_2019DataEdited["SBIname"] = SBI_2019DataEdited["SBIname"].astype("str") #Convert to string
 
+        #Create new column with nan values
         SBI_2019DataEdited["SBIsector"] = np.nan
         # chr, ord, < <=
         for values in sectorList:
-            tempIndex = (values[1] < SBI_2019DataEdited[tempString]) & (SBI_2019DataEdited[tempString] <= values[2])
+            #If a SBIcode is within the bounds of a sector, that sector
+            # is assigned to the newly created column SBIsector.
+            tempIndex = (values[1] < SBI_2019DataEdited["SBIcode"]) & (SBI_2019DataEdited["SBIcode"] <= values[2])
             SBI_2019DataEdited.loc[tempIndex, "SBIsector"] = values[0]
 
+        #Merge these new sectorCodes to the larger dataset
         SBI_2019DataEdited = pd.merge(SBI_2019DataEdited, sectorData, how="left", on="SBIsector")
-        SBI_2019DataEdited.drop_duplicates(inplace=True)
-        SBI_2019DataEdited.reset_index(inplace=True, drop=True)
+        SBI_2019DataEdited.drop_duplicates(inplace=True) #Drop duplicate values if they still exists
+        SBI_2019DataEdited.reset_index(inplace=True, drop=True) #Reset the index
+        #For business without sector information, rename the values to something more informative
         SBI_2019DataEdited = SBI_2019DataEdited.append(
-            {tempString: 0, tempString2: 'Onbekend', 'SBIsector': 'Z', 'SBIsectorName': 'Onbekend'},
+            {tempString: 0, "SBIname": 'Onbekend', 'SBIsector': 'Z', 'SBIsectorName': 'Onbekend'},
             ignore_index=True)
 
-        tempString = "SBIcode"
-        self.df_corporate_details[tempString] = self.df_corporate_details["businessSector"].str[:2]
-        self.df_corporate_details[tempString] = pd.to_numeric(self.df_corporate_details[tempString],
+        #Select the first two numbers in the code in the original corporate data
+        self.df_corporate_details["SBIcode"] = self.df_corporate_details["businessSector"].str[:2]
+        # Convert to a numeric value instead of the string data type that it now has
+        self.df_corporate_details["SBIcode"] = pd.to_numeric(self.df_corporate_details["SBIcode"],
                                                               downcast="unsigned")
-
+        # Merge the newly edited data to the edited corporate details file on the first two digits of
+        # The code in the original. Several new columns for overarching values for the sector have been added
+        #Avalabile are full names of these sectors and the associated code.
         self.df_corporate_details = pd.merge(self.df_corporate_details, SBI_2019DataEdited, how="inner",
                                              on="SBIcode")
         self.df_corporate_details.drop(["code", "businessSector", "birthday"], axis=1, inplace=True)
-
-
 
 # =============================================================================
 # methods to create transaction & activity data ===============================
